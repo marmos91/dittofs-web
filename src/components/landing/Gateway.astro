@@ -13,8 +13,9 @@ const curve = (x1: number, y1: number, x2: number, y2: number) => {
 };
 
 const clients = [
-  { label: "NFS", sub: "v3 · v4 · v4.1", y: 150 },
-  { label: "SMB", sub: "2 · 3", y: 312 },
+  { label: "NFS", sub: "v3 · v4 · v4.1", y: 120 },
+  { label: "SMB", sub: "2 · 3", y: 230 },
+  { label: "Custom", sub: "write your own", y: 340, custom: true },
 ];
 
 const backends = [
@@ -27,10 +28,10 @@ const backends = [
 ];
 
 // Inbound: client right-edge (x=176) -> core left edge (x=320)
-const inbound = [
-  { id: "in-0", d: curve(176, 150, 320, 206) },
-  { id: "in-1", d: curve(176, 312, 320, 256) },
-];
+const inbound = clients.map((c, i) => ({
+  id: `in-${i}`,
+  d: curve(176, c.y, 320, 196 + i * 34),
+}));
 
 // Outbound: core right edge (x=480) -> backend left edge (x=624)
 const outbound = backends.map((b, i) => ({
@@ -103,7 +104,7 @@ const outbound = backends.map((b, i) => ({
 
     <!-- client nodes -->
     {clients.map((c) => (
-      <g class="node node-client">
+      <g class={`node node-client${c.custom ? " node-custom" : ""}`}>
         <rect x="56" y={c.y - 28} width="120" height="56" rx="10" />
         <text x="116" y={c.y - 4} text-anchor="middle" class="node-title">{c.label}</text>
         <text x="116" y={c.y + 13} text-anchor="middle" class="node-sub">{c.sub}</text>

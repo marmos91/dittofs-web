@@ -16,58 +16,69 @@ const heroStats = [
 
 const features = [
   {
+    tag: "runtime",
     title: "Runs in userspace",
-    body: "No FUSE, no kernel modules, no privileged host. DittoFS runs as an ordinary process you can start anywhere.",
+    body: "No FUSE, no kernel modules, no root. DittoFS runs as an ordinary process you can start anywhere.",
     icon: "shield",
   },
   {
+    tag: "deploy",
     title: "Easy to containerize",
-    body: "Because it lives in userspace, a single static Go binary drops into any container or orchestrator. No privileged containers, nothing to load in the kernel.",
+    body: "One static Go binary drops into any container or orchestrator. No privileged containers, nothing to load in the kernel.",
     icon: "container",
   },
   {
+    tag: "protocols",
     title: "Multi-protocol, one server",
     body: "NFS and SMB run at the same time on the same server, serving the same files to Linux, Windows, and macOS.",
     icon: "layers",
   },
   {
+    tag: "backends",
     title: "Pluggable storage",
     body: "Mix metadata stores (memory, BadgerDB, PostgreSQL) and block stores (filesystem, S3) per share.",
     icon: "plug",
   },
   {
+    tag: "efficiency",
     title: "Deduplication",
-    body: "Files are split into content-defined chunks and addressed by BLAKE3 hash. Identical chunks across files are stored once.",
+    body: "Files split into content-defined chunks, addressed by BLAKE3 hash. Identical chunks across files are stored once.",
     icon: "dedup",
   },
   {
+    tag: "efficiency",
     title: "Compression",
-    body: "Remote block stores compress payloads with zstd or lz4 before upload, then decompress transparently on read.",
+    body: "Remote block stores compress payloads with zstd or lz4 before upload, then decompress on read.",
     icon: "compress",
   },
   {
+    tag: "security",
     title: "Client-side encryption",
-    body: "Per-remote envelope encryption with AES-256-GCM or ChaCha20-Poly1305, keyed locally or via KMIP. Blocks are encrypted before they leave the server, so your S3 or cloud store only ever sees ciphertext.",
+    body: "Per-remote envelope encryption with AES-256-GCM or ChaCha20-Poly1305, keyed locally or via KMIP. Blocks are encrypted before they leave the server, so the object store only sees ciphertext.",
     icon: "lock",
   },
   {
+    tag: "recovery",
     title: "Share snapshots",
     body: "Point-in-time reference holds with no data copy. Restore from the CLI or REST API.",
     icon: "camera",
   },
   {
+    tag: "auth",
     title: "Kerberos and signing",
     body: "RPCSEC_GSS for NFS and SPNEGO Kerberos for SMB, with SMB3 message signing and AES-GCM transport encryption. Strong identity and integrity on the wire.",
     icon: "key",
   },
   {
+    tag: "permissions",
     title: "Cross-platform ACLs",
-    body: "NFSv4 and Windows/SMB access control lists are enforced consistently, so Linux and Windows clients see the same permissions on the same files.",
+    body: "NFSv4 and Windows/SMB access control lists, enforced consistently, so Linux and Windows clients see the same permissions on the same files.",
     icon: "shieldcheck",
   },
   {
+    tag: "control plane",
     title: "REST control plane",
-    body: "Manage users, groups, and shares through a JWT-authenticated REST API or the dfsctl command line. Automate provisioning instead of editing config files.",
+    body: "Manage users, groups, and shares through a JWT-authenticated REST API or the dfsctl command line. Provision by script, not by editing config files.",
     icon: "code",
   },
 ];
@@ -136,8 +147,8 @@ const pillars = [
     icon: "globe",
   },
   {
-    title: "No appliance tax",
-    body: "Compute and storage scale independently. No proprietary controllers, no per-shelf licensing, no forklift upgrades — just a predictable per-terabyte cost on storage you already run.",
+    title: "No appliance to buy",
+    body: "Open-source software that runs on hardware you already own. No proprietary NAS or SAN controllers, no per-shelf licensing, no forklift upgrades. Compute and storage scale on their own.",
     icon: "coins",
   },
   {
@@ -259,7 +270,7 @@ const statusMark = (s: string) =>
         {
           features.map((f, i) => (
             <div
-              class="group relative overflow-hidden rounded-xl border border-border bg-gradient-to-b from-ink-900/80 to-ink-950/40 p-7 transition-all duration-300 hover:-translate-y-1 hover:border-accent/50 hover:shadow-[0_24px_50px_-30px_rgba(0,101,255,0.5)]"
+              class="group relative overflow-hidden rounded-lg border border-border bg-ink-950/50 p-6 transition-all duration-300 hover:-translate-y-1 hover:border-accent/50 hover:bg-ink-900/60 hover:shadow-[0_24px_50px_-30px_rgba(0,101,255,0.5)]"
               data-reveal
               style={`transition-delay:${(i % 3) * 70}ms`}
             >
@@ -267,20 +278,28 @@ const statusMark = (s: string) =>
               <div
                 class="glow-accent pointer-events-none absolute -right-10 -top-10 h-32 w-32 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
               />
-              <div class="relative flex h-12 w-12 items-center justify-center rounded-xl border border-accent/30 bg-accent/10 text-accent-bright transition-all duration-300 group-hover:scale-110 group-hover:border-accent group-hover:bg-accent/20">
-                <svg
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.6"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  set:html={icons[f.icon]}
-                />
+              <div class="relative flex items-center justify-between">
+                <div class="flex h-10 w-10 items-center justify-center rounded-md border border-accent/30 bg-accent/10 text-accent-bright transition-all duration-300 group-hover:border-accent group-hover:bg-accent/20">
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    set:html={icons[f.icon]}
+                  />
+                </div>
+                <span class="font-mono text-xs text-fg-faint">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
               </div>
-              <h3 class="relative mt-5 text-lg font-bold">{f.title}</h3>
+              <p class="relative mt-5 font-mono text-[11px] uppercase tracking-[0.18em] text-accent-bright/80">
+                {f.tag}
+              </p>
+              <h3 class="relative mt-1.5 text-base font-bold">{f.title}</h3>
               <p class="relative mt-2 text-sm leading-relaxed text-fg-muted">{f.body}</p>
             </div>
           ))
@@ -448,8 +467,10 @@ const statusMark = (s: string) =>
         </p>
         <h2 class="mt-3 text-balance text-3xl font-bold sm:text-4xl">A share in five commands</h2>
         <p class="mt-4 mb-8 text-fg-muted">
-          Start the server, create a share, enable a protocol, mount it, write a
-          file. The write lands locally and syncs to the remote.
+          Start the server with <code class="font-mono text-fg">dfs</code>, then
+          drive it with <code class="font-mono text-fg">dfsctl</code>: create a
+          share, enable a protocol, mount it, write a file. The write lands
+          locally and syncs to the remote.
         </p>
         <Terminal />
       </div>
