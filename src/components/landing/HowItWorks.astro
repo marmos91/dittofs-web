@@ -23,8 +23,8 @@ const layers = [
     n: "03",
     io: "bytes out",
     title: "Pluggable stores",
-    body: "Each share picks a metadata store and a block store. A fast local cache fronts a durable remote, syncing in the background.",
-    chips: ["Memory", "BadgerDB", "PostgreSQL", "Filesystem", "S3"],
+    body: "Each share picks a metadata store and a block store. A fast local cache fronts a durable remote, syncing in the background. Bring your own by implementing the store interface.",
+    chips: ["Memory", "BadgerDB", "PostgreSQL", "Filesystem", "S3", "Custom"],
   },
 ];
 ---
