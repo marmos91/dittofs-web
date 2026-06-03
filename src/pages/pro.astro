@@ -1,9 +1,6 @@
 ---
 import Base from "../layouts/Base.astro";
-import ContactForm from "../components/ContactForm.astro";
 import BrowserFrame from "../components/BrowserFrame.astro";
-
-const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITEKEY ?? "";
 
 const community = [
   "All protocols: NFSv3, NFSv4, NFSv4.1, SMB2/3",
@@ -195,7 +192,9 @@ const pro = [
       </div>
 
       <div class="rounded-2xl border border-border bg-ink-900 p-8" data-reveal style="transition-delay:90ms">
-        <ContactForm turnstileSiteKey={turnstileSiteKey} />
+        {/* HubSpot form, tracked by the marketing team. Replaces the previous custom form. */}
+        <script src="https://js.hsforms.net/forms/embed/7784331.js" defer is:inline></script>
+        <div class="hs-form-frame" data-region="na1" data-form-id="9f568ad6-dc8b-4063-9c02-6fb5b56332e2" data-portal-id="7784331"></div>
       </div>
     </div>
   </section>

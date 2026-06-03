@@ -55,6 +55,21 @@ const features = [
     body: "Point-in-time reference holds with no data copy. Restore from the CLI or REST API.",
     icon: "camera",
   },
+  {
+    title: "Kerberos and signing",
+    body: "RPCSEC_GSS for NFS and SPNEGO Kerberos for SMB, with SMB3 message signing and AES-GCM transport encryption. Strong identity and integrity on the wire.",
+    icon: "key",
+  },
+  {
+    title: "Cross-platform ACLs",
+    body: "NFSv4 and Windows/SMB access control lists are enforced consistently, so Linux and Windows clients see the same permissions on the same files.",
+    icon: "shieldcheck",
+  },
+  {
+    title: "REST control plane",
+    body: "Manage users, groups, and shares through a JWT-authenticated REST API or the dfsctl command line. Automate provisioning instead of editing config files.",
+    icon: "code",
+  },
 ];
 
 // Honest protocol capability matrix. y = yes, p = partial, n = not applicable.
@@ -141,6 +156,9 @@ const icons: Record<string, string> = {
   container: `<path d="M12 2l8 4.5v9L12 20l-8-4.5v-9L12 2z"/><path d="M12 11l8-4.5M12 11v9M12 11L4 6.5"/>`,
   dedup: `<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/>`,
   compress: `<path d="M8 4v4H4M16 4v4h4M8 20v-4H4M16 20v-4h4"/>`,
+  key: `<circle cx="8" cy="8" r="4"/><path d="M11 11l9 9M17 17l2-2M14 14l2-2"/>`,
+  shieldcheck: `<path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/><path d="M9 11l2 2 4-4"/>`,
+  code: `<path d="M8 4l-4 8 4 8M16 4l4 8-4 8"/>`,
   globe: `<circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3c2.6 2.7 2.6 15.3 0 18M12 3c-2.6 2.7-2.6 15.3 0 18"/>`,
   swap: `<path d="M4 9h13l-4-4M20 15H7l4 4"/>`,
   beaker: `<path d="M9 3h6M10 3v6L5 19a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1l-5-10V3"/><path d="M7.5 14h9"/>`,
@@ -447,23 +465,30 @@ const statusMark = (s: string) =>
         </p>
         <h2 class="mt-3 text-balance text-3xl font-bold sm:text-4xl">Local first, durable second</h2>
         <p class="mt-4 text-fg-muted">
-          A write lands in the local block store and is acknowledged right away,
-          so clients never wait on the network. DittoFS syncs it to the durable
-          remote in the background.
+          Every write lands in a local block store and is acknowledged
+          immediately, so clients never block on the network. An append-only log
+          captures the change first; a background pass then chunks, deduplicates,
+          and pushes blocks to durable storage. The local tier stays the fast
+          path, the remote is the source of truth.
         </p>
         <ul class="mt-8 space-y-4 text-sm text-fg-muted">
           <li class="flex items-start gap-3">
             <span class="mt-0.5 font-mono text-accent-bright">01</span>
-            The client writes to a mounted share and gets an immediate ack from
-            the local cache.
+            The client writes to a mounted share. DittoFS appends to a per-file
+            log and acks from the local cache right away, with no network round
+            trip in the hot path.
           </li>
           <li class="flex items-start gap-3">
             <span class="mt-0.5 font-mono text-accent-bright">02</span>
-            Content-addressed blocks are deduplicated and queued for the remote.
+            A rollup splits the log into content-defined chunks (FastCDC),
+            addresses each by BLAKE3 hash, and deduplicates against blocks
+            already stored.
           </li>
           <li class="flex items-start gap-3">
             <span class="mt-0.5 font-mono text-accent-bright">03</span>
-            The syncer pushes blocks to durable storage, S3 or filesystem.
+            The syncer uploads new blocks to the durable remote, S3 or
+            filesystem, optionally compressed and encrypted. Reads verify each
+            block by hash.
           </li>
         </ul>
       </div>
