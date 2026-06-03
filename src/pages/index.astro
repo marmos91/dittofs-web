@@ -488,9 +488,13 @@ const statusMark = (s: string) =>
         <p class="mt-4 text-fg-muted">
           Every write lands in a local block store and is acknowledged
           immediately, so clients never block on the network. An append-only log
-          captures the change first; a background pass then chunks, deduplicates,
-          and pushes blocks to durable storage. The local tier stays the fast
-          path, the remote is the source of truth.
+          captures the change first. A background pass then splits it into
+          content-defined chunks and addresses each by its BLAKE3 hash, so a
+          chunk that already exists is stored once. Those chunks are compressed
+          with zstd or lz4, then encrypted under a per-block key before they
+          leave the server, so the object store only ever holds deduplicated,
+          compressed ciphertext. Only then do blocks sync to durable storage.
+          The local tier stays the fast path, the remote is the source of truth.
         </p>
         <ul class="mt-8 space-y-4 text-sm text-fg-muted">
           <li class="flex items-start gap-3">

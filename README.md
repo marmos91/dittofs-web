@@ -39,7 +39,6 @@ npm run og            # regenerate the social share image
 
 - Build command: `npm run build`
 - Output directory: `dist`
-- The `/functions` directory ships as Pages Functions (the contact form API).
 
 ### Environment variables
 
@@ -50,20 +49,18 @@ secrets for the contact form, set in the Cloudflare Pages dashboard.
 | --- | --- |
 | `PUBLIC_SITE_URL` | Canonical URL (SEO/OG). |
 | `PUBLIC_GTM_ID` / `PUBLIC_FB_PIXEL_ID` | Analytics. Empty = no cookie banner, no tags. |
-| `PUBLIC_TURNSTILE_SITEKEY` | Cloudflare Turnstile (spam protection on the form). |
-| `RESEND_API_KEY` | Resend key to deliver contact messages. |
-| `CONTACT_TO_EMAIL` / `CONTACT_FROM_EMAIL` | Contact form recipient / sender. |
-| `TURNSTILE_SECRET` | Turnstile server secret. |
+
+The PRO contact form is a HubSpot embed configured in `src/pages/pro.astro`, so
+it needs no environment variables.
 
 ## Structure
 
 ```
 src/
-  components/        Header, Footer, ContactForm, BrowserFrame, landing/*
+  components/        Header, Footer, BrowserFrame, landing/*
   layouts/Base.astro Marketing page shell (meta, analytics, header/footer)
   pages/             index, pro, privacy, cookie-policy, terms
   content/docs/      Starlight docs (docs/** vendored from dittofs)
   styles/            global.css (tokens), starlight.css
-functions/api/       Cloudflare Pages Function for the contact form
 scripts/             sync-docs.mjs, make-og.mjs
 ```
