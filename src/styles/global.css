@@ -165,6 +165,17 @@
   }
 }
 
+/* Full-viewport sections: each fills the screen and vertically centers its
+   content. Content taller than the viewport simply grows past it, with no
+   clipping (the section is at least 100svh, never less). 100svh avoids the
+   mobile browser-chrome jump that 100vh causes. */
+.section-screen {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
 /* Above-the-fold entrance animation (page load). */
 @keyframes rise {
   from {
