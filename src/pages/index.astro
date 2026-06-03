@@ -36,8 +36,18 @@ const features = [
     icon: "plug",
   },
   {
+    title: "Deduplication",
+    body: "Files are split into content-defined chunks and addressed by BLAKE3 hash. Identical chunks across files are stored once.",
+    icon: "dedup",
+  },
+  {
+    title: "Compression",
+    body: "Remote block stores compress payloads with zstd or lz4 before upload, then decompress transparently on read.",
+    icon: "compress",
+  },
+  {
     title: "Client-side encryption",
-    body: "Per-remote envelope encryption with AES-256-GCM or ChaCha20-Poly1305, keyed locally or via KMIP.",
+    body: "Per-remote envelope encryption with AES-256-GCM or ChaCha20-Poly1305, keyed locally or via KMIP. Blocks are encrypted before they leave the server, so your S3 or cloud store only ever sees ciphertext.",
     icon: "lock",
   },
   {
@@ -129,6 +139,8 @@ const icons: Record<string, string> = {
   lock: `<rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>`,
   camera: `<path d="M3 8h4l2-2h6l2 2h4v12H3V8z"/><circle cx="12" cy="13" r="3.5"/>`,
   container: `<path d="M12 2l8 4.5v9L12 20l-8-4.5v-9L12 2z"/><path d="M12 11l8-4.5M12 11v9M12 11L4 6.5"/>`,
+  dedup: `<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/>`,
+  compress: `<path d="M8 4v4H4M16 4v4h4M8 20v-4H4M16 20v-4h4"/>`,
   globe: `<circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3c2.6 2.7 2.6 15.3 0 18M12 3c-2.6 2.7-2.6 15.3 0 18"/>`,
   swap: `<path d="M4 9h13l-4-4M20 15H7l4 4"/>`,
   beaker: `<path d="M9 3h6M10 3v6L5 19a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1l-5-10V3"/><path d="M7.5 14h9"/>`,
@@ -260,7 +272,7 @@ const statusMark = (s: string) =>
   </section>
 
   <!-- ===================== NO LOCK-IN ===================== -->
-  <section class="relative overflow-hidden border-t border-border/60">
+  <section id="storage" class="relative overflow-hidden border-t border-border/60">
     <div class="bg-grid pointer-events-none absolute inset-0 opacity-[0.22]"></div>
     <div
       class="glow-accent pointer-events-none absolute left-1/2 top-10 h-[360px] w-[760px] -translate-x-1/2 opacity-30"
@@ -354,7 +366,7 @@ const statusMark = (s: string) =>
   </section>
 
   <!-- ===================== MATRIX + TERMINAL ===================== -->
-  <section class="border-t border-border/60">
+  <section id="protocols" class="border-t border-border/60">
     <div class="mx-auto grid max-w-7xl gap-14 px-6 py-24 lg:grid-cols-2 lg:items-start">
       <div data-reveal>
         <p class="font-mono text-xs uppercase tracking-[0.2em] text-accent-bright">
@@ -427,7 +439,7 @@ const statusMark = (s: string) =>
   </section>
 
   <!-- ===================== WRITE PATH ===================== -->
-  <section class="border-t border-border/60 bg-ink-900/40">
+  <section id="write-path" class="border-t border-border/60 bg-ink-900/40">
     <div class="mx-auto grid max-w-6xl gap-14 px-6 py-24 lg:grid-cols-2 lg:items-center">
       <div data-reveal>
         <p class="font-mono text-xs uppercase tracking-[0.2em] text-accent-bright">
@@ -462,7 +474,7 @@ const statusMark = (s: string) =>
   </section>
 
   <!-- ===================== USE CASES ===================== -->
-  <section class="border-t border-border/60">
+  <section id="use-cases" class="border-t border-border/60">
     <div class="mx-auto max-w-7xl px-6 py-24">
       <div class="max-w-2xl" data-reveal>
         <p class="font-mono text-xs uppercase tracking-[0.2em] text-accent-bright">
@@ -505,7 +517,7 @@ const statusMark = (s: string) =>
   </section>
 
   <!-- ===================== PRO TEASER ===================== -->
-  <section class="border-t border-border/60">
+  <section id="pro" class="border-t border-border/60">
     <div class="mx-auto max-w-7xl px-6 py-24">
       <div
         class="relative overflow-hidden rounded-2xl border border-border-bright bg-gradient-to-br from-ink-800 to-ink-950 px-8 py-14 sm:px-14"
