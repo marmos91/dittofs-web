@@ -1,0 +1,257 @@
+@import "tailwindcss";
+
+/*
+  DittoFS brand tokens. Palette derived from the Cubbit identity kit:
+  Cubbit Blue #0065FF, Deep Navy #132441, Mid Blue #143B7A,
+  Off-White #F7F8FA, Near-Black #040404.
+*/
+@theme {
+  /* Dark ink scale (page -> elevated surfaces) */
+  --color-ink-950: #050a14;
+  --color-ink-900: #081020;
+  --color-ink-800: #0d1a30;
+  --color-ink-700: #132441; /* Cubbit deep navy */
+  --color-ink-600: #143b7a; /* Cubbit mid blue */
+
+  /* Accent */
+  --color-accent: #0065ff; /* Cubbit blue */
+  --color-accent-bright: #3d8bff;
+  --color-accent-dim: #0a4bb8;
+
+  /* Foreground + neutrals */
+  --color-paper: #f7f8fa; /* Cubbit off-white */
+  --color-fg: #e8eefb;
+  --color-fg-muted: #97a6c7;
+  --color-fg-faint: #5d6b8a;
+  --color-border: #1b2942;
+  --color-border-bright: #28406b;
+
+  /* Type */
+  --font-sans: "Source Sans 3 Variable", system-ui, sans-serif;
+  --font-display: "Titillium Web", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, "SFMono-Regular", monospace;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--color-ink-950);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  ::selection {
+    background-color: color-mix(in oklab, var(--color-accent) 35%, transparent);
+  }
+}
+
+/* Honor reduced-motion for every animated surface. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Faint technical grid backdrop, used behind hero / section bands. */
+.bg-grid {
+  background-image:
+    linear-gradient(to right, var(--color-border) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--color-border) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse at center, black 40%, transparent 78%);
+}
+
+/* Scroll-reveal. Elements lift into place when they enter the viewport. */
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform;
+}
+[data-reveal].is-visible {
+  opacity: 1;
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal] {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Legal / prose pages. */
+.legal {
+  color: var(--color-fg-muted);
+  line-height: 1.7;
+}
+.legal h1 {
+  font-size: 2.25rem;
+  color: var(--color-fg);
+  margin-bottom: 0.5rem;
+}
+.legal h2 {
+  font-size: 1.4rem;
+  color: var(--color-fg);
+  margin-top: 2.5rem;
+  margin-bottom: 0.75rem;
+}
+.legal p,
+.legal li {
+  margin-bottom: 0.85rem;
+}
+.legal ul {
+  list-style: disc;
+  padding-left: 1.25rem;
+  margin-bottom: 1rem;
+}
+.legal a {
+  color: var(--color-accent-bright);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.legal strong {
+  color: var(--color-fg);
+}
+.legal .lead {
+  font-size: 1.05rem;
+}
+.legal .updated {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--color-fg-faint);
+}
+
+/* Soft accent glow. */
+.glow-accent {
+  background: radial-gradient(
+    circle at center,
+    color-mix(in oklab, var(--color-accent) 30%, transparent),
+    transparent 70%
+  );
+}
+
+@layer base {
+  /* Keyboard focus visibility (a11y). */
+  :where(a, button, input, textarea, [tabindex]):focus-visible {
+    outline: 2px solid var(--color-accent-bright);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  /* Offset anchor targets so the sticky header never covers them. */
+  :where([id]) {
+    scroll-margin-top: 5.5rem;
+  }
+}
+
+/* Above-the-fold entrance animation (page load). */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.rise {
+  animation: rise 0.75s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Animated underline for navigation links. */
+.navlink {
+  position: relative;
+}
+.navlink::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -4px;
+  height: 1.5px;
+  width: 100%;
+  background: var(--color-accent-bright);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.navlink:hover::after,
+.navlink[aria-current="page"]::after {
+  transform: scaleX(1);
+}
+
+/* Arrow that nudges forward on hover. */
+.arrow {
+  transition: transform 0.2s ease;
+}
+.btn:hover .arrow,
+.group:hover .arrow,
+a:hover .arrow {
+  transform: translateX(4px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise {
+    animation: none;
+  }
+  .arrow {
+    transition: none;
+  }
+}
+
+/* Shared button system for consistent CTAs across the site. */
+@layer components {
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    border-radius: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+    transition:
+      background-color 0.2s ease,
+      border-color 0.2s ease,
+      transform 0.2s ease;
+  }
+  .btn:active {
+    transform: translateY(1px);
+  }
+  .btn-primary {
+    background-color: var(--color-accent);
+    color: #fff;
+    box-shadow: 0 12px 30px -14px rgba(0, 101, 255, 0.7);
+  }
+  .btn-primary:hover {
+    background-color: var(--color-accent-bright);
+  }
+  .btn-secondary {
+    border: 1px solid var(--color-border-bright);
+    color: var(--color-fg);
+  }
+  .btn-secondary:hover {
+    background-color: var(--color-ink-800);
+    border-color: var(--color-accent);
+  }
+}

@@ -1,0 +1,60 @@
+---
+import Base from "../layouts/Base.astro";
+
+const CONTACT_EMAIL = "hello@dittofs.io";
+const GITHUB = "https://github.com/marmos91/dittofs";
+---
+
+<Base
+  title="Terms — DittoFS"
+  description="Terms of use for the DittoFS website."
+>
+  <article class="legal mx-auto max-w-3xl px-6 py-20">
+    <p class="updated">Last updated: June 2026</p>
+    <h1>Terms of Use</h1>
+    <p class="lead">
+      These terms cover your use of the DittoFS website at dittofs.io. The
+      DittoFS software has its own license, see below.
+    </p>
+
+    <h2>The software</h2>
+    <p>
+      DittoFS is open source and distributed under the MIT license. Your use of
+      the software is governed by that license, available in the
+      <a href={GITHUB} target="_blank" rel="noopener">source repository</a>, not
+      by these website terms. DittoFS is experimental and provided without
+      warranty.
+    </p>
+
+    <h2>Using this website</h2>
+    <p>
+      The content here is provided for information. We work to keep it accurate
+      but make no guarantee that it is complete or up to date. Do not use the
+      site in any way that is unlawful or that could disrupt it for others.
+    </p>
+
+    <h2>Intellectual property</h2>
+    <p>
+      The DittoFS name and logo, and the text and design of this site, belong to
+      their respective owners. Code samples shown here may be used under the
+      software's license.
+    </p>
+
+    <h2>Links</h2>
+    <p>
+      The site links to third-party resources we do not control and are not
+      responsible for.
+    </p>
+
+    <h2>Liability</h2>
+    <p>
+      To the extent permitted by law, we are not liable for any loss arising
+      from your use of this website or the software.
+    </p>
+
+    <h2>Contact</h2>
+    <p>
+      Questions? Email <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
+    </p>
+  </article>
+</Base>

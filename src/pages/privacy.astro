@@ -1,0 +1,86 @@
+---
+import Base from "../layouts/Base.astro";
+
+const CONTACT_EMAIL = "hello@dittofs.io";
+---
+
+<Base
+  title="Privacy Policy — DittoFS"
+  description="How the DittoFS website handles your data."
+>
+  <article class="legal mx-auto max-w-3xl px-6 py-20">
+    <p class="updated">Last updated: June 2026</p>
+    <h1>Privacy Policy</h1>
+    <p class="lead">
+      This policy explains what data the DittoFS website (dittofs.io) collects,
+      why, and the choices you have. It covers this website only. DittoFS, the
+      software, is open source under the MIT license and does not phone home.
+    </p>
+
+    <h2>What we collect</h2>
+    <ul>
+      <li>
+        <strong>Contact form.</strong> When you message us through the PRO
+        contact form, we receive the name, email, optional company, and message
+        you submit. We use these only to reply to your enquiry.
+      </li>
+      <li>
+        <strong>Analytics.</strong> With your consent, we use Google Tag Manager
+        and the Meta pixel to understand how the site is used and to measure our
+        marketing. These set cookies and collect usage data such as pages
+        viewed and approximate location. No analytics load until you opt in.
+      </li>
+      <li>
+        <strong>Server logs.</strong> Our hosting provider may process standard
+        request metadata (IP address, user agent) to serve and protect the site.
+      </li>
+    </ul>
+
+    <h2>Legal basis</h2>
+    <p>
+      We rely on your <strong>consent</strong> for analytics and marketing
+      cookies, on our <strong>legitimate interest</strong> in responding to you
+      for contact messages, and on legitimate interest for basic security logs.
+    </p>
+
+    <h2>Who we share it with</h2>
+    <p>
+      We use a small number of processors to run the site: an email provider to
+      deliver contact messages, and, where you have consented, Google and Meta
+      for analytics. We do not sell your data.
+    </p>
+
+    <h2>Retention</h2>
+    <p>
+      We keep contact messages for as long as needed to handle your enquiry and
+      our records of it. Analytics data follows the providers' retention
+      settings.
+    </p>
+
+    <h2>Your rights</h2>
+    <p>
+      Subject to applicable law, you can ask us to access, correct, or delete
+      your data, or object to processing. You can withdraw cookie consent at any
+      time from the <a href="/cookie-policy/">cookie policy</a> page. To make a
+      request, email <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
+    </p>
+
+    <h2>International transfers</h2>
+    <p>
+      Some providers process data outside your country. Where that happens, we
+      rely on the providers' safeguards for international transfers.
+    </p>
+
+    <h2>Changes</h2>
+    <p>
+      We may update this policy. Material changes will be reflected by the date
+      above.
+    </p>
+
+    <h2>Contact</h2>
+    <p>
+      Questions about privacy? Email
+      <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
+    </p>
+  </article>
+</Base>

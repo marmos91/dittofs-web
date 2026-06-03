@@ -1,0 +1,142 @@
+---
+/*
+  PRO contact form. Plain HTML + a small vanilla script (no framework island).
+  Posts JSON to the /api/contact Cloudflare Pages Function, which verifies
+  Turnstile (when configured) and emails the message.
+*/
+interface Props {
+  /** Cloudflare Turnstile site key. Empty disables the widget (local dev). */
+  turnstileSiteKey?: string;
+}
+const { turnstileSiteKey = "" } = Astro.props;
+
+const inputClass =
+  "w-full rounded-md border border-border bg-ink-950 px-4 py-3 text-fg outline-none transition-colors placeholder:text-fg-faint focus:border-accent";
+---
+
+<form id="contact-form" novalidate class="space-y-4" data-sitekey={turnstileSiteKey}>
+  <div class="grid gap-4 sm:grid-cols-2">
+    <div>
+      <label for="cf-name" class="mb-1.5 block text-sm font-medium text-fg-muted">Name</label>
+      <input id="cf-name" name="name" type="text" autocomplete="name" required class={inputClass} placeholder="Jane Doe" />
+    </div>
+    <div>
+      <label for="cf-email" class="mb-1.5 block text-sm font-medium text-fg-muted">Work email</label>
+      <input id="cf-email" name="email" type="email" autocomplete="email" required class={inputClass} placeholder="jane@company.com" />
+    </div>
+  </div>
+
+  <div>
+    <label for="cf-company" class="mb-1.5 block text-sm font-medium text-fg-muted">
+      Company <span class="text-fg-faint">(optional)</span>
+    </label>
+    <input id="cf-company" name="company" type="text" autocomplete="organization" class={inputClass} placeholder="Company, Inc." />
+  </div>
+
+  <div>
+    <label for="cf-message" class="mb-1.5 block text-sm font-medium text-fg-muted">How can we help?</label>
+    <textarea id="cf-message" name="message" rows="5" required class={inputClass} placeholder="Tell us about your deployment and what you need from PRO."></textarea>
+  </div>
+
+  {/* Honeypot: hidden from real users. */}
+  <div class="absolute -left-[9999px]" aria-hidden="true">
+    <label for="cf-website">Leave this field empty</label>
+    <input id="cf-website" name="company_website" type="text" tabindex="-1" autocomplete="off" />
+  </div>
+
+  {turnstileSiteKey ? (
+    <div class="cf-turnstile" data-sitekey={turnstileSiteKey} data-theme="dark"></div>
+  ) : null}
+
+  <p id="cf-error" hidden class="rounded-md border border-red-500/40 bg-red-500/10 px-4 py-2 text-sm text-red-300"></p>
+
+  <button type="submit" id="cf-submit" class="btn btn-primary w-full">Send message</button>
+  <p class="text-center text-xs text-fg-faint">We use your details only to respond to your enquiry.</p>
+</form>
+
+<div id="cf-success" hidden class="rounded-xl border border-border-bright bg-ink-800 p-8 text-center">
+  <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-accent/15 text-accent-bright">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+  </div>
+  <h3 class="mt-4 text-xl font-bold text-fg">Thanks, we will be in touch</h3>
+  <p class="mt-2 text-sm text-fg-muted">We received your message and will reply to your email soon.</p>
+</div>
+
+{
+  turnstileSiteKey ? (
+    <script is:inline src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer />
+  ) : null
+}
+
+<script>
+  const form = document.getElementById("contact-form") as HTMLFormElement | null;
+  const errEl = document.getElementById("cf-error") as HTMLElement | null;
+  const okEl = document.getElementById("cf-success") as HTMLElement | null;
+  const submitBtn = document.getElementById("cf-submit") as HTMLButtonElement | null;
+
+  function showError(msg: string) {
+    if (!errEl) return;
+    errEl.textContent = msg;
+    errEl.hidden = false;
+  }
+
+  function succeed() {
+    if (form) form.hidden = true;
+    if (okEl) okEl.hidden = false;
+  }
+
+  form?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (errEl) errEl.hidden = true;
+
+    const data = new FormData(form);
+
+    // Honeypot: real users never fill this.
+    if (data.get("company_website")) {
+      succeed();
+      return;
+    }
+
+    const payload = {
+      name: String(data.get("name") || "").trim(),
+      email: String(data.get("email") || "").trim(),
+      company: String(data.get("company") || "").trim(),
+      message: String(data.get("message") || "").trim(),
+      turnstileToken: String(data.get("cf-turnstile-response") || ""),
+    };
+
+    if (!payload.name || !payload.email || !payload.message) {
+      showError("Please fill in your name, email, and a short message.");
+      return;
+    }
+    const sitekey = form.dataset.sitekey || "";
+    if (sitekey && !payload.turnstileToken) {
+      showError("Please complete the verification challenge.");
+      return;
+    }
+
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Sending…";
+    }
+
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(body.error || `Request failed (${res.status})`);
+      }
+      succeed();
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Something went wrong.");
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Send message";
+      }
+    }
+  });
+</script>

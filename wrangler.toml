@@ -1,0 +1,5 @@
+# Cloudflare Pages configuration. The static site builds to dist/; the
+# /functions directory is deployed as Pages Functions automatically.
+name = "dittofs-web"
+compatibility_date = "2026-06-01"
+pages_build_output_dir = "dist"

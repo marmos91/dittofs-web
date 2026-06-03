@@ -1,0 +1,251 @@
+---
+/*
+  The DittoFS gateway. Clients (NFS, SMB) stream through the DittoFS runtime
+  out to pluggable backends. Pure SVG + CSS: animated dashed "flow" lines plus
+  traveling packets (SMIL animateMotion). Reduced motion is honored by the
+  global stylesheet and by pausing SMIL on load.
+*/
+
+// Smooth horizontal S-curve between two points.
+const curve = (x1: number, y1: number, x2: number, y2: number) => {
+  const dx = (x2 - x1) * 0.5;
+  return `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
+};
+
+const clients = [
+  { label: "NFS", sub: "v3 · v4 · v4.1", y: 150 },
+  { label: "SMB", sub: "2 · 3", y: 312 },
+];
+
+const backends = [
+  { label: "Memory", cy: 76 },
+  { label: "BadgerDB", cy: 140 },
+  { label: "PostgreSQL", cy: 204 },
+  { label: "Filesystem", cy: 268 },
+  { label: "S3", cy: 332 },
+  { label: "Custom", cy: 396, custom: true, sub: "write your own" },
+];
+
+// Inbound: client right-edge (x=176) -> core left edge (x=320)
+const inbound = [
+  { id: "in-0", d: curve(176, 150, 320, 206) },
+  { id: "in-1", d: curve(176, 312, 320, 256) },
+];
+
+// Outbound: core right edge (x=480) -> backend left edge (x=624)
+const outbound = backends.map((b, i) => ({
+  id: `out-${i}`,
+  d: curve(480, 198 + i * 16, 624, b.cy),
+}));
+---
+
+<figure class="gateway" aria-label="DittoFS routes NFS and SMB clients to pluggable storage backends">
+  <svg
+    id="gw"
+    viewBox="0 0 800 460"
+    role="img"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <defs>
+      <radialGradient id="coreGlow" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#0065ff" stop-opacity="0.45"></stop>
+        <stop offset="100%" stop-color="#0065ff" stop-opacity="0"></stop>
+      </radialGradient>
+      <linearGradient id="coreFill" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#11244a"></stop>
+        <stop offset="100%" stop-color="#0a1730"></stop>
+      </linearGradient>
+    </defs>
+
+    <!-- core glow -->
+    <ellipse cx="400" cy="230" rx="190" ry="150" fill="url(#coreGlow)"></ellipse>
+
+    <!-- connector wires -->
+    <g class="wires">
+      {inbound.map((l) => (
+        <>
+          <path d={l.d} class="wire-base" />
+          <path d={l.d} class="wire-flow" />
+        </>
+      ))}
+      {outbound.map((l) => (
+        <>
+          <path d={l.d} class="wire-base" />
+          <path d={l.d} class="wire-flow" />
+        </>
+      ))}
+    </g>
+
+    <!-- traveling packets -->
+    <g class="packets">
+      {inbound.map((l, i) => (
+        <circle r="3.2" class="packet">
+          <animateMotion dur="2.6s" begin={`${i * 0.7}s`} repeatCount="indefinite">
+            <mpath href={`#${l.id}`} />
+          </animateMotion>
+        </circle>
+      ))}
+      {outbound.map((l, i) => (
+        <circle r="3.2" class="packet packet-out">
+          <animateMotion dur="2.8s" begin={`${0.3 + i * 0.45}s`} repeatCount="indefinite">
+            <mpath href={`#${l.id}`} />
+          </animateMotion>
+        </circle>
+      ))}
+    </g>
+
+    <!-- hidden path geometry referenced by mpath -->
+    <g style="visibility:hidden">
+      {inbound.map((l) => <path id={l.id} d={l.d} />)}
+      {outbound.map((l) => <path id={l.id} d={l.d} />)}
+    </g>
+
+    <!-- client nodes -->
+    {clients.map((c) => (
+      <g class="node node-client">
+        <rect x="56" y={c.y - 28} width="120" height="56" rx="10" />
+        <text x="116" y={c.y - 4} text-anchor="middle" class="node-title">{c.label}</text>
+        <text x="116" y={c.y + 13} text-anchor="middle" class="node-sub">{c.sub}</text>
+      </g>
+    ))}
+
+    <!-- core -->
+    <g class="core">
+      <rect x="320" y="160" width="160" height="140" rx="16" fill="url(#coreFill)" />
+      <!-- the DittoFS wordmark -->
+      <image
+        href="/dittofs-mark.svg"
+        x="338"
+        y="214"
+        width="124"
+        height="32"
+        class="core-mark"
+      />
+    </g>
+
+    <!-- backend nodes -->
+    {backends.map((b) => (
+      <g class={`node node-backend${b.custom ? " node-custom" : ""}`}>
+        <rect x="624" y={b.cy - 24} width="128" height="48" rx="10" />
+        {b.custom ? (
+          <>
+            <text x="688" y={b.cy - 2} text-anchor="middle" class="node-title">{b.label}</text>
+            <text x="688" y={b.cy + 13} text-anchor="middle" class="node-sub">{b.sub}</text>
+          </>
+        ) : (
+          <text x="688" y={b.cy + 5} text-anchor="middle" class="node-title">{b.label}</text>
+        )}
+      </g>
+    ))}
+
+    <!-- column captions -->
+    <text x="116" y="52" text-anchor="middle" class="col-caption">CLIENTS</text>
+    <text x="400" y="128" text-anchor="middle" class="col-caption">RUNTIME</text>
+    <text x="688" y="40" text-anchor="middle" class="col-caption">BACKENDS</text>
+  </svg>
+</figure>
+
+<script is:inline>
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    document.getElementById("gw")?.pauseAnimations?.();
+  }
+</script>
+
+<style>
+  .gateway {
+    margin: 0;
+    width: 100%;
+  }
+  .gateway svg {
+    width: 100%;
+    height: auto;
+    overflow: visible;
+  }
+
+  .wire-base {
+    stroke: var(--color-border-bright);
+    stroke-width: 1.5;
+    opacity: 0.5;
+  }
+  .wire-flow {
+    stroke: var(--color-accent);
+    stroke-width: 1.5;
+    stroke-dasharray: 6 12;
+    opacity: 0.9;
+    animation: flow 1.1s linear infinite;
+  }
+  @keyframes flow {
+    to {
+      stroke-dashoffset: -18;
+    }
+  }
+
+  .packet {
+    fill: var(--color-accent-bright);
+    filter: drop-shadow(0 0 4px rgba(61, 139, 255, 0.9));
+  }
+  .packet-out {
+    fill: #6fa8ff;
+  }
+
+  .node rect {
+    fill: var(--color-ink-800);
+    stroke: var(--color-border-bright);
+    stroke-width: 1.5;
+    transition: stroke 0.25s ease, fill 0.25s ease;
+  }
+  .node:hover rect {
+    stroke: var(--color-accent);
+    fill: #102347;
+  }
+  .node-title {
+    fill: var(--color-fg);
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 16px;
+  }
+  .node-sub {
+    fill: var(--color-fg-faint);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.04em;
+  }
+
+  /* The extensible "write your own backend" node. */
+  .node-custom rect {
+    stroke: var(--color-accent);
+    stroke-dasharray: 5 4;
+    fill: color-mix(in oklab, var(--color-accent) 9%, var(--color-ink-800));
+  }
+  .node-custom .node-title {
+    fill: var(--color-accent-bright);
+  }
+  .node-custom:hover rect {
+    stroke: var(--color-accent-bright);
+    fill: color-mix(in oklab, var(--color-accent) 16%, var(--color-ink-800));
+  }
+
+  .core rect:first-of-type {
+    stroke: var(--color-accent);
+    stroke-width: 1.5;
+    filter: drop-shadow(0 0 16px rgba(0, 101, 255, 0.35));
+    animation: corepulse 2.8s ease-in-out infinite;
+  }
+  @keyframes corepulse {
+    0%,
+    100% {
+      filter: drop-shadow(0 0 14px rgba(0, 101, 255, 0.3));
+    }
+    50% {
+      filter: drop-shadow(0 0 26px rgba(0, 101, 255, 0.55));
+    }
+  }
+
+  .col-caption {
+    fill: var(--color-fg-faint);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.28em;
+  }
+</style>

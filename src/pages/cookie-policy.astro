@@ -1,0 +1,57 @@
+---
+import Base from "../layouts/Base.astro";
+---
+
+<Base
+  title="Cookie Policy — DittoFS"
+  description="The cookies the DittoFS website uses and how to control them."
+>
+  <article class="legal mx-auto max-w-3xl px-6 py-20">
+    <p class="updated">Last updated: June 2026</p>
+    <h1>Cookie Policy</h1>
+    <p class="lead">
+      We keep cookies to a minimum. Nothing beyond what is strictly necessary
+      loads until you opt in.
+    </p>
+
+    <h2>Categories</h2>
+    <ul>
+      <li>
+        <strong>Necessary.</strong> Required for the site to function and to
+        remember your cookie choices. Always on.
+      </li>
+      <li>
+        <strong>Analytics.</strong> Google Tag Manager and the tags it loads,
+        used to measure traffic and usage. Loaded only with your consent.
+      </li>
+      <li>
+        <strong>Marketing.</strong> The Meta (Facebook) pixel, used to measure
+        and improve our advertising. Loaded only with your consent.
+      </li>
+    </ul>
+
+    <h2>Managing your choices</h2>
+    <p>
+      You can change or withdraw your consent at any time.
+    </p>
+    <p>
+      <button
+        type="button"
+        class="btn btn-secondary"
+        onclick="window.openCookiePreferences && window.openCookiePreferences()"
+      >
+        Manage cookie preferences
+      </button>
+    </p>
+    <p>
+      You can also clear cookies in your browser settings, which will prompt the
+      consent banner again on your next visit.
+    </p>
+
+    <h2>More information</h2>
+    <p>
+      See our <a href="/privacy/">privacy policy</a> for how we handle the data
+      these cookies collect.
+    </p>
+  </article>
+</Base>

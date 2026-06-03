@@ -1,0 +1,202 @@
+---
+import Base from "../layouts/Base.astro";
+import ContactForm from "../components/ContactForm.astro";
+import BrowserFrame from "../components/BrowserFrame.astro";
+
+const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITEKEY ?? "";
+
+const community = [
+  "All protocols: NFSv3, NFSv4, NFSv4.1, SMB2/3",
+  "All stores: memory, BadgerDB, PostgreSQL, filesystem, S3",
+  "Client-side encryption and Kerberos",
+  "Share snapshots and restore",
+  "REST API, CLI, and Kubernetes operator",
+  "Community support on GitHub",
+];
+
+const pro = [
+  "Everything in the community edition",
+  "Web management UI for users, shares, and stores",
+  "Role-based administration",
+  "Commercial support with response-time commitments",
+  "Guided upgrades and migration help",
+  "Priority fixes and direct access to the team",
+];
+---
+
+<Base
+  title="DittoFS PRO — management UI and commercial support"
+  description="DittoFS PRO adds a web management UI and commercial support on top of the open-source community edition. Talk to us about running DittoFS in production."
+>
+  <!-- HERO -->
+  <section class="relative overflow-hidden border-b border-border/60">
+    <div class="bg-grid pointer-events-none absolute inset-0 opacity-[0.3]"></div>
+    <div
+      class="glow-accent pointer-events-none absolute -top-24 left-1/2 h-[440px] w-[760px] -translate-x-1/2 opacity-40"
+    >
+    </div>
+    <div class="relative mx-auto max-w-4xl px-6 py-24 text-center">
+      <p class="font-mono text-xs uppercase tracking-[0.2em] text-accent-bright">
+        DittoFS PRO
+      </p>
+      <h1 class="mt-4 text-balance text-5xl font-black leading-[1.05] sm:text-6xl">
+        The open core, ready for production
+      </h1>
+      <p class="mx-auto mt-6 max-w-2xl text-lg text-fg-muted">
+        The community edition is fully open source and always will be. PRO adds
+        a web management UI and commercial support for teams that run DittoFS at
+        work.
+      </p>
+      <div class="mt-9 flex flex-wrap justify-center gap-4">
+        <a
+          href="#contact"
+          class="btn btn-primary"
+        >
+          Talk to us
+        </a>
+        <a
+          href="/docs/overview/getting-started/"
+          class="btn btn-secondary"
+        >
+          Try the community edition
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- INTERFACE / SCREENSHOTS -->
+  <section class="border-b border-border/60 bg-ink-900/40">
+    <div class="mx-auto max-w-6xl px-6 py-24">
+      <div class="mx-auto max-w-2xl text-center" data-reveal>
+        <p class="font-mono text-xs uppercase tracking-[0.2em] text-accent-bright">
+          The interface
+        </p>
+        <h2 class="mt-3 text-balance text-3xl font-bold sm:text-4xl">
+          A web console for your deployment
+        </h2>
+        <p class="mt-4 text-fg-muted">
+          Manage users, shares, stores, and protocol adapters from one place,
+          backed by the same engine you run in the community edition.
+        </p>
+      </div>
+
+      <div class="mt-12" data-reveal>
+        <BrowserFrame
+          src="/pro/dashboard.png"
+          alt="DittoFS PRO dashboard showing shares, stores, adapters, and server health"
+          label="dittofs · dashboard"
+          width={1622}
+          height={1023}
+        />
+      </div>
+    </div>
+  </section>
+
+  <!-- COMPARISON -->
+  <section class="border-b border-border/60">
+    <div class="mx-auto max-w-6xl px-6 py-24">
+      <div class="mx-auto max-w-2xl text-center" data-reveal>
+        <h2 class="text-3xl font-bold sm:text-4xl">Community and PRO</h2>
+        <p class="mt-4 text-fg-muted">
+          Same engine. PRO adds the tooling and support that production teams ask
+          for.
+        </p>
+      </div>
+
+      <div class="mt-14 grid gap-6 lg:grid-cols-2">
+        <div class="rounded-2xl border border-border bg-ink-900 p-8" data-reveal>
+          <h3 class="text-xl font-bold">Community</h3>
+          <p class="mt-1 text-sm text-fg-faint">Open source, MIT licensed</p>
+          <ul class="mt-6 space-y-3">
+            {
+              community.map((item) => (
+                <li class="flex items-start gap-3 text-sm text-fg-muted">
+                  <span class="mt-1 text-accent-bright">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                  </span>
+                  {item}
+                </li>
+              ))
+            }
+          </ul>
+          <a
+            href="/docs/overview/getting-started/"
+            class="mt-8 inline-block rounded-md border border-border-bright px-5 py-2.5 text-sm font-semibold text-fg transition-colors hover:bg-ink-800"
+          >
+            Get started
+          </a>
+        </div>
+
+        <div
+          class="relative overflow-hidden rounded-2xl border border-accent/50 bg-gradient-to-br from-ink-800 to-ink-950 p-8"
+          data-reveal
+          style="transition-delay:90ms"
+        >
+          <div class="bg-grid pointer-events-none absolute inset-0 opacity-15"></div>
+          <div class="relative">
+            <div class="flex items-center gap-3">
+              <h3 class="text-xl font-bold">PRO</h3>
+              <span class="rounded-full bg-accent/15 px-2.5 py-0.5 font-mono text-xs text-accent-bright">
+                commercial
+              </span>
+            </div>
+            <p class="mt-1 text-sm text-fg-faint">UI and support on the open core</p>
+            <ul class="mt-6 space-y-3">
+              {
+                pro.map((item) => (
+                  <li class="flex items-start gap-3 text-sm text-fg">
+                    <span class="mt-1 text-accent-bright">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                    </span>
+                    {item}
+                  </li>
+                ))
+              }
+            </ul>
+            <a
+              href="#contact"
+              class="mt-8 inline-block rounded-md bg-accent px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-bright"
+            >
+              Talk to us
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONTACT -->
+  <section id="contact" class="scroll-mt-20">
+    <div class="mx-auto grid max-w-6xl gap-14 px-6 py-24 lg:grid-cols-2 lg:items-start">
+      <div data-reveal>
+        <p class="font-mono text-xs uppercase tracking-[0.2em] text-accent-bright">
+          Get in touch
+        </p>
+        <h2 class="mt-3 text-3xl font-bold sm:text-4xl">Tell us what you need</h2>
+        <p class="mt-4 text-fg-muted">
+          Whether you are evaluating DittoFS or already running it, we can help
+          with the management UI, support terms, and rollout. Send a note and we
+          will get back to you.
+        </p>
+        <ul class="mt-8 space-y-4 text-sm text-fg-muted">
+          <li class="flex items-start gap-3">
+            <span class="mt-0.5 font-mono text-accent-bright">01</span>
+            Share your deployment shape and what you want from PRO.
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="mt-0.5 font-mono text-accent-bright">02</span>
+            We follow up by email, usually within a couple of business days.
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="mt-0.5 font-mono text-accent-bright">03</span>
+            We scope the UI access and support that fits your team.
+          </li>
+        </ul>
+      </div>
+
+      <div class="rounded-2xl border border-border bg-ink-900 p-8" data-reveal style="transition-delay:90ms">
+        <ContactForm turnstileSiteKey={turnstileSiteKey} />
+      </div>
+    </div>
+  </section>
+</Base>

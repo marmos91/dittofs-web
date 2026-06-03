@@ -1,0 +1,41 @@
+{
+  "name": "dittofs-web",
+  "version": "0.1.0",
+  "description": "Marketing site and documentation for DittoFS (dittofs.io).",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "check": "astro check",
+    "sync-docs": "node scripts/sync-docs.mjs",
+    "og": "node scripts/make-og.mjs",
+    "astro": "astro"
+  },
+  "keywords": [
+    "dittofs",
+    "nfs",
+    "smb",
+    "filesystem"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@astrojs/react": "^5.0.7",
+    "@astrojs/starlight": "^0.39.3",
+    "@fontsource-variable/jetbrains-mono": "^5.2.8",
+    "@fontsource-variable/source-sans-3": "^5.2.9",
+    "@fontsource/titillium-web": "^5.2.8",
+    "@tailwindcss/postcss": "^4.3.0",
+    "astro": "^6.4.3",
+    "motion": "^12.40.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "sharp": "^0.34.5",
+    "tailwindcss": "^4.3.0",
+    "vanilla-cookieconsent": "^3.1.0"
+  },
+  "overrides": {
+    "vite": "^7"
+  }
+}

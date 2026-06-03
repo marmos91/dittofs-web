@@ -1,0 +1,195 @@
+---
+/*
+  The write path, shown. A file lands in the local block store first, then
+  syncs to the durable remote in the background. Vertical flow with traveling
+  packets; pure CSS, reduced-motion safe.
+*/
+const docIcon = `<path d="M14 3v5h5"/><path d="M7 3h8l5 5v11a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/>`;
+const diskIcon = `<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>`;
+const cloudIcon = `<path d="M7 18a4 4 0 0 1 0-8 5 5 0 0 1 9.6-1.3A3.5 3.5 0 0 1 18 18H7z"/>`;
+---
+
+<figure class="wp" aria-label="A write lands in the local block store, then syncs to the remote block store">
+  <!-- file -->
+  <div class="wp-node" data-reveal>
+    <span class="wp-ic">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" set:html={docIcon} />
+    </span>
+    <span class="wp-text">
+      <strong>hello.txt</strong>
+      <em>client write</em>
+    </span>
+  </div>
+
+  <div class="wp-link" data-reveal>
+    <span class="wp-line"><span class="wp-dot"></span></span>
+    <span class="wp-label">write</span>
+  </div>
+
+  <!-- local block store -->
+  <div class="wp-node wp-node--accent" data-reveal>
+    <span class="wp-ic">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" set:html={diskIcon} />
+    </span>
+    <span class="wp-text">
+      <strong>Local block store</strong>
+      <em>fast cache · returns immediately</em>
+    </span>
+    <span class="wp-tag">acknowledged</span>
+  </div>
+
+  <div class="wp-link wp-link--async" data-reveal>
+    <span class="wp-line wp-line--dashed"><span class="wp-dot wp-dot--slow"></span></span>
+    <span class="wp-label">async sync</span>
+  </div>
+
+  <!-- remote block store -->
+  <div class="wp-node" data-reveal>
+    <span class="wp-ic">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" set:html={cloudIcon} />
+    </span>
+    <span class="wp-text">
+      <strong>Remote block store</strong>
+      <em>durable · S3 or filesystem</em>
+    </span>
+    <span class="wp-tag wp-tag--muted">synced</span>
+  </div>
+</figure>
+
+<style>
+  .wp {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .wp-node {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    background: linear-gradient(180deg, rgba(13, 26, 48, 0.6), rgba(5, 10, 20, 0.4));
+  }
+  .wp-node--accent {
+    border-color: color-mix(in oklab, var(--color-accent) 45%, transparent);
+    box-shadow: 0 0 30px -12px rgba(0, 101, 255, 0.5);
+  }
+  .wp-ic {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    flex: none;
+    border-radius: 10px;
+    border: 1px solid var(--color-border-bright);
+    background: var(--color-ink-950);
+    color: var(--color-accent-bright);
+  }
+  .wp-ic svg {
+    width: 20px;
+    height: 20px;
+  }
+  .wp-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .wp-text strong {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--color-fg);
+  }
+  .wp-text em {
+    font-style: normal;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--color-fg-faint);
+  }
+  .wp-tag {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    color: var(--color-accent-bright);
+    border: 1px solid color-mix(in oklab, var(--color-accent) 40%, transparent);
+    border-radius: 999px;
+    padding: 3px 9px;
+    white-space: nowrap;
+  }
+  .wp-tag--muted {
+    color: var(--color-fg-faint);
+    border-color: var(--color-border-bright);
+  }
+
+  /* connectors */
+  .wp-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-left: 19px; /* center the line under the 40px icon (16 pad + 20 - 1) */
+    height: 44px;
+  }
+  .wp-line {
+    position: relative;
+    width: 2px;
+    height: 100%;
+    background: linear-gradient(
+      to bottom,
+      transparent,
+      var(--color-border-bright) 20%,
+      var(--color-border-bright) 80%,
+      transparent
+    );
+  }
+  .wp-line--dashed {
+    background: repeating-linear-gradient(
+      to bottom,
+      var(--color-border-bright) 0 4px,
+      transparent 4px 9px
+    );
+  }
+  .wp-dot {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    transform: translate(-50%, 0);
+    background: var(--color-accent-bright);
+    box-shadow: 0 0 8px rgba(61, 139, 255, 0.9);
+    animation: drop 1.4s ease-in-out infinite;
+  }
+  .wp-dot--slow {
+    background: #6fa8ff;
+    animation-duration: 2.6s;
+  }
+  @keyframes drop {
+    0% {
+      top: -6px;
+      opacity: 0;
+    }
+    15% {
+      opacity: 1;
+    }
+    85% {
+      opacity: 1;
+    }
+    100% {
+      top: 100%;
+      opacity: 0;
+    }
+  }
+  .wp-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    color: var(--color-fg-faint);
+  }
+  .wp-link--async .wp-label {
+    color: color-mix(in oklab, var(--color-accent-bright) 70%, var(--color-fg-faint));
+  }
+</style>

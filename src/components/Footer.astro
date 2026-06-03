@@ -1,0 +1,84 @@
+---
+import logo from "../assets/logo-light.svg";
+
+const GITHUB = "https://github.com/marmos91/dittofs";
+const year = 2026;
+
+const columns = [
+  {
+    title: "Product",
+    links: [
+      { label: "Features", href: "/#features" },
+      { label: "How it works", href: "/#how-it-works" },
+      { label: "DittoFS PRO", href: "/pro/" },
+      { label: "Documentation", href: "/docs/" },
+    ],
+  },
+  {
+    title: "Resources",
+    links: [
+      { label: "GitHub", href: GITHUB },
+      { label: "Getting started", href: "/docs/overview/getting-started/" },
+      { label: "CLI reference", href: "/docs/reference/cli/" },
+      { label: "FAQ", href: "/docs/reference/faq/" },
+    ],
+  },
+  {
+    title: "Legal",
+    links: [
+      { label: "Privacy", href: "/privacy/" },
+      { label: "Cookie policy", href: "/cookie-policy/" },
+      { label: "Terms", href: "/terms/" },
+    ],
+  },
+];
+---
+
+<footer class="border-t border-border/60 bg-ink-900">
+  <div class="mx-auto max-w-7xl px-6 py-14">
+    <div class="grid gap-10 md:grid-cols-[1.5fr_1fr_1fr_1fr]">
+      <div>
+        <img
+          src={logo.src}
+          alt="DittoFS"
+          width="102"
+          height="24"
+          loading="lazy"
+          decoding="async"
+          class="h-6 w-auto"
+        />
+        <p class="mt-4 max-w-xs text-sm text-fg-muted">
+          A modular virtual filesystem in Go. NFS and SMB in userspace, with
+          pluggable storage.
+        </p>
+      </div>
+
+      {
+        columns.map((col) => (
+          <div>
+            <h3 class="text-sm font-semibold text-fg">{col.title}</h3>
+            <ul class="mt-4 space-y-2">
+              {col.links.map((link) => (
+                <li>
+                  <a
+                    href={link.href}
+                    class="text-sm text-fg-muted transition-colors hover:text-fg"
+                  >
+                    {link.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))
+      }
+    </div>
+
+    <div
+      class="mt-12 flex flex-col gap-2 border-t border-border/60 pt-6 text-xs text-fg-faint sm:flex-row sm:items-center sm:justify-between"
+    >
+      <p>&copy; {year} Marco Moschettini. DittoFS is experimental and not production ready.</p>
+      <p>Built in Go. Served over NFS and SMB.</p>
+    </div>
+  </div>
+</footer>

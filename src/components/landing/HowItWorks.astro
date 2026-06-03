@@ -1,0 +1,243 @@
+---
+/*
+  How it works, as a vertical flow. A glowing "data spine" runs top to bottom;
+  pulses of light travel down it through the three layers (adapters -> runtime
+  -> stores). Pure CSS animation, reduced-motion safe via the global stylesheet.
+*/
+const layers = [
+  {
+    n: "01",
+    io: "wire in",
+    title: "Protocol adapters",
+    body: "NFS and SMB adapters handle wire framing, dispatch, and type conversion. Nothing more. Business logic never leaks into the protocol layer.",
+    chips: ["NFSv3", "NFSv4.0", "NFSv4.1", "SMB2", "SMB3"],
+  },
+  {
+    n: "02",
+    io: "compose",
+    title: "Runtime control plane",
+    body: "A single entrypoint composes users, shares, mounts, and identity. Every operation carries an auth context from the wire all the way to the store.",
+    chips: ["Users", "Shares", "Mounts", "Identity", "REST API"],
+  },
+  {
+    n: "03",
+    io: "bytes out",
+    title: "Pluggable stores",
+    body: "Each share picks a metadata store and a block store. A fast local cache fronts a durable remote, syncing in the background.",
+    chips: ["Memory", "BadgerDB", "PostgreSQL", "Filesystem", "S3"],
+  },
+];
+---
+
+<div class="hiw relative mx-auto max-w-3xl">
+  <!-- the data spine -->
+  <div class="spine" aria-hidden="true">
+    <span class="pulse"></span>
+    <span class="pulse" style="animation-delay:1.6s"></span>
+  </div>
+
+  {
+    layers.map((l, i) => (
+      <div class="row" data-reveal style={`transition-delay:${i * 120}ms`}>
+        <div class="node">
+          <span class="node-n">{l.n}</span>
+        </div>
+        <div class="card">
+          <span class="io">{l.io}</span>
+          <h3>{l.title}</h3>
+          <p>{l.body}</p>
+          <div class="chips">
+            {l.chips.map((c, j) => (
+              <span class="chip" style={`--d:${j * 70}ms`}>
+                {c}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+    ))
+  }
+</div>
+
+<style>
+  .hiw {
+    --rail: 28px; /* x-center of the spine */
+  }
+
+  .spine {
+    position: absolute;
+    top: 18px;
+    bottom: 18px;
+    left: var(--rail);
+    width: 2px;
+    transform: translateX(-50%);
+    background: linear-gradient(
+      to bottom,
+      transparent,
+      var(--color-border-bright) 8%,
+      var(--color-border-bright) 92%,
+      transparent
+    );
+    overflow: visible;
+  }
+  .spine .pulse {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    width: 2px;
+    height: 84px;
+    transform: translateX(-50%);
+    background: linear-gradient(
+      to bottom,
+      transparent,
+      var(--color-accent-bright),
+      transparent
+    );
+    filter: drop-shadow(0 0 8px rgba(61, 139, 255, 0.9));
+    animation: travel 3.2s linear infinite;
+  }
+  @keyframes travel {
+    0% {
+      top: -84px;
+      opacity: 0;
+    }
+    10% {
+      opacity: 1;
+    }
+    90% {
+      opacity: 1;
+    }
+    100% {
+      top: 100%;
+      opacity: 0;
+    }
+  }
+
+  .row {
+    position: relative;
+    padding-left: 76px;
+    padding-bottom: 40px;
+  }
+  .row:last-child {
+    padding-bottom: 0;
+  }
+
+  .node {
+    position: absolute;
+    left: var(--rail);
+    top: 4px;
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    transform: translateX(-50%);
+    border-radius: 12px;
+    background: var(--color-ink-800);
+    border: 1.5px solid var(--color-accent);
+    box-shadow: 0 0 0 4px var(--color-ink-950);
+    animation: nodeglow 2.8s ease-in-out infinite;
+  }
+  .node-n {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--color-accent-bright);
+  }
+  .row:nth-child(3) .node {
+    animation-delay: 0.5s;
+  }
+  .row:nth-child(4) .node {
+    animation-delay: 1s;
+  }
+  @keyframes nodeglow {
+    0%,
+    100% {
+      box-shadow:
+        0 0 0 4px var(--color-ink-950),
+        0 0 10px rgba(0, 101, 255, 0.25);
+    }
+    50% {
+      box-shadow:
+        0 0 0 4px var(--color-ink-950),
+        0 0 22px rgba(0, 101, 255, 0.6);
+    }
+  }
+
+  .card {
+    position: relative;
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+    background: linear-gradient(
+      180deg,
+      rgba(13, 26, 48, 0.7),
+      rgba(5, 10, 20, 0.4)
+    );
+    padding: 26px 28px;
+    transition:
+      border-color 0.3s ease,
+      transform 0.3s ease;
+  }
+  .card:hover {
+    border-color: color-mix(in oklab, var(--color-accent) 50%, transparent);
+    transform: translateX(2px);
+  }
+  .io {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--color-fg-faint);
+  }
+  .card h3 {
+    margin-top: 6px;
+    font-size: 22px;
+    font-weight: 700;
+  }
+  .card p {
+    margin-top: 10px;
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--color-fg-muted);
+  }
+  .chips {
+    margin-top: 18px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .chip {
+    border: 1px solid var(--color-border-bright);
+    background: var(--color-ink-900);
+    color: var(--color-fg-muted);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    opacity: 0;
+    transform: translateY(6px);
+    transition:
+      color 0.2s ease,
+      border-color 0.2s ease;
+  }
+  .row.is-visible .chip {
+    animation: chipin 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation-delay: var(--d);
+  }
+  .chip:hover {
+    color: var(--color-accent-bright);
+    border-color: var(--color-accent);
+  }
+  @keyframes chipin {
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .chip {
+      opacity: 1;
+      transform: none;
+    }
+  }
+</style>

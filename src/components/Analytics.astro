@@ -1,0 +1,155 @@
+---
+/*
+  Consent-gated analytics. A GDPR cookie banner (vanilla-cookieconsent) gates
+  Google Tag Manager (analytics category) and the Meta pixel (marketing
+  category). Nothing loads until the visitor opts in. IDs come from env:
+    PUBLIC_GTM_ID, PUBLIC_FB_PIXEL_ID  (empty = that tag is simply skipped)
+*/
+const gtmId = import.meta.env.PUBLIC_GTM_ID ?? "";
+const pixelId = import.meta.env.PUBLIC_FB_PIXEL_ID ?? "";
+---
+
+<span id="dfs-analytics-config" data-gtm={gtmId} data-pixel={pixelId} hidden></span>
+
+<script>
+  import "vanilla-cookieconsent/dist/cookieconsent.css";
+  import * as CookieConsent from "vanilla-cookieconsent";
+
+  const cfg = document.getElementById("dfs-analytics-config");
+  const GTM = cfg?.dataset.gtm || "";
+  const PIXEL = cfg?.dataset.pixel || "";
+
+  let gtmLoaded = false;
+  let pixelLoaded = false;
+
+  function loadGTM() {
+    if (gtmLoaded || !GTM) return;
+    gtmLoaded = true;
+    const w = window as any;
+    w.dataLayer = w.dataLayer || [];
+    w.dataLayer.push({ "gtm.start": new Date().getTime(), event: "gtm.js" });
+    const s = document.createElement("script");
+    s.async = true;
+    s.src = "https://www.googletagmanager.com/gtm.js?id=" + GTM;
+    document.head.appendChild(s);
+  }
+
+  function loadPixel() {
+    if (pixelLoaded || !PIXEL) return;
+    pixelLoaded = true;
+    const w = window as any;
+    /* Meta pixel bootstrap */
+    (function (f: any, b: Document) {
+      if (f.fbq) return;
+      const n: any = (f.fbq = function () {
+        n.callMethod
+          ? n.callMethod.apply(n, arguments)
+          : n.queue.push(arguments);
+      });
+      if (!f._fbq) f._fbq = n;
+      n.push = n;
+      n.loaded = true;
+      n.version = "2.0";
+      n.queue = [];
+      const t = b.createElement("script");
+      t.async = true;
+      t.src = "https://connect.facebook.net/en_US/fbevents.js";
+      const s = b.getElementsByTagName("script")[0];
+      s.parentNode?.insertBefore(t, s);
+    })(w, document);
+    w.fbq("init", PIXEL);
+    w.fbq("track", "PageView");
+  }
+
+  function applyConsent() {
+    if (CookieConsent.acceptedCategory("analytics")) loadGTM();
+    if (CookieConsent.acceptedCategory("marketing")) loadPixel();
+  }
+
+  CookieConsent.run({
+    guiOptions: {
+      consentModal: { layout: "box", position: "bottom left" },
+      preferencesModal: { layout: "box" },
+    },
+    categories: {
+      necessary: { enabled: true, readOnly: true },
+      analytics: {},
+      marketing: {},
+    },
+    onConsent: applyConsent,
+    onChange: applyConsent,
+    language: {
+      default: "en",
+      translations: {
+        en: {
+          consentModal: {
+            title: "We value your privacy",
+            description:
+              "We use cookies to understand how the site is used and to measure our marketing. Necessary cookies keep the site working. You can accept all, reject the optional ones, or choose what to allow.",
+            acceptAllBtn: "Accept all",
+            acceptNecessaryBtn: "Reject optional",
+            showPreferencesBtn: "Manage choices",
+            footer: '<a href="/privacy/">Privacy</a><a href="/cookie-policy/">Cookie policy</a>',
+          },
+          preferencesModal: {
+            title: "Cookie preferences",
+            acceptAllBtn: "Accept all",
+            acceptNecessaryBtn: "Reject optional",
+            savePreferencesBtn: "Save choices",
+            closeIconLabel: "Close",
+            sections: [
+              {
+                title: "Necessary",
+                description:
+                  "Required for the site to function. These are always on.",
+                linkedCategory: "necessary",
+              },
+              {
+                title: "Analytics",
+                description:
+                  "Google Tag Manager and the tags it manages, used to measure traffic and usage.",
+                linkedCategory: "analytics",
+              },
+              {
+                title: "Marketing",
+                description:
+                  "The Meta (Facebook) pixel, used to measure and improve our advertising.",
+                linkedCategory: "marketing",
+              },
+              {
+                title: "More information",
+                description:
+                  'See our <a href="/cookie-policy/">cookie policy</a> for details.',
+              },
+            ],
+          },
+        },
+      },
+    },
+  });
+
+  // Expose a way for the cookie-policy page to reopen preferences.
+  (window as any).openCookiePreferences = () => CookieConsent.showPreferences();
+</script>
+
+<style is:global>
+  /* Brand the consent UI to match the site. */
+  :root {
+    --cc-bg: #0d1a30;
+    --cc-text: #e8eefb;
+    --cc-btn-primary-bg: #0065ff;
+    --cc-btn-primary-hover-bg: #3d8bff;
+    --cc-btn-primary-text: #ffffff;
+    --cc-btn-secondary-bg: #11203c;
+    --cc-btn-secondary-hover-bg: #16294a;
+    --cc-btn-secondary-text: #e8eefb;
+    --cc-separator-border-color: #1b2942;
+    --cc-toggle-on-bg: #0065ff;
+    --cc-cookie-category-block-bg: #081020;
+    --cc-cookie-category-block-border: #1b2942;
+    --cc-link-color: #3d8bff;
+    --cc-modal-border-radius: 14px;
+    --cc-btn-border-radius: 8px;
+    --cc-font-family: "Source Sans 3 Variable", system-ui, sans-serif;
+  }
+</style>

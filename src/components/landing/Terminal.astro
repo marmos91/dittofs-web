@@ -1,0 +1,146 @@
+---
+/*
+  Faux terminal that types a short DittoFS session: start the server, create a
+  share, enable NFS, mount, write a file. Vanilla inline script, no hydration.
+*/
+const lines = [
+  { p: "$", t: "dfs start", out: "serving NFS :12049 · SMB :12445 · API :8080" },
+  { p: "$", t: "dfsctl share create /export --metadata default --local cache --remote s3" },
+  { p: "$", t: "dfsctl adapter enable nfs", out: "adapter nfs: enabled" },
+  { p: "$", t: "sudo mount -t nfs -o port=12049 localhost:/export /mnt/nfs" },
+  { p: "$", t: "echo \"hello\" > /mnt/nfs/hello.txt", out: "written · synced to s3" },
+];
+---
+
+<div class="term" data-term aria-hidden="true">
+  <div class="term-bar">
+    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    <span class="term-title">dittofs — bash</span>
+  </div>
+  <pre class="term-body"><code data-term-body></code></pre>
+</div>
+
+<script type="application/json" data-term-lines set:html={JSON.stringify(lines)}></script>
+
+<script>
+  type Line = { p: string; t: string; out?: string };
+
+  const root = document.querySelector<HTMLElement>("[data-term]");
+  const body = document.querySelector<HTMLElement>("[data-term-body]");
+  const dataEl = document.querySelector<HTMLElement>("[data-term-lines]");
+  if (root && body && dataEl) {
+    const lines: Line[] = JSON.parse(dataEl.textContent || "[]");
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+    function append(html: string) {
+      body!.insertAdjacentHTML("beforeend", html);
+    }
+
+    async function typeLine(line: Line) {
+      append(`<span class="ln"><span class="pr">${line.p}</span> <span class="cmd"></span></span>\n`);
+      const cmd = body!.querySelector<HTMLElement>(".ln:last-of-type .cmd")!;
+      if (reduce) {
+        cmd.textContent = line.t;
+      } else {
+        for (const ch of line.t) {
+          cmd.textContent += ch;
+          await sleep(28 + Math.random() * 40);
+        }
+      }
+      if (line.out) {
+        await sleep(reduce ? 0 : 220);
+        append(`<span class="out">${line.out}</span>\n`);
+      }
+      await sleep(reduce ? 0 : 420);
+    }
+
+    async function run() {
+      body!.textContent = "";
+      for (const line of lines) await typeLine(line);
+      append(`<span class="ln"><span class="pr">$</span> <span class="caret">▋</span></span>`);
+    }
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) {
+            io.disconnect();
+            run();
+          }
+        }
+      },
+      { threshold: 0.4 },
+    );
+    io.observe(root);
+  }
+</script>
+
+<style>
+  .term {
+    border: 1px solid var(--color-border-bright);
+    border-radius: 12px;
+    background: linear-gradient(180deg, #0a1428, #070f1f);
+    overflow: hidden;
+    box-shadow: 0 30px 60px -30px rgba(0, 0, 0, 0.8);
+  }
+  .term-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--color-border);
+    background: rgba(255, 255, 255, 0.02);
+  }
+  .term-bar .dot {
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: #24344f;
+  }
+  .term-bar .dot:nth-child(1) {
+    background: #ff5f57;
+  }
+  .term-bar .dot:nth-child(2) {
+    background: #febc2e;
+  }
+  .term-bar .dot:nth-child(3) {
+    background: #28c840;
+  }
+  .term-title {
+    margin-left: 10px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--color-fg-faint);
+  }
+  .term-body {
+    margin: 0;
+    padding: 18px 18px 22px;
+    min-height: 232px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--color-fg);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .term-body :global(.pr) {
+    color: var(--color-accent-bright);
+    font-weight: 700;
+  }
+  .term-body :global(.cmd) {
+    color: var(--color-fg);
+  }
+  .term-body :global(.out) {
+    color: var(--color-fg-faint);
+  }
+  .term-body :global(.caret) {
+    color: var(--color-accent-bright);
+    animation: blink 1s steps(1) infinite;
+  }
+  @keyframes blink {
+    50% {
+      opacity: 0;
+    }
+  }
+</style>

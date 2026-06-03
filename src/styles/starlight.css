@@ -1,0 +1,45 @@
+/*
+  Brand the Starlight docs to match the DittoFS marketing site.
+  Cubbit blue accent on a deep-navy dark theme.
+*/
+:root {
+  --sl-font: "Source Sans 3 Variable", system-ui, sans-serif;
+  --sl-font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+}
+
+:root[data-theme="dark"] {
+  --sl-color-accent-low: #0a1f44;
+  --sl-color-accent: #0065ff;
+  --sl-color-accent-high: #9cc2ff;
+
+  --sl-color-white: #f7f8fa;
+  --sl-color-gray-1: #e8eefb;
+  --sl-color-gray-2: #c0ccdf;
+  --sl-color-gray-3: #97a6c7;
+  --sl-color-gray-4: #5d6b8a;
+  --sl-color-gray-5: #2a3a59;
+  --sl-color-gray-6: #16243f;
+
+  --sl-color-bg: #050a14;
+  --sl-color-bg-nav: #081020;
+  --sl-color-bg-sidebar: #081020;
+  --sl-color-hairline: #1b2942;
+  --sl-color-hairline-light: #28406b;
+}
+
+/* Light theme: keep brand accent, lean on Cubbit off-white surfaces. */
+:root[data-theme="light"] {
+  --sl-color-accent-low: #d6e4ff;
+  --sl-color-accent: #0065ff;
+  --sl-color-accent-high: #0a3a91;
+}
+
+/* Headings use the display face. */
+.sl-markdown-content h1,
+.sl-markdown-content h2,
+.sl-markdown-content h3,
+.sl-markdown-content h4,
+.content-panel h1 {
+  font-family: "Titillium Web", system-ui, sans-serif;
+  letter-spacing: -0.01em;
+}
