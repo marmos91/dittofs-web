@@ -266,3 +266,92 @@ a:hover .arrow {
     border-color: var(--color-accent);
   }
 }
+
+/* HubSpot inline form, themed to match the dark site. Scoped to .hs-dark so it
+   only applies where we embed the form. The inline embed renders real DOM
+   (unlike the iframe loader), so these reach the fields. */
+.hs-dark .hs-form {
+  font-family: var(--font-body, inherit);
+  color: var(--color-fg-muted);
+}
+.hs-dark .hs-form fieldset {
+  max-width: none;
+}
+.hs-dark .hs-form-field {
+  margin-bottom: 1rem;
+}
+.hs-dark .hs-form-field > label {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-fg-muted);
+}
+.hs-dark .hs-form-field > label .hs-form-required {
+  color: #f87171;
+  margin-left: 2px;
+}
+.hs-dark .hs-input {
+  width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-ink-950);
+  color: var(--color-fg);
+  padding: 0.7rem 0.9rem;
+  font-size: 1rem;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+.hs-dark .hs-input::placeholder {
+  color: var(--color-fg-faint);
+}
+.hs-dark .hs-input:focus {
+  border-color: var(--color-accent);
+}
+.hs-dark textarea.hs-input {
+  min-height: 7rem;
+  resize: vertical;
+}
+.hs-dark select.hs-input {
+  appearance: none;
+}
+.hs-dark .inputs-list {
+  list-style: none;
+  margin: 0.25rem 0 0;
+  padding: 0;
+}
+.hs-dark .hs-button.primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.5rem;
+  border: none;
+  border-radius: 0.5rem;
+  background: var(--color-accent);
+  color: #fff;
+  padding: 0.7rem 1.4rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+.hs-dark .hs-button.primary:hover {
+  background: var(--color-accent-bright);
+}
+.hs-dark .hs-error-msgs label,
+.hs-dark .hs-error-msg {
+  color: #f87171;
+  font-size: 0.8rem;
+}
+.hs-dark .legal-consent-container,
+.hs-dark .hs-fieldtype-booleancheckbox label {
+  font-size: 0.8rem;
+  color: var(--color-fg-faint);
+}
+.hs-dark .legal-consent-container a {
+  color: var(--color-accent-bright);
+}
+.hs-dark .submitted-message {
+  color: var(--color-fg);
+  font-size: 0.95rem;
+}

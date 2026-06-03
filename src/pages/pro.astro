@@ -191,10 +191,31 @@ const pro = [
         </ul>
       </div>
 
-      <div class="rounded-2xl border border-border bg-ink-900 p-8" data-reveal style="transition-delay:90ms">
-        {/* HubSpot form, tracked by the marketing team. Replaces the previous custom form. */}
-        <script src="https://js.hsforms.net/forms/embed/7784331.js" defer is:inline></script>
-        <div class="hs-form-frame" data-region="na1" data-form-id="9f568ad6-dc8b-4063-9c02-6fb5b56332e2" data-portal-id="7784331"></div>
+      <div class="hs-dark rounded-2xl border border-border bg-ink-900 p-8" data-reveal style="transition-delay:90ms">
+        {/* HubSpot form, tracked by the marketing team. Inline embed (not the
+            iframe loader) so the form renders real DOM we can theme for dark mode.
+            Same portal and form id, so tracking is unchanged. */}
+        <div id="hubspot-pro-form"></div>
+        <script src="https://js.hsforms.net/forms/embed/v2.js" is:inline></script>
+        <script is:inline>
+          (function () {
+            function mount() {
+              if (!window.hbspt) return false;
+              window.hbspt.forms.create({
+                region: "na1",
+                portalId: "7784331",
+                formId: "9f568ad6-dc8b-4063-9c02-6fb5b56332e2",
+                target: "#hubspot-pro-form",
+              });
+              return true;
+            }
+            if (!mount()) {
+              var t = setInterval(function () {
+                if (mount()) clearInterval(t);
+              }, 100);
+            }
+          })();
+        </script>
       </div>
     </div>
   </section>
