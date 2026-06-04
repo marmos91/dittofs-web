@@ -1,15 +1,13 @@
 ---
 /*
   Consent-gated analytics. A GDPR cookie banner (vanilla-cookieconsent) gates
-  Google Tag Manager (analytics category) and the Meta pixel (marketing
-  category). Nothing loads until the visitor opts in. IDs come from env:
-    PUBLIC_GTM_ID, PUBLIC_FB_PIXEL_ID  (empty = that tag is simply skipped)
+  Google Tag Manager (analytics category). Nothing loads until the visitor opts
+  in. The GTM container ID comes from the PUBLIC_GTM_ID env var.
 */
 const gtmId = import.meta.env.PUBLIC_GTM_ID ?? "";
-const pixelId = import.meta.env.PUBLIC_FB_PIXEL_ID ?? "";
 ---
 
-<span id="dfs-analytics-config" data-gtm={gtmId} data-pixel={pixelId} hidden></span>
+<span id="dfs-analytics-config" data-gtm={gtmId} hidden></span>
 
 <script>
   import "vanilla-cookieconsent/dist/cookieconsent.css";
@@ -17,10 +15,8 @@ const pixelId = import.meta.env.PUBLIC_FB_PIXEL_ID ?? "";
 
   const cfg = document.getElementById("dfs-analytics-config");
   const GTM = cfg?.dataset.gtm || "";
-  const PIXEL = cfg?.dataset.pixel || "";
 
   let gtmLoaded = false;
-  let pixelLoaded = false;
 
   function loadGTM() {
     if (gtmLoaded || !GTM) return;
@@ -34,36 +30,8 @@ const pixelId = import.meta.env.PUBLIC_FB_PIXEL_ID ?? "";
     document.head.appendChild(s);
   }
 
-  function loadPixel() {
-    if (pixelLoaded || !PIXEL) return;
-    pixelLoaded = true;
-    const w = window as any;
-    /* Meta pixel bootstrap */
-    (function (f: any, b: Document) {
-      if (f.fbq) return;
-      const n: any = (f.fbq = function () {
-        n.callMethod
-          ? n.callMethod.apply(n, arguments)
-          : n.queue.push(arguments);
-      });
-      if (!f._fbq) f._fbq = n;
-      n.push = n;
-      n.loaded = true;
-      n.version = "2.0";
-      n.queue = [];
-      const t = b.createElement("script");
-      t.async = true;
-      t.src = "https://connect.facebook.net/en_US/fbevents.js";
-      const s = b.getElementsByTagName("script")[0];
-      s.parentNode?.insertBefore(t, s);
-    })(w, document);
-    w.fbq("init", PIXEL);
-    w.fbq("track", "PageView");
-  }
-
   function applyConsent() {
     if (CookieConsent.acceptedCategory("analytics")) loadGTM();
-    if (CookieConsent.acceptedCategory("marketing")) loadPixel();
   }
 
   CookieConsent.run({
@@ -74,7 +42,6 @@ const pixelId = import.meta.env.PUBLIC_FB_PIXEL_ID ?? "";
     categories: {
       necessary: { enabled: true, readOnly: true },
       analytics: {},
-      marketing: {},
     },
     onConsent: applyConsent,
     onChange: applyConsent,
@@ -85,7 +52,7 @@ const pixelId = import.meta.env.PUBLIC_FB_PIXEL_ID ?? "";
           consentModal: {
             title: "We value your privacy",
             description:
-              "We use cookies to understand how the site is used and to measure our marketing. Necessary cookies keep the site working. You can accept all, reject the optional ones, or choose what to allow.",
+              "We use cookies to understand how the site is used. Necessary cookies keep the site working. You can accept or reject analytics.",
             acceptAllBtn: "Accept all",
             acceptNecessaryBtn: "Reject optional",
             showPreferencesBtn: "Manage choices",
@@ -111,12 +78,6 @@ const pixelId = import.meta.env.PUBLIC_FB_PIXEL_ID ?? "";
                 linkedCategory: "analytics",
               },
               {
-                title: "Marketing",
-                description:
-                  "The Meta (Facebook) pixel, used to measure and improve our advertising.",
-                linkedCategory: "marketing",
-              },
-              {
                 title: "More information",
                 description:
                   'See our <a href="/cookie-policy/">cookie policy</a> for details.',
@@ -128,12 +89,10 @@ const pixelId = import.meta.env.PUBLIC_FB_PIXEL_ID ?? "";
     },
   });
 
-  // Expose a way for the cookie-policy page to reopen preferences.
   (window as any).openCookiePreferences = () => CookieConsent.showPreferences();
 </script>
 
 <style is:global>
-  /* Brand the consent UI to match the site. */
   :root {
     --cc-bg: #0d1a30;
     --cc-text: #e8eefb;
