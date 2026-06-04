@@ -1,0 +1,33 @@
+---
+import Base from "../layouts/Base.astro";
+---
+
+<Base
+  title="Thank you · DittoFS"
+  description="Your enquiry has been submitted. We'll get back to you soon."
+>
+  <section class="section-screen relative flex min-h-[60vh] items-center justify-center overflow-hidden border-b border-border/60">
+    <div class="bg-grid pointer-events-none absolute inset-0 opacity-[0.3]"></div>
+    <div
+      class="glow-accent pointer-events-none absolute -top-24 left-1/2 h-[440px] w-[760px] -translate-x-1/2 opacity-40"
+    >
+    </div>
+    <div class="relative mx-auto max-w-xl px-6 py-24 text-center">
+      <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-accent/15">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="text-accent-bright">
+          <path d="M20 6L9 17l-5-5"/>
+        </svg>
+      </div>
+      <h1 class="mt-6 text-balance text-4xl font-black leading-[1.1] sm:text-5xl">
+        Thanks!
+      </h1>
+      <p class="mx-auto mt-4 max-w-md text-lg text-fg-muted">
+        Your request has been submitted. We typically respond within a couple of
+        business days.
+      </p>
+      <a href="/" class="btn btn-primary mt-10 inline-block">
+        Back to homepage
+      </a>
+    </div>
+  </section>
+</Base>
