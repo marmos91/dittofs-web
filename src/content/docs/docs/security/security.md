@@ -34,6 +34,8 @@ sidebar:
   - [Identity Mapping](#identity-mapping)
   - [Read-Only Shares](#read-only-shares)
 - [Network Security](#network-security)
+  - [Encryption in Transit](#encryption-in-transit)
+  - [Control Plane API: TLS and Bind Address](#control-plane-api-tls-and-bind-address)
 - [Kerberos Configuration](#kerberos-configuration)
   - [Server Configuration](#server-configuration)
   - [Keytab Management](#keytab-management)
@@ -64,6 +66,7 @@ sidebar:
 - Export-level IP-based access restrictions
 - Identity mapping (root squash, all squash)
 - AUTH_UNIX support for trusted-network deployments
+- Native, file-based TLS (and optional mutual TLS) for the control plane API, with on-disk certificate hot-reload; loopback-only bind by default ([Control Plane API: TLS and Bind Address](#control-plane-api-tls-and-bind-address))
 
 ### Remaining Limitations
 
@@ -383,6 +386,34 @@ DittoFS does not currently provide built-in TLS encryption for NFS or SMB wire t
 - Use VPN, IPsec, or WireGuard to protect data in transit
 - SMB message signing protects integrity but not confidentiality
 
+### Control Plane API: TLS and Bind Address
+
+The control plane REST API (default port `8080`) carries the highest-value credentials in the system: admin and operator logins, the `dfsctl` remote password login, and the JWTs issued from them. These must not travel in cleartext on a shared network.
+
+**Bind address.** The API binds to `127.0.0.1` (loopback only) by default, so a fresh `dfs start` does not expose those credentials off-host. Any deployment that must accept connections from another machine (multi-host, Kubernetes) sets `controlplane.host: 0.0.0.0` — and should pair that with TLS.
+
+**Native TLS (secure floor).** DittoFS can serve the API over TLS by loading a certificate and key from disk:
+
+```yaml
+controlplane:
+  host: 0.0.0.0
+  tls:
+    cert_file: /etc/dittofs/tls/tls.crt
+    key_file: /etc/dittofs/tls/tls.key
+    client_ca: /etc/dittofs/tls/ca.crt   # optional → mutual TLS (client-cert auth)
+    min_version: "1.2"                    # "1.2" (default) or "1.3"
+```
+
+This TLS support is deliberately thin and follows the etcd/MinIO/Vault-client norm: DittoFS **loads** the files and **hot-reloads** them when the platform rewrites them (cert-manager, a mounted Kubernetes Secret, Vault). DittoFS is **not** a certificate authority — it does not generate self-signed certificates and does not perform ACME, issuance, renewal, or rotation. **Certificate lifecycle is the platform's responsibility.** Setting `cert_file` without `key_file` (or vice versa), or `client_ca` without a server cert, is a fatal configuration error caught at startup.
+
+**Recommended deployment model:**
+
+- **Edge:** terminate TLS at an ingress, service mesh, or reverse proxy (NGINX) in front of DittoFS. This is the recommended path for Kubernetes and any internet-facing edge.
+- **Floor:** use DittoFS native TLS (or mTLS via `client_ca`) for non-Kubernetes hosts and for direct `dfsctl` access where there is no termination layer in front.
+- **Kubernetes:** the [operator](https://github.com/marmos91/dittofs/blob/develop/docs/DEPLOYMENT.md) renders `controlplane.host: 0.0.0.0` so the API `Service` can reach the pod, and points its own client at `https://` when control-plane TLS is enabled.
+
+See [docs/CONFIGURATION.md](/docs/operations/configuration#tls-and-bind-address) for the full option reference and [docs/DEPLOYMENT.md](https://github.com/marmos91/dittofs/blob/develop/docs/DEPLOYMENT.md) for deployment topologies. Note this covers the **control plane API only** — NFS/SMB data-plane traffic still relies on network-level encryption (below).
+
 ### Network-Level Protection
 
 **Use VPN or encrypted tunnels:**
@@ -687,9 +718,15 @@ We will acknowledge receipt within 48 hours and provide a timeline for a fix.
 
 ## References
 
-- [RFC 1813 - NFS Version 3 Protocol Specification](https://tools.ietf.org/html/rfc1813)
-- [RFC 2203 - RPCSEC_GSS Protocol Specification](https://tools.ietf.org/html/rfc2203)
-- [RFC 2623 - NFS Version 2 and Version 3 Security Issues](https://tools.ietf.org/html/rfc2623)
-- [RFC 4121 - The Kerberos Version 5 GSS-API Mechanism](https://tools.ietf.org/html/rfc4121)
-- [RFC 7530 - NFS Version 4 Protocol](https://tools.ietf.org/html/rfc7530)
-- [MS-SMB2 - Server Message Block Protocol Versions 2 and 3](https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-smb2/)
+- [RFC 1813 - NFS Version 3 Protocol Specification](https://www.rfc-editor.org/rfc/rfc1813)
+- [RFC 2203 - RPCSEC_GSS Protocol Specification](https://www.rfc-editor.org/rfc/rfc2203)
+- [RFC 2623 - NFS Version 2 and Version 3 Security Issues](https://www.rfc-editor.org/rfc/rfc2623)
+- [RFC 2743 - Generic Security Service API (GSS-API)](https://www.rfc-editor.org/rfc/rfc2743)
+- [RFC 4120 - The Kerberos Network Authentication Service (V5)](https://www.rfc-editor.org/rfc/rfc4120)
+- [RFC 4121 - The Kerberos Version 5 GSS-API Mechanism](https://www.rfc-editor.org/rfc/rfc4121)
+- [RFC 4178 - SPNEGO (GSS-API Negotiation Mechanism)](https://www.rfc-editor.org/rfc/rfc4178)
+- [RFC 7530 - NFS Version 4 Protocol](https://www.rfc-editor.org/rfc/rfc7530)
+- [MS-SMB2 - Server Message Block Protocol Versions 2 and 3](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-smb2/)
+- [MS-NLMP - NTLM Authentication Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-nlmp/)
+- [MS-DTYP - SID, ACL, and security descriptor formats](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dtyp/)
+- [Glossary](https://github.com/marmos91/dittofs/blob/develop/docs/GLOSSARY.md) - Plain-language definitions of the terms above

@@ -54,7 +54,7 @@ mount.nfs: Connection refused
 4. **Verify configuration:**
    ```bash
    # Check the config file
-   cat ~/.config/dfs/config.yaml
+   cat ~/.config/dittofs/config.yaml
 
    # Start with debug logging
    DITTOFS_LOGGING_LEVEL=DEBUG ./dfs start
@@ -293,7 +293,7 @@ ls: cannot access 'file.txt': Stale file handle
 2. **For persistent handles, use BadgerDB metadata:**
    ```bash
    ./dfsctl store metadata add --name persistent --type badger \
-     --config '{"path":"/var/lib/dfs/metadata"}'
+     --config '{"path":"/var/lib/dittofs/metadata"}'
    ./dfsctl store block add --kind local --name default --type memory
    ./dfsctl share create --name /export --metadata persistent --local default
    ```
@@ -314,7 +314,7 @@ ls: cannot access 'file.txt': Stale file handle
 ./scripts/benchmark.sh --profile
 
 # Check server logs for slow operations
-tail -f ~/.config/dfs/dfs.log | grep -i "slow\|timeout"
+tail -f ~/.local/state/dittofs/dittofs.log | grep -i "slow\|timeout"
 ```
 
 **Solutions:**
