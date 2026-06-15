@@ -4,29 +4,21 @@ import Gateway from "../components/landing/Gateway.astro";
 import Terminal from "../components/landing/Terminal.astro";
 import HowItWorks from "../components/landing/HowItWorks.astro";
 import WritePath from "../components/landing/WritePath.astro";
+import { getStars, formatStars } from "../lib/github";
 
 const GITHUB = "https://github.com/marmos91/dittofs";
+const stars = formatStars(await getStars());
 
 const heroStats = [
-  { k: "NFS + SMB", v: "served together" },
-  { k: "99.99%", v: "POSIX compliant" },
-  { k: "userspace", v: "no FUSE, no kernel" },
-  { k: "1 binary", v: "pure Go" },
+  { label: "Versatile", k: "NFS + SMB", v: "served together" },
+  { label: "Compatible", k: "99.99% POSIX", v: "drop-in for clients" },
+  { label: "Simple", k: "Userspace", v: "no FUSE, no kernel" },
+  { label: "Portable", k: "One binary", v: "pure Go" },
 ];
 
+// Six headline capabilities get full cards; the rest sit in a compact list
+// below so the section reads as "six reasons + the long tail," not a wall of 11.
 const features = [
-  {
-    tag: "runtime",
-    title: "Runs in userspace",
-    body: "No FUSE, no kernel modules, no root. DittoFS runs as an ordinary process you can start anywhere.",
-    icon: "shield",
-  },
-  {
-    tag: "deploy",
-    title: "Easy to containerize",
-    body: "One static Go binary drops into any container or orchestrator. No privileged containers, nothing to load in the kernel.",
-    icon: "container",
-  },
   {
     tag: "protocols",
     title: "Multi-protocol, one server",
@@ -40,16 +32,10 @@ const features = [
     icon: "plug",
   },
   {
-    tag: "efficiency",
-    title: "Deduplication",
-    body: "Files split into content-defined chunks, addressed by BLAKE3 hash. Identical chunks across files are stored once.",
-    icon: "dedup",
-  },
-  {
-    tag: "efficiency",
-    title: "Compression",
-    body: "Remote block stores compress payloads with zstd or lz4 before upload, then decompress on read.",
-    icon: "compress",
+    tag: "runtime",
+    title: "Runs in userspace",
+    body: "No FUSE, no kernel modules, no root. DittoFS runs as an ordinary process you can start anywhere.",
+    icon: "shield",
   },
   {
     tag: "security",
@@ -58,28 +44,45 @@ const features = [
     icon: "lock",
   },
   {
-    tag: "recovery",
-    title: "Share snapshots",
-    body: "Point-in-time reference holds with no data copy. Restore from the CLI or REST API.",
-    icon: "camera",
-  },
-  {
-    tag: "auth",
-    title: "Kerberos and signing",
-    body: "RPCSEC_GSS for NFS and SPNEGO Kerberos for SMB, with SMB3 message signing and AES-GCM transport encryption. Strong identity and integrity on the wire.",
-    icon: "key",
-  },
-  {
-    tag: "permissions",
-    title: "Cross-platform ACLs",
-    body: "NFSv4 and Windows/SMB access control lists, enforced consistently, so Linux and Windows clients see the same permissions on the same files.",
-    icon: "shieldcheck",
+    tag: "efficiency",
+    title: "Deduplication",
+    body: "Files split into content-defined chunks, addressed by BLAKE3 hash. Identical chunks across files are stored once.",
+    icon: "dedup",
   },
   {
     tag: "control plane",
     title: "REST control plane",
     body: "Manage users, groups, and shares through a JWT-authenticated REST API or the dfsctl command line. Provision by script, not by editing config files.",
     icon: "code",
+  },
+];
+
+// The long tail — shown as a tighter list under the six cards.
+const featuresMore = [
+  {
+    title: "Easy to containerize",
+    body: "One static Go binary drops into any container or orchestrator.",
+    icon: "container",
+  },
+  {
+    title: "Compression",
+    body: "Remote block stores compress with zstd or lz4 before upload.",
+    icon: "compress",
+  },
+  {
+    title: "Share snapshots",
+    body: "Point-in-time holds with no data copy. Restore from CLI or REST.",
+    icon: "camera",
+  },
+  {
+    title: "Kerberos and signing",
+    body: "RPCSEC_GSS, SPNEGO Kerberos, SMB3 signing and transport encryption.",
+    icon: "key",
+  },
+  {
+    title: "Cross-platform ACLs",
+    body: "NFSv4 and Windows/SMB ACLs enforced consistently across clients.",
+    icon: "shieldcheck",
   },
 ];
 
@@ -158,6 +161,40 @@ const pillars = [
   },
 ];
 
+const roadmap = [
+  {
+    phase: "Shipped",
+    state: "done",
+    note: "Working today",
+    items: [
+      "Multi-protocol engine — NFSv3/v4/4.1 and SMB2/3",
+      "Pluggable metadata and block stores",
+      "Client-side encryption, dedup, and compression",
+      "REST control plane, CLI, and Kubernetes operator",
+    ],
+  },
+  {
+    phase: "In progress",
+    state: "now",
+    note: "Where we are",
+    items: [
+      "Stability and performance hardening",
+      "Wider test coverage and benchmarks",
+      "Deployment guides and reference docs",
+    ],
+  },
+  {
+    phase: "Next",
+    state: "planned",
+    note: "What's coming",
+    items: [
+      "Production-ready 1.0",
+      "Managed PRO console with role-based access",
+      "Commercial support tiers",
+    ],
+  },
+];
+
 const icons: Record<string, string> = {
   shield: `<path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/>`,
   layers: `<path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 12l9 5 9-5"/>`,
@@ -191,11 +228,22 @@ const statusMark = (s: string) =>
     </div>
 
     <div
-      class="relative mx-auto grid max-w-7xl items-center gap-12 px-6 py-20 lg:grid-cols-[1.05fr_1fr] lg:py-28"
+      class="relative mx-auto grid max-w-7xl items-center gap-10 px-6 py-20 lg:grid-cols-[1fr_1.18fr] lg:py-28"
     >
       <div>
+        <a
+          href="/#roadmap"
+          class="rise mb-5 inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/10 px-3.5 py-1.5 text-sm font-medium text-accent-bright transition-colors hover:border-accent/60 hover:bg-accent/15"
+        >
+          <span class="relative flex h-2 w-2">
+            <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent-bright opacity-60"></span>
+            <span class="relative inline-flex h-2 w-2 rounded-full bg-accent-bright"></span>
+          </span>
+          Building in the open
+          <span aria-hidden="true">&rarr;</span>
+        </a>
         <h1
-          class="rise text-balance text-4xl font-black leading-[1.04] tracking-tight sm:text-5xl lg:text-6xl"
+          class="rise text-balance text-4xl font-bold leading-[1.04] tracking-tight sm:text-5xl lg:text-6xl"
         >
           One filesystem.<br />
           <span class="text-accent-bright">Every protocol.</span> Any backend.
@@ -204,9 +252,10 @@ const statusMark = (s: string) =>
           class="rise mt-6 max-w-xl text-pretty text-lg leading-relaxed text-fg-muted"
           style="animation-delay:80ms"
         >
-          DittoFS is a modular virtual filesystem in Go. It serves files over
-          NFSv3, NFSv4, and SMB2/3 from a single binary, with metadata and block
-          stores you mix and match per share. No FUSE. No kernel modules.
+          Simple to run, versatile by design. DittoFS is one Go binary that
+          serves your files over NFS and SMB, and stores them on any backend you
+          choose &mdash; from local disk to S3. No FUSE, no kernel modules, no
+          appliance.
         </p>
 
         <div
@@ -224,6 +273,12 @@ const statusMark = (s: string) =>
               ></path></svg
             >
             View on GitHub
+            {stars && (
+              <span class="ml-1 flex items-center gap-1 border-l border-border-bright pl-2.5 font-mono text-[13px] tabular-nums text-fg-faint">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l2.9 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l7.1-1.01L12 2z"/></svg>
+                {stars}
+              </span>
+            )}
           </a>
         </div>
 
@@ -234,10 +289,13 @@ const statusMark = (s: string) =>
           {
             heroStats.map((s) => (
               <div class="bg-ink-900 px-4 py-4 transition-colors hover:bg-ink-800">
-                <dt class="whitespace-nowrap font-mono text-[15px] font-bold leading-none text-accent-bright">
+                <p class="font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-accent-bright">
+                  {s.label}
+                </p>
+                <dt class="mt-2 whitespace-nowrap text-sm font-bold leading-none text-fg">
                   {s.k}
                 </dt>
-                <dd class="mt-2 text-xs leading-tight text-fg-faint">{s.v}</dd>
+                <dd class="mt-1.5 text-xs leading-tight text-fg-faint">{s.v}</dd>
               </div>
             ))
           }
@@ -304,6 +362,37 @@ const statusMark = (s: string) =>
             </div>
           ))
         }
+      </div>
+
+      <div class="mt-12 border-t border-border/60 pt-10" data-reveal>
+        <p class="font-mono text-xs uppercase tracking-[0.2em] text-fg-faint">
+          And more
+        </p>
+        <ul class="mt-6 grid gap-x-10 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
+          {
+            featuresMore.map((f) => (
+              <li class="flex items-start gap-3">
+                <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-accent/30 bg-accent/10 text-accent-bright">
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    set:html={icons[f.icon]}
+                  />
+                </span>
+                <span>
+                  <span class="text-sm font-semibold text-fg">{f.title}</span>
+                  <span class="mt-0.5 block text-sm leading-relaxed text-fg-muted">{f.body}</span>
+                </span>
+              </li>
+            ))
+          }
+        </ul>
       </div>
     </div>
   </section>
@@ -566,6 +655,85 @@ const statusMark = (s: string) =>
     </div>
   </section>
 
+  <!-- ===================== ROADMAP ===================== -->
+  <section id="roadmap" class="section-screen relative overflow-hidden border-t border-border/60 bg-ink-900/40 scroll-mt-20">
+    <div class="bg-grid pointer-events-none absolute inset-0 opacity-[0.18]"></div>
+    <div class="relative mx-auto max-w-7xl px-6 py-24">
+      <div class="max-w-2xl" data-reveal>
+        <p class="font-mono text-xs uppercase tracking-[0.2em] text-accent-bright">
+          Built in the open
+        </p>
+        <h2 class="mt-3 text-balance text-3xl font-bold sm:text-4xl">
+          Honest about where we are
+        </h2>
+        <p class="mt-4 text-fg-muted">
+          DittoFS is under active development and not yet production-ready. We
+          would rather tell you that up front, and show you the path. The core
+          works today; we are hardening it toward a 1.0 you can run with
+          confidence.
+        </p>
+      </div>
+
+      <ol class="mt-14 grid gap-5 md:grid-cols-3">
+        {
+          roadmap.map((col, i) => (
+            <li
+              class:list={[
+                "relative rounded-2xl border p-7",
+                col.state === "now"
+                  ? "border-accent/50 bg-ink-950/60 shadow-[0_24px_50px_-30px_rgba(0,101,255,0.5)]"
+                  : "border-border bg-ink-950/40",
+              ]}
+              data-reveal
+              style={`transition-delay:${i * 80}ms`}
+            >
+              <div class="flex items-center justify-between">
+                <span
+                  class:list={[
+                    "inline-flex items-center gap-2 rounded-full px-3 py-1 font-mono text-xs uppercase tracking-[0.14em]",
+                    col.state === "done" && "bg-accent/15 text-accent-bright",
+                    col.state === "now" && "bg-accent text-white",
+                    col.state === "planned" && "border border-border-bright text-fg-faint",
+                  ]}
+                >
+                  {col.state === "done" && (
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
+                  )}
+                  {col.state === "now" && (
+                    <span class="relative flex h-2 w-2">
+                      <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-70" />
+                      <span class="relative inline-flex h-2 w-2 rounded-full bg-white" />
+                    </span>
+                  )}
+                  {col.phase}
+                </span>
+                <span class="font-mono text-xs text-fg-faint">{col.note}</span>
+              </div>
+              <ul class="mt-5 space-y-3">
+                {col.items.map((item) => (
+                  <li class="flex items-start gap-2.5 text-sm text-fg-muted">
+                    <span
+                      class:list={[
+                        "mt-2 h-1.5 w-1.5 shrink-0 rounded-full",
+                        col.state === "planned" ? "bg-fg-faint" : "bg-accent-bright",
+                      ]}
+                    />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </li>
+          ))
+        }
+      </ol>
+
+      <p class="mt-8 text-sm text-fg-faint" data-reveal>
+        Follow progress and open issues on
+        <a href={GITHUB} target="_blank" rel="noopener" class="text-accent-bright underline-offset-2 hover:underline">GitHub</a>.
+      </p>
+    </div>
+  </section>
+
   <!-- ===================== PRO TEASER ===================== -->
   <section id="pro" class="border-t border-border/60">
     <div class="mx-auto max-w-2xl px-6 py-24">
@@ -590,7 +758,7 @@ const statusMark = (s: string) =>
               Explore DittoFS PRO
               <span class="arrow" aria-hidden="true">&rarr;</span>
             </a>
-            <a href="/pro/#contact" class="btn btn-secondary"> Talk to us </a>
+            <a href="/pro/#contact" class="btn btn-secondary"> Request access </a>
           </div>
         </div>
       </div>

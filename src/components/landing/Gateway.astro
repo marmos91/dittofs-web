@@ -43,7 +43,7 @@ const outbound = backends.map((b, i) => ({
 <figure class="gateway" aria-label="DittoFS routes NFS and SMB clients to pluggable storage backends">
   <svg
     id="gw"
-    viewBox="0 0 800 460"
+    viewBox="40 26 720 400"
     role="img"
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
@@ -81,14 +81,16 @@ const outbound = backends.map((b, i) => ({
     <!-- traveling packets -->
     <g class="packets">
       {inbound.map((l, i) => (
-        <circle r="3.2" class="packet">
+        <circle r="3.2" class="packet" visibility="hidden">
+          <set attributeName="visibility" to="visible" begin={`${i * 0.7}s`} />
           <animateMotion dur="2.6s" begin={`${i * 0.7}s`} repeatCount="indefinite">
             <mpath href={`#${l.id}`} />
           </animateMotion>
         </circle>
       ))}
       {outbound.map((l, i) => (
-        <circle r="3.2" class="packet packet-out">
+        <circle r="3.2" class="packet packet-out" visibility="hidden">
+          <set attributeName="visibility" to="visible" begin={`${0.3 + i * 0.45}s`} />
           <animateMotion dur="2.8s" begin={`${0.3 + i * 0.45}s`} repeatCount="indefinite">
             <mpath href={`#${l.id}`} />
           </animateMotion>
@@ -105,9 +107,9 @@ const outbound = backends.map((b, i) => ({
     <!-- client nodes -->
     {clients.map((c) => (
       <g class={`node node-client${c.custom ? " node-custom" : ""}`}>
-        <rect x="56" y={c.y - 28} width="120" height="56" rx="10" />
-        <text x="116" y={c.y - 4} text-anchor="middle" class="node-title">{c.label}</text>
-        <text x="116" y={c.y + 13} text-anchor="middle" class="node-sub">{c.sub}</text>
+        <rect x="52" y={c.y - 33} width="128" height="66" rx="11" />
+        <text x="116" y={c.y - 6} text-anchor="middle" class="node-title">{c.label}</text>
+        <text x="116" y={c.y + 15} text-anchor="middle" class="node-sub">{c.sub}</text>
       </g>
     ))}
 
@@ -128,14 +130,14 @@ const outbound = backends.map((b, i) => ({
     <!-- backend nodes -->
     {backends.map((b) => (
       <g class={`node node-backend${b.custom ? " node-custom" : ""}`}>
-        <rect x="624" y={b.cy - 24} width="128" height="48" rx="10" />
+        <rect x="622" y={b.cy - 27} width="132" height="54" rx="11" />
         {b.custom ? (
           <>
-            <text x="688" y={b.cy - 2} text-anchor="middle" class="node-title">{b.label}</text>
-            <text x="688" y={b.cy + 13} text-anchor="middle" class="node-sub">{b.sub}</text>
+            <text x="688" y={b.cy - 4} text-anchor="middle" class="node-title">{b.label}</text>
+            <text x="688" y={b.cy + 15} text-anchor="middle" class="node-sub">{b.sub}</text>
           </>
         ) : (
-          <text x="688" y={b.cy + 5} text-anchor="middle" class="node-title">{b.label}</text>
+          <text x="688" y={b.cy + 6} text-anchor="middle" class="node-title">{b.label}</text>
         )}
       </g>
     ))}
@@ -204,13 +206,13 @@ const outbound = backends.map((b, i) => ({
     fill: var(--color-fg);
     font-family: var(--font-display);
     font-weight: 700;
-    font-size: 16px;
+    font-size: 17px;
   }
   .node-sub {
     fill: var(--color-fg-faint);
     font-family: var(--font-mono);
-    font-size: 10px;
-    letter-spacing: 0.04em;
+    font-size: 13px;
+    letter-spacing: 0.02em;
   }
 
   /* The extensible "write your own backend" node. */
@@ -246,7 +248,7 @@ const outbound = backends.map((b, i) => ({
   .col-caption {
     fill: var(--color-fg-faint);
     font-family: var(--font-mono);
-    font-size: 10px;
-    letter-spacing: 0.28em;
+    font-size: 13px;
+    letter-spacing: 0.2em;
   }
 </style>

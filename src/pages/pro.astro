@@ -11,13 +11,33 @@ const community = [
   "Community support on GitHub",
 ];
 
+// PRO is the community edition plus these. The "everything in community" base
+// is stated once as a header line, not repeated as a bullet.
 const pro = [
-  "Everything in the community edition",
   "Web management UI for users, shares, and stores",
   "Role-based administration",
   "Commercial support with response-time commitments",
   "Guided upgrades and migration help",
   "Priority fixes and direct access to the team",
+];
+
+// Early-access perks — the human side of PRO, beyond the feature list.
+const perks = [
+  {
+    title: "Shape the roadmap",
+    body: "A direct line to the team. What you need steers what we build next.",
+    icon: `<circle cx="12" cy="12" r="9"/><path d="M14.5 9.5l-2 5-5 2 2-5 5-2z"/>`,
+  },
+  {
+    title: "Guided onboarding",
+    body: "Hands-on help designing shares and stores, and planning your migration.",
+    icon: `<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/>`,
+  },
+  {
+    title: "Priority everything",
+    body: "Fixes, response-time commitments, and upgrades ahead of the queue.",
+    icon: `<path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z"/>`,
+  },
 ];
 ---
 
@@ -36,20 +56,21 @@ const pro = [
       <p class="font-mono text-xs uppercase tracking-[0.2em] text-accent-bright">
         DittoFS PRO
       </p>
-      <h1 class="mt-4 text-balance text-5xl font-black leading-[1.05] sm:text-6xl">
-        The open core, ready for production
+      <h1 class="mt-4 text-balance text-5xl font-bold leading-[1.05] sm:text-6xl">
+        The open core, with a team behind it
       </h1>
       <p class="mx-auto mt-6 max-w-2xl text-lg text-fg-muted">
         The community edition is fully open source and always will be. PRO adds
-        a web management UI and commercial support for teams that run DittoFS at
-        work.
+        a web management UI and commercial support for teams that want to run
+        DittoFS at work. We are onboarding early-access partners now, in limited
+        numbers, to shape it together.
       </p>
       <div class="mt-9 flex flex-wrap justify-center gap-4">
         <a
           href="#contact"
           class="btn btn-primary"
         >
-          Talk to us
+          Request early access
         </a>
         <a
           href="/docs/overview/getting-started/"
@@ -58,6 +79,13 @@ const pro = [
           Try the community edition
         </a>
       </div>
+      <p class="mt-5 flex items-center justify-center gap-2 font-mono text-xs text-fg-faint">
+        <span class="relative flex h-2 w-2">
+          <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent-bright opacity-60"></span>
+          <span class="relative inline-flex h-2 w-2 rounded-full bg-accent-bright"></span>
+        </span>
+        Limited onboarding slots &middot; by invitation
+      </p>
     </div>
   </section>
 
@@ -85,6 +113,52 @@ const pro = [
           width={1622}
           height={1023}
         />
+      </div>
+    </div>
+  </section>
+
+  <!-- EARLY ACCESS PERKS -->
+  <section class="section-screen border-b border-border/60">
+    <div class="mx-auto max-w-6xl px-6 py-24">
+      <div class="mx-auto max-w-2xl text-center" data-reveal>
+        <p class="font-mono text-xs uppercase tracking-[0.2em] text-accent-bright">
+          Early access
+        </p>
+        <h2 class="mt-3 text-balance text-3xl font-bold sm:text-4xl">
+          More than a license
+        </h2>
+        <p class="mt-4 text-fg-muted">
+          We are onboarding a small group of partners. You get the people behind
+          DittoFS, not just the software.
+        </p>
+      </div>
+
+      <div class="mt-14 grid gap-5 md:grid-cols-3">
+        {
+          perks.map((p, i) => (
+            <div
+              class="rounded-2xl border border-border bg-ink-950/50 p-7"
+              data-reveal
+              style={`transition-delay:${i * 80}ms`}
+            >
+              <div class="flex h-11 w-11 items-center justify-center rounded-lg border border-accent/30 bg-accent/10 text-accent-bright">
+                <svg
+                  width="22"
+                  height="22"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  set:html={p.icon}
+                />
+              </div>
+              <h3 class="mt-5 text-lg font-bold">{p.title}</h3>
+              <p class="mt-2 text-sm leading-relaxed text-fg-muted">{p.body}</p>
+            </div>
+          ))
+        }
       </div>
     </div>
   </section>
@@ -125,20 +199,24 @@ const pro = [
         </div>
 
         <div
-          class="relative overflow-hidden rounded-2xl border border-accent/50 bg-gradient-to-br from-ink-800 to-ink-950 p-8"
+          class="relative overflow-hidden rounded-2xl border-2 border-accent/60 bg-gradient-to-br from-ink-800 to-ink-950 p-8 shadow-[0_30px_70px_-40px_rgba(0,101,255,0.7)] lg:-mt-3 lg:-mb-3"
           data-reveal
           style="transition-delay:90ms"
         >
+          <span class="absolute right-5 top-6 rounded-full bg-accent px-3 py-1 font-mono text-xs font-semibold uppercase tracking-[0.12em] text-white">
+            Recommended
+          </span>
           <div class="bg-grid pointer-events-none absolute inset-0 opacity-15"></div>
           <div class="relative">
             <div class="flex items-center gap-3">
               <h3 class="text-xl font-bold">PRO</h3>
               <span class="rounded-full bg-accent/15 px-2.5 py-0.5 font-mono text-xs text-accent-bright">
-                commercial
+                early access
               </span>
             </div>
             <p class="mt-1 text-sm text-fg-faint">UI and support on the open core</p>
-            <ul class="mt-6 space-y-3">
+            <p class="mt-6 text-sm font-semibold text-fg">Everything in Community, plus</p>
+            <ul class="mt-4 space-y-3">
               {
                 pro.map((item) => (
                   <li class="flex items-start gap-3 text-sm text-fg">
@@ -154,11 +232,19 @@ const pro = [
               href="#contact"
               class="mt-8 inline-block rounded-md bg-accent px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-bright"
             >
-              Talk to us
+              Request access
             </a>
+            <p class="mt-3 font-mono text-xs text-fg-faint">
+              Limited onboarding slots &middot; by invitation
+            </p>
           </div>
         </div>
       </div>
+
+      <p class="mt-10 text-center text-sm text-fg-faint" data-reveal>
+        PRO matures alongside the open core.
+        <a href="/#roadmap" class="text-accent-bright underline-offset-2 hover:underline">See the roadmap &rarr;</a>
+      </p>
     </div>
   </section>
 
