@@ -22,3 +22,17 @@ export function formatStars(n: number | null): string | null {
   if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, "") + "k";
   return String(n);
 }
+
+let cachedRelease: Promise<string | null> | null = null;
+
+export function getLatestRelease(): Promise<string | null> {
+  if (!cachedRelease) {
+    cachedRelease = fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
+      headers: { Accept: "application/vnd.github+json" },
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => (d && typeof d.tag_name === "string" ? d.tag_name : null))
+      .catch(() => null);
+  }
+  return cachedRelease;
+}

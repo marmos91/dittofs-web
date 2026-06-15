@@ -164,4 +164,20 @@ const nav = [
       });
     })
     .catch(function () {});
+
+  fetch("https://api.github.com/repos/marmos91/dittofs/releases/latest", {
+    headers: { Accept: "application/vnd.github+json" },
+  })
+    .then(function (r) {
+      return r.ok ? r.json() : null;
+    })
+    .then(function (d) {
+      if (!d || typeof d.tag_name !== "string") return;
+      document.querySelectorAll("[data-gh-version]").forEach(function (el) {
+        var num = el.querySelector(".gh-version-n");
+        if (num) num.textContent = d.tag_name;
+        el.hidden = false;
+      });
+    })
+    .catch(function () {});
 </script>

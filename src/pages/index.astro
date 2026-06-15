@@ -4,10 +4,11 @@ import Gateway from "../components/landing/Gateway.astro";
 import Terminal from "../components/landing/Terminal.astro";
 import HowItWorks from "../components/landing/HowItWorks.astro";
 import WritePath from "../components/landing/WritePath.astro";
-import { getStars, formatStars } from "../lib/github";
+import { getStars, formatStars, getLatestRelease } from "../lib/github";
 
 const GITHUB = "https://github.com/marmos91/dittofs";
 const stars = formatStars(await getStars());
+const version = await getLatestRelease();
 
 const heroStats = [
   { label: "Versatile", k: "NFS + SMB", v: "served together" },
@@ -231,17 +232,31 @@ const statusMark = (s: string) =>
       class="relative mx-auto grid max-w-7xl items-center gap-10 px-6 py-20 lg:grid-cols-[1fr_1.18fr] lg:py-28"
     >
       <div>
-        <a
-          href="/#roadmap"
-          class="rise mb-5 inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/10 px-3.5 py-1.5 text-sm font-medium text-accent-bright transition-colors hover:border-accent/60 hover:bg-accent/15"
-        >
-          <span class="relative flex h-2 w-2">
-            <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent-bright opacity-60"></span>
-            <span class="relative inline-flex h-2 w-2 rounded-full bg-accent-bright"></span>
-          </span>
-          Building in the open
-          <span aria-hidden="true">&rarr;</span>
-        </a>
+        <div class="rise mb-5 flex flex-wrap items-center gap-3">
+          <a
+            href="/#roadmap"
+            class="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/10 px-3.5 py-1.5 text-sm font-medium text-accent-bright transition-colors hover:border-accent/60 hover:bg-accent/15"
+          >
+            <span class="relative flex h-2 w-2">
+              <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent-bright opacity-60"></span>
+              <span class="relative inline-flex h-2 w-2 rounded-full bg-accent-bright"></span>
+            </span>
+            Building in the open
+            <span aria-hidden="true">&rarr;</span>
+          </a>
+          <a
+            href={`${GITHUB}/releases`}
+            target="_blank"
+            rel="noopener"
+            class="inline-flex items-center gap-1.5 rounded-full border border-border-bright px-3 py-1.5 font-mono text-xs text-fg-muted transition-colors hover:border-accent/50 hover:text-fg"
+            data-gh-version
+            hidden={!version}
+            aria-label="Latest DittoFS release"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><circle cx="7" cy="7" r="1.2" fill="currentColor"/></svg>
+            <span class="gh-version-n">{version}</span>
+          </a>
+        </div>
         <h1
           class="rise text-balance text-4xl font-bold leading-[1.04] tracking-tight sm:text-5xl lg:text-6xl"
         >
