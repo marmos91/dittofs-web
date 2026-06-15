@@ -273,12 +273,14 @@ const statusMark = (s: string) =>
               ></path></svg
             >
             View on GitHub
-            {stars && (
-              <span class="ml-1 flex items-center gap-1 border-l border-border-bright pl-2.5 font-mono text-[13px] tabular-nums text-fg-faint">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l2.9 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l7.1-1.01L12 2z"/></svg>
-                {stars}
-              </span>
-            )}
+            <span
+              class="ml-1 flex items-center gap-1 border-l border-border-bright pl-2.5 font-mono text-[13px] tabular-nums text-fg-faint"
+              data-gh-stars
+              hidden={!stars}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l2.9 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l7.1-1.01L12 2z"/></svg>
+              <span class="gh-stars-n">{stars}</span>
+            </span>
           </a>
         </div>
 
