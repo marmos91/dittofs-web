@@ -12,9 +12,34 @@ const version = await getLatestRelease();
 
 const heroStats = [
   { label: "Versatile", k: "NFS + SMB", v: "served together" },
-  { label: "Compatible", k: "99.99% POSIX", v: "drop-in for clients" },
-  { label: "Simple", k: "Userspace", v: "no FUSE, no kernel" },
+  { label: "No lock-in", k: "Any S3 backend", v: "multi-cloud" },
+  { label: "Zero agents", k: "Native clients", v: "no FUSE, no kernel" },
   { label: "Portable", k: "One binary", v: "pure Go" },
+];
+
+// Business outcomes up top: what DittoFS means for a team, before the deep
+// technical sections. Each pairs an outcome with the capability that delivers it.
+const value = [
+  {
+    title: "Nothing to deploy on clients",
+    body: "DittoFS speaks NFS and SMB natively, so machines mount it with the clients they already ship. No FUSE, no kernel modules, no agent to roll out or keep updated across a fleet.",
+    icon: "layers",
+  },
+  {
+    title: "No vendor lock-in",
+    body: "Serve the same data from any S3-compatible backend, on any cloud, on-prem, or the edge. Switch providers or go hybrid without re-platforming your applications.",
+    icon: "globe",
+  },
+  {
+    title: "No appliance, no licensing",
+    body: "Open-source software on hardware you already own. Compute and storage scale on their own, with no proprietary NAS or SAN, no per-shelf fees, and no forklift upgrades.",
+    icon: "coins",
+  },
+  {
+    title: "Security you can attest to",
+    body: "Client-side encryption, NFSv4 and Windows ACLs, and Kerberos. Running in userspace means no privileged kernel access, and your object store only ever holds ciphertext.",
+    icon: "shieldcheck",
+  },
 ];
 
 // Six headline capabilities get full cards; the rest sit in a compact list
@@ -58,7 +83,7 @@ const features = [
   },
 ];
 
-// The long tail — shown as a tighter list under the six cards.
+// The long tail, shown as a tighter list under the six cards.
 const featuresMore = [
   {
     title: "Easy to containerize",
@@ -102,32 +127,32 @@ const matrixRows = [
 const useCases = [
   {
     title: "Multi-tenant cloud",
-    body: "Isolated shares, per-share stores, and client-side encryption for tenants that share the same infrastructure.",
+    body: "Host many tenants on shared infrastructure without crossing streams. Isolated shares, per-tenant stores, and client-side encryption keep data separated.",
     icon: "globe",
   },
   {
     title: "Tiered storage",
-    body: "A fast local cache fronts durable S3. Writes land locally and sync to the remote in the background.",
+    body: "Keep hot data fast and cold data cheap. A local cache fronts durable S3, so users hit the local tier while data syncs to the remote in the background.",
     icon: "swap",
   },
   {
     title: "Hybrid Linux and Windows",
-    body: "Serve Linux over NFS and Windows or macOS over SMB from one server, backed by the same data.",
+    body: "Consolidate mixed fleets onto one server. Linux over NFS, Windows and macOS over SMB, all serving the same data instead of running parallel systems.",
     icon: "layers",
   },
   {
     title: "Dev and test",
-    body: "Spin up an in-memory filesystem in one command. No FUSE, no privileges, no external services to stand up.",
+    body: "Ship faster with a throwaway filesystem in one command. In-memory, no FUSE, no privileges, nothing external to provision.",
     icon: "beaker",
   },
   {
     title: "Cloud-native deployments",
-    body: "A single userspace binary drops into Kubernetes with the official operator. Scale shares, not kernels.",
+    body: "Drop a single userspace binary into Kubernetes with the operator. Scale shares, not kernels, with no privileged DaemonSets to maintain.",
     icon: "container",
   },
   {
     title: "Backup and recovery",
-    body: "Point-in-time share snapshots with no data copy, restorable from the CLI or REST API, guard against accidental deletes.",
+    body: "Guard against accidental deletes with point-in-time snapshots that copy no data, restorable from the CLI or REST API in seconds.",
     icon: "camera",
   },
 ];
@@ -152,7 +177,7 @@ const pillars = [
   },
   {
     title: "No appliance to buy",
-    body: "Open-source software that runs on hardware you already own. No proprietary NAS or SAN controllers, no per-shelf licensing, no forklift upgrades. Compute and storage scale on their own.",
+    body: "Run it on commodity hardware or a VM you already pay for. There is no NAS controller to size and no capacity to license up front, and compute scales separately from the storage behind it.",
     icon: "coins",
   },
   {
@@ -168,7 +193,7 @@ const roadmap = [
     state: "done",
     note: "Working today",
     items: [
-      "Multi-protocol engine — NFSv3/v4/4.1 and SMB2/3",
+      "Multi-protocol engine: NFSv3/v4/4.1 and SMB2/3",
       "Pluggable metadata and block stores",
       "Client-side encryption, dedup, and compression",
       "REST control plane, CLI, and Kubernetes operator",
@@ -267,10 +292,10 @@ const statusMark = (s: string) =>
           class="rise mt-6 max-w-xl text-pretty text-lg leading-relaxed text-fg-muted"
           style="animation-delay:80ms"
         >
-          Simple to run, versatile by design. DittoFS is one Go binary that
-          serves your files over NFS and SMB, and stores them on any backend you
-          choose &mdash; from local disk to S3. No FUSE, no kernel modules, no
-          appliance.
+          Simple to run, versatile by design. DittoFS serves your files over NFS
+          and SMB with no client agents to install, and stores them on any
+          backend you choose, from local disk to S3. No FUSE, no kernel modules,
+          no appliance.
         </p>
 
         <div
@@ -325,6 +350,100 @@ const statusMark = (s: string) =>
     </div>
   </section>
 
+  <!-- ===================== VALUE (BUSINESS OUTCOMES) ===================== -->
+  <section id="why" class="section-screen border-t border-border/60 bg-ink-900/40">
+    <div class="mx-auto max-w-7xl px-6 py-24">
+      <div class="mx-auto max-w-2xl text-center" data-reveal>
+        <p class="font-mono text-xs uppercase tracking-[0.2em] text-accent-bright">
+          Why teams choose DittoFS
+        </p>
+        <h2 class="mt-3 text-balance text-3xl font-bold sm:text-4xl">
+          Network storage without the usual baggage
+        </h2>
+        <p class="mt-4 text-fg-muted">
+          Standard protocols, your own backends, and nothing proprietary in the
+          path. Fewer moving parts to deploy, secure, and pay for.
+        </p>
+      </div>
+
+      <div class="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        {
+          value.map((v, i) => (
+            <div
+              class="rounded-2xl border border-border bg-ink-950/50 p-7"
+              data-reveal
+              style={`transition-delay:${(i % 4) * 70}ms`}
+            >
+              <div class="flex h-11 w-11 items-center justify-center rounded-lg border border-accent/30 bg-accent/10 text-accent-bright">
+                <svg
+                  width="22"
+                  height="22"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  set:html={icons[v.icon]}
+                />
+              </div>
+              <h3 class="mt-5 text-base font-bold">{v.title}</h3>
+              <p class="mt-2 text-sm leading-relaxed text-fg-muted">{v.body}</p>
+            </div>
+          ))
+        }
+      </div>
+
+      <!-- How it's different (generic, unnamed contrast) -->
+      <div class="mt-12 grid gap-5 md:grid-cols-2" data-reveal>
+        <div class="rounded-2xl border border-border bg-ink-950/40 p-7">
+          <p class="font-mono text-xs uppercase tracking-[0.18em] text-fg-faint">
+            Other network filesystems
+          </p>
+          <ul class="mt-5 space-y-3 text-sm text-fg-muted">
+            <li class="flex items-start gap-3">
+              <span class="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-fg-faint" />
+              Install a kernel driver (FUSE) on every client, with privileged access
+            </li>
+            <li class="flex items-start gap-3">
+              <span class="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-fg-faint" />
+              Or rewrite applications against a language-specific SDK
+            </li>
+            <li class="flex items-start gap-3">
+              <span class="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-fg-faint" />
+              An agent to deploy, update, and troubleshoot on every machine
+            </li>
+          </ul>
+        </div>
+        <div class="rounded-2xl border border-accent/40 bg-gradient-to-br from-ink-800 to-ink-950 p-7">
+          <p class="font-mono text-xs uppercase tracking-[0.18em] text-accent-bright">
+            DittoFS
+          </p>
+          <ul class="mt-5 space-y-3 text-sm text-fg">
+            <li class="flex items-start gap-3">
+              <span class="mt-0.5 text-accent-bright">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+              </span>
+              Speaks NFS and SMB natively, the clients every OS already ships
+            </li>
+            <li class="flex items-start gap-3">
+              <span class="mt-0.5 text-accent-bright">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+              </span>
+              No application changes. Mount a share and read and write files
+            </li>
+            <li class="flex items-start gap-3">
+              <span class="mt-0.5 text-accent-bright">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+              </span>
+              Nothing privileged to run, nothing per-machine to manage
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- ===================== FEATURES ===================== -->
   <section id="features" class="section-screen border-t border-border/60">
     <div class="mx-auto max-w-7xl px-6 py-24">
@@ -336,8 +455,9 @@ const statusMark = (s: string) =>
           Storage decisions, decoupled from protocols
         </h2>
         <p class="mt-4 text-fg-muted">
-          Pick the interface your clients speak and the backend your data lives
-          on, independently, per share.
+          Decouple the interface your clients speak from the backend your data
+          lives on, per share, so storage choices never dictate how teams
+          connect.
         </p>
       </div>
 
@@ -592,34 +712,41 @@ const statusMark = (s: string) =>
         </p>
         <h2 class="mt-3 text-balance text-3xl font-bold sm:text-4xl">Local first, durable second</h2>
         <p class="mt-4 text-fg-muted">
-          Every write lands in a local block store and is acknowledged
-          immediately, so clients never block on the network. An append-only log
-          captures the change first. A background pass then splits it into
-          content-defined chunks and addresses each by its BLAKE3 hash, so a
-          chunk that already exists is stored once. Those chunks are compressed
-          with zstd or lz4, then encrypted under a per-block key before they
-          leave the server, so the object store only ever holds deduplicated,
-          compressed ciphertext. Only then do blocks sync to durable storage.
-          The local tier stays the fast path, the remote is the source of truth.
+          Fast where it counts: users hit the local tier, not the network. Writes
+          land locally and are acknowledged immediately. A background pass then
+          dedupes, compresses, and encrypts before syncing to durable storage.
         </p>
-        <ul class="mt-8 space-y-4 text-sm text-fg-muted">
+        <p class="mt-3 text-fg-muted">
+          The local tier stays the fast path. The remote is the source of truth,
+          and it only ever holds deduplicated, compressed ciphertext.
+        </p>
+        <ul class="mt-8 space-y-5 text-sm text-fg-muted">
           <li class="flex items-start gap-3">
             <span class="mt-0.5 font-mono text-accent-bright">01</span>
-            The client writes to a mounted share. DittoFS appends to a per-file
-            log and acks from the local cache right away, with no network round
-            trip in the hot path.
+            <span>
+              <strong class="font-semibold text-fg">Write, acked locally.</strong>
+              The client writes to a mounted share. DittoFS appends to a per-file
+              log and acks from the local cache right away, with no network round
+              trip in the hot path.
+            </span>
           </li>
           <li class="flex items-start gap-3">
             <span class="mt-0.5 font-mono text-accent-bright">02</span>
-            A rollup splits the log into content-defined chunks (FastCDC),
-            addresses each by BLAKE3 hash, and deduplicates against blocks
-            already stored.
+            <span>
+              <strong class="font-semibold text-fg">Chunk and dedupe.</strong>
+              A rollup splits the log into content-defined chunks (FastCDC),
+              addresses each by BLAKE3 hash, and deduplicates against blocks
+              already stored.
+            </span>
           </li>
           <li class="flex items-start gap-3">
             <span class="mt-0.5 font-mono text-accent-bright">03</span>
-            The syncer uploads new blocks to the durable remote, S3 or
-            filesystem, optionally compressed and encrypted. Reads verify each
-            block by hash.
+            <span>
+              <strong class="font-semibold text-fg">Compress, encrypt, sync.</strong>
+              The syncer uploads new blocks to the durable remote, S3 or
+              filesystem, optionally compressed and encrypted. Reads verify each
+              block by hash.
+            </span>
           </li>
         </ul>
       </div>
@@ -638,8 +765,9 @@ const statusMark = (s: string) =>
         </p>
         <h2 class="mt-3 text-balance text-3xl font-bold sm:text-4xl">Where it fits</h2>
         <p class="mt-4 text-fg-muted">
-          One server, many shapes. Because protocols and storage are decoupled,
-          DittoFS adapts to where your data needs to live.
+          One server, many shapes. Consolidate systems instead of stacking
+          them. Because protocols and storage are decoupled, DittoFS adapts to
+          where your data needs to live and who needs to reach it.
         </p>
       </div>
       <div class="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
