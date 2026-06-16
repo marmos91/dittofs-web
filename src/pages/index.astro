@@ -246,7 +246,7 @@ const statusMark = (s: string) =>
 
 <Base>
   <!-- ===================== HERO ===================== -->
-  <section class="section-screen relative overflow-hidden">
+  <section class="relative overflow-hidden">
     <div class="bg-grid pointer-events-none absolute inset-0 opacity-[0.35]"></div>
     <div
       class="glow-accent pointer-events-none absolute -top-32 left-1/2 h-[560px] w-[920px] -translate-x-1/2 opacity-50"
@@ -254,7 +254,7 @@ const statusMark = (s: string) =>
     </div>
 
     <div
-      class="relative mx-auto grid max-w-7xl items-center gap-10 px-6 py-20 lg:grid-cols-[1fr_1.18fr] lg:py-28"
+      class="relative mx-auto grid w-full max-w-7xl items-center gap-10 px-6 py-20 lg:grid-cols-[1fr_1.18fr] lg:py-28"
     >
       <div>
         <div class="rise mb-5 flex flex-wrap items-center gap-3">
@@ -324,28 +324,36 @@ const statusMark = (s: string) =>
           </a>
         </div>
 
-        <dl
-          class="rise mt-12 grid max-w-xl grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-4"
-          style="animation-delay:240ms"
-        >
+      </div>
+
+      <div class="rise" style="animation-delay:140ms">
+        <Gateway />
+      </div>
+    </div>
+
+    <!-- Spec strip sits flush under the hero content as its base band. Darker
+         than the next section so it reads as the hero's footer, not its start. -->
+    <div class="relative border-t border-border/60 bg-ink-950/60 pb-6 sm:pb-8">
+      <div class="mx-auto max-w-7xl px-6">
+        <dl class="grid grid-cols-2 divide-border sm:grid-cols-4 sm:divide-x">
           {
-            heroStats.map((s) => (
-              <div class="bg-ink-900 px-4 py-4 transition-colors hover:bg-ink-800">
+            heroStats.map((s, i) => (
+              <div
+                class:list={[
+                  "px-4 py-5 sm:px-6",
+                  i >= 2 && "border-t border-border sm:border-t-0",
+                  i % 2 === 1 && "border-l border-border sm:border-l-0",
+                ]}
+              >
                 <p class="font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-accent-bright">
                   {s.label}
                 </p>
-                <dt class="mt-2 whitespace-nowrap text-sm font-bold leading-none text-fg">
-                  {s.k}
-                </dt>
+                <dt class="mt-2 text-sm font-bold leading-none text-fg">{s.k}</dt>
                 <dd class="mt-1.5 text-xs leading-tight text-fg-faint">{s.v}</dd>
               </div>
             ))
           }
         </dl>
-      </div>
-
-      <div class="rise" style="animation-delay:140ms">
-        <Gateway />
       </div>
     </div>
   </section>
