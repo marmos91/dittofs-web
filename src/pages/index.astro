@@ -110,13 +110,19 @@ const featuresMore = [
     body: "NFSv4 and Windows/SMB ACLs enforced consistently across clients.",
     icon: "shieldcheck",
   },
+  {
+    title: "Cross-protocol xattrs",
+    body: "Extended attributes (RFC 8276 over NFSv4.2, native over SMB) read and write the same values across protocols.",
+    icon: "layers",
+  },
 ];
 
 // Honest protocol capability matrix. y = yes, p = partial, n = not applicable.
-const matrixCols = ["NFSv3", "NFSv4 / 4.1", "SMB2 / 3"];
+const matrixCols = ["NFSv3", "NFSv4.1 / 4.2", "SMB2 / 3"];
 const matrixRows = [
   { label: "Mount & file I/O", v: ["y", "y", "y"] },
   { label: "ACLs", v: ["n", "y", "y"] },
+  { label: "Extended attributes", v: ["n", "y", "y"] },
   { label: "Kerberos auth", v: ["y", "y", "y"] },
   { label: "Leases / delegations", v: ["n", "y", "y"] },
   { label: "Wire encryption", v: ["p", "p", "y"] },
@@ -193,7 +199,7 @@ const roadmap = [
     state: "done",
     note: "Working today",
     items: [
-      "Multi-protocol engine: NFSv3/v4/4.1 and SMB2/3",
+      "Multi-protocol engine: NFSv3/v4/4.1/4.2 and SMB2/3",
       "Pluggable metadata and block stores",
       "Client-side encryption, dedup, and compression",
       "REST control plane, CLI, and Kubernetes operator",
