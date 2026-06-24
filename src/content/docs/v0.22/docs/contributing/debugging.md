@@ -1,10 +1,10 @@
 ---
-title: "Debugging Protocol Interop"
-description: "SMB/NFS pcap-diff interop debugging playbook."
-editUrl: "https://github.com/marmos91/dittofs/edit/develop/docs/internals/debugging.md"
+title: Debugging Protocol Interop
+description: SMB/NFS pcap-diff interop debugging playbook.
+editUrl: https://github.com/marmos91/dittofs/edit/v0.22.0/docs/internals/debugging.md
 sidebar:
   order: 9
-# Synced from dittofs/docs/internals/debugging.md — do not edit here.
+slug: v0.22/docs/contributing/debugging
 ---
 
 When a conformance test fails against DittoFS but passes against Samba, Windows, or a Linux
@@ -56,15 +56,15 @@ docker run --rm -v /tmp:/tmp --platform linux/amd64 nicolaka/netshoot \
 
 ## Pitfalls
 
-- Force `--platform linux/amd64` on Apple Silicon.
-- `tshark` needs `-d tcp.port==N,nbss` for SMB on any port other than 445.
-- Always `docker compose down -v` between runs so stale state doesn't leak.
-- Keep both pcaps for post-mortem comparison.
+* Force `--platform linux/amd64` on Apple Silicon.
+* `tshark` needs `-d tcp.port==N,nbss` for SMB on any port other than 445.
+* Always `docker compose down -v` between runs so stale state doesn't leak.
+* Keep both pcaps for post-mortem comparison.
 
 ## Reference implementations
 
 When in doubt about protocol correctness, compare against the canonical implementations — our
 behavior sometimes drifts in subtle ways:
 
-- NFS: [https://github.com/torvalds/linux/tree/master/fs/nfs](https://github.com/torvalds/linux/tree/master/fs/nfs)
-- SMB: [https://github.com/samba-team/samba](https://github.com/samba-team/samba)
+* NFS: [https://github.com/torvalds/linux/tree/master/fs/nfs](https://github.com/torvalds/linux/tree/master/fs/nfs)
+* SMB: [https://github.com/samba-team/samba](https://github.com/samba-team/samba)

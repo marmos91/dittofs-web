@@ -12,7 +12,7 @@ import starlightVersions from "starlight-versions";
  * stays empty — an empty list leaves the site single-version with no switcher.
  */
 const DOC_VERSIONS = [
-  // { slug: "v0.22" },
+  { slug: "v0.22" },
 ];
 
 // Canonical site URL. Overridable per-environment (preview deploys, etc.).

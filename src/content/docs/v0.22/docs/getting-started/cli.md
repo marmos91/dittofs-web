@@ -1,37 +1,36 @@
 ---
-title: "CLI Reference"
-description: "Complete reference for the dfs server and dfsctl client commands."
-editUrl: "https://github.com/marmos91/dittofs/edit/develop/docs/guide/cli.md"
+title: CLI Reference
+description: Complete reference for the dfs server and dfsctl client commands.
+editUrl: https://github.com/marmos91/dittofs/edit/v0.22.0/docs/guide/cli.md
 sidebar:
   order: 5
-# Synced from dittofs/docs/guide/cli.md — do not edit here.
+slug: v0.22/docs/getting-started/cli
 ---
 
 DittoFS ships two binaries:
 
-- **`dfs`** — the server daemon. Runs the protocol adapters and the control-plane API; manages the local config file and the server process.
-- **`dfsctl`** — the REST client. Talks to a running `dfs` over its control-plane API to manage users, groups, shares, stores, and adapters.
+* **`dfs`** — the server daemon. Runs the protocol adapters and the control-plane API; manages the local config file and the server process.
+* **`dfsctl`** — the REST client. Talks to a running `dfs` over its control-plane API to manage users, groups, shares, stores, and adapters.
 
 This page is generated from the command definitions (`go run ./cmd/gendocs`). Do not edit it by hand. Run `dfs <command> --help` or `dfsctl <command> --help` for the same content at the terminal.
 
 ## `dfs`
 
-- [`dfs`](#dfs) — DittoFS - Modular virtual filesystem
-  - [`dfs completion`](#dfs-completion) — Generate shell completion script
-  - [`dfs config`](#dfs-config) — Configuration management
-    - [`dfs config edit`](#dfs-config-edit) — Open configuration in editor
-    - [`dfs config schema`](#dfs-config-schema) — Generate JSON schema for configuration
-    - [`dfs config show`](#dfs-config-show) — Display current configuration
-    - [`dfs config validate`](#dfs-config-validate) — Validate configuration file
-  - [`dfs init`](#dfs-init) — Initialize a sample configuration file
-  - [`dfs logs`](#dfs-logs) — Tail server logs
-  - [`dfs migrate`](#dfs-migrate) — Run database migrations
-  - [`dfs migrate-to-cas`](#dfs-migrate-to-cas) — Migrate legacy .blk block layout to CAS (offline; required for v0.16+ servers)
-  - [`dfs start`](#dfs-start) — Start the DittoFS server
-  - [`dfs status`](#dfs-status) — Show server status
-  - [`dfs stop`](#dfs-stop) — Stop the DittoFS server
-  - [`dfs version`](#dfs-version) — Show version information
-
+* [`dfs`](#dfs) — DittoFS - Modular virtual filesystem
+  * [`dfs completion`](#dfs-completion) — Generate shell completion script
+  * [`dfs config`](#dfs-config) — Configuration management
+    * [`dfs config edit`](#dfs-config-edit) — Open configuration in editor
+    * [`dfs config schema`](#dfs-config-schema) — Generate JSON schema for configuration
+    * [`dfs config show`](#dfs-config-show) — Display current configuration
+    * [`dfs config validate`](#dfs-config-validate) — Validate configuration file
+  * [`dfs init`](#dfs-init) — Initialize a sample configuration file
+  * [`dfs logs`](#dfs-logs) — Tail server logs
+  * [`dfs migrate`](#dfs-migrate) — Run database migrations
+  * [`dfs migrate-to-cas`](#dfs-migrate-to-cas) — Migrate legacy .blk block layout to CAS (offline; required for v0.16+ servers)
+  * [`dfs start`](#dfs-start) — Start the DittoFS server
+  * [`dfs status`](#dfs-status) — Show server status
+  * [`dfs stop`](#dfs-stop) — Stop the DittoFS server
+  * [`dfs version`](#dfs-version) — Show version information
 
 ### `dfs`
 
@@ -41,7 +40,7 @@ DittoFS is an experimental modular virtual filesystem that decouples
 file interfaces from storage backends. It implements NFSv3 and SMB protocols
 in pure Go (userspace, no FUSE required) with pluggable metadata and content stores.
 
-Use "dfs [command] --help" for more information about a command.
+Use "dfs \[command] --help" for more information about a command.
 
 Flags:
 
@@ -58,34 +57,46 @@ Generate shell completion script for dfs.
 To load completions:
 
 Bash:
-  # Linux:
-  $ dfs completion bash > /etc/bash_completion.d/dfs
-  # macOS:
-  $ dfs completion bash > $(brew --prefix)/etc/bash_completion.d/dfs
+
+# Linux:
+
+$ dfs completion bash > /etc/bash\_completion.d/dfs
+
+# macOS:
+
+$ dfs completion bash > $(brew --prefix)/etc/bash\_completion.d/dfs
 
 Zsh:
-  # If shell completion is not already enabled in your environment,
-  # you will need to enable it. You can execute the following once:
-  $ echo "autoload -U compinit; compinit" >> ~/.zshrc
 
-  # To load completions for each session, execute once:
-  # Linux:
-  $ dfs completion zsh > "$&#123;fpath[1]&#125;/_dfs"
-  # macOS:
-  $ dfs completion zsh > $(brew --prefix)/share/zsh/site-functions/_dfs
+# If shell completion is not already enabled in your environment,
 
-  # You will need to start a new shell for this setup to take effect.
+# you will need to enable it. You can execute the following once:
+
+$ echo "autoload -U compinit; compinit" >> ~/.zshrc
+
+# To load completions for each session, execute once:
+
+# Linux:
+
+$ dfs completion zsh > "$\{fpath\[1]}/\_dfs"
+
+# macOS:
+
+$ dfs completion zsh > $(brew --prefix)/share/zsh/site-functions/\_dfs
+
+# You will need to start a new shell for this setup to take effect.
 
 Fish:
-  $ dfs completion fish > ~/.config/fish/completions/dfs.fish
+$ dfs completion fish > ~/.config/fish/completions/dfs.fish
 
 PowerShell:
-  PS> dfs completion powershell | Out-String | Invoke-Expression
+PS> dfs completion powershell | Out-String | Invoke-Expression
 
-  # To load completions for every new session, run:
-  PS> dfs completion powershell > dfs.ps1
-  # and source this file from your PowerShell profile.
+# To load completions for every new session, run:
 
+PS> dfs completion powershell > dfs.ps1
+
+# and source this file from your PowerShell profile.
 
 ```
 dfs completion [bash|zsh|fish|powershell]
@@ -106,10 +117,10 @@ Manage DittoFS configuration files.
 Use 'dfs init' to create a new configuration file.
 
 Subcommands:
-  edit      Open configuration in editor
-  validate  Validate configuration file
-  show      Display current configuration
-  schema    Generate JSON schema for IDE/validation
+edit      Open configuration in editor
+validate  Validate configuration file
+show      Display current configuration
+schema    Generate JSON schema for IDE/validation
 
 Global flags:
 
@@ -126,11 +137,14 @@ Open the configuration file in your default editor.
 Uses the EDITOR environment variable, falling back to 'vi' if not set.
 
 Examples:
-  # Edit default config
-  dfs config edit
 
-  # Edit specific config file
-  dfs config edit --config /etc/dittofs/config.yaml
+# Edit default config
+
+dfs config edit
+
+# Edit specific config file
+
+dfs config edit --config /etc/dittofs/config.yaml
 
 ```
 dfs config edit
@@ -149,16 +163,20 @@ Generate JSON schema for configuration
 Generate a JSON schema for the DittoFS configuration file.
 
 The schema can be used for:
-  - IDE autocompletion (VS Code, IntelliJ, etc.)
-  - Configuration file validation
-  - Documentation generation
+
+* IDE autocompletion (VS Code, IntelliJ, etc.)
+* Configuration file validation
+* Documentation generation
 
 Examples:
-  # Print schema to stdout
-  dfs config schema
 
-  # Save schema to file
-  dfs config schema --output config.schema.json
+# Print schema to stdout
+
+dfs config schema
+
+# Save schema to file
+
+dfs config schema --output config.schema.json
 
 ```
 dfs config schema [flags]
@@ -186,17 +204,22 @@ By default outputs YAML format. Use --output to change format.
 Use --deduced to show auto-deduced block store defaults based on system resources.
 
 Examples:
-  # Show default config as YAML
-  dfs config show
 
-  # Show as JSON
-  dfs config show --output json
+# Show default config as YAML
 
-  # Show specific config file
-  dfs config show --config /etc/dittofs/config.yaml
+dfs config show
 
-  # Show auto-deduced block store defaults
-  dfs config show --deduced
+# Show as JSON
+
+dfs config show --output json
+
+# Show specific config file
+
+dfs config show --config /etc/dittofs/config.yaml
+
+# Show auto-deduced block store defaults
+
+dfs config show --deduced
 
 ```
 dfs config show [flags]
@@ -224,11 +247,14 @@ Validate the DittoFS configuration file.
 Checks for syntax errors, missing required fields, and invalid values.
 
 Examples:
-  # Validate default config
-  dfs config validate
 
-  # Validate specific config file
-  dfs config validate --config /etc/dittofs/config.yaml
+# Validate default config
+
+dfs config validate
+
+# Validate specific config file
+
+dfs config validate --config /etc/dittofs/config.yaml
 
 ```
 dfs config validate
@@ -246,18 +272,22 @@ Initialize a sample configuration file
 
 Initialize a sample DittoFS configuration file.
 
-By default, the configuration file is created at $XDG_CONFIG_HOME/dittofs/config.yaml.
+By default, the configuration file is created at $XDG\_CONFIG\_HOME/dittofs/config.yaml.
 Use --config to specify a custom path.
 
 Examples:
-  # Initialize with default location
-  dfs init
 
-  # Initialize with custom path
-  dfs init --config /etc/dittofs/config.yaml
+# Initialize with default location
 
-  # Force overwrite existing config
-  dfs init --force
+dfs init
+
+# Initialize with custom path
+
+dfs init --config /etc/dittofs/config.yaml
+
+# Force overwrite existing config
+
+dfs init --force
 
 ```
 dfs init [flags]
@@ -286,20 +316,26 @@ the most recent entries. If the server logs to stdout/stderr, this command
 will indicate that logs are not available in a file.
 
 Examples:
-  # Show last 100 lines (default)
-  dfs logs
 
-  # Show last 50 lines
-  dfs logs -n 50
+# Show last 100 lines (default)
 
-  # Follow logs in real-time
-  dfs logs -f
+dfs logs
 
-  # Show logs since a specific time
-  dfs logs --since "2024-01-15T10:00:00Z"
+# Show last 50 lines
 
-  # Combine options
-  dfs logs -f -n 20
+dfs logs -n 50
+
+# Follow logs in real-time
+
+dfs logs -f
+
+# Show logs since a specific time
+
+dfs logs --since "2024-01-15T10:00:00Z"
+
+# Combine options
+
+dfs logs -f -n 20
 
 ```
 dfs logs [flags]
@@ -330,11 +366,14 @@ database (SQLite or PostgreSQL). It is required after upgrading DittoFS when
 schema changes have been made.
 
 Examples:
-  # Run migrations with default config
-  dittofs migrate
 
-  # Run migrations with custom config
-  dittofs migrate --config /etc/dittofs/config.yaml
+# Run migrations with default config
+
+dittofs migrate
+
+# Run migrations with custom config
+
+dittofs migrate --config /etc/dittofs/config.yaml
 
 ```
 dfs migrate
@@ -357,15 +396,15 @@ The dfs server MUST be stopped before running this command — the
 migration rewrites the on-disk layout in place and a concurrent server
 would race the rename and corrupt the store.
 
-Required flag: --storage-dir &lt;root&gt;. The storage root is expected to
-contain a shares/&lt;name&gt;/blocks/ subtree per share (legacy v0.13 layout);
+Required flag: --storage-dir \<root>. The storage root is expected to
+contain a shares/\<name>/blocks/ subtree per share (legacy v0.13 layout);
 the command refuses to start if the path is missing or empty.
 
 The command is idempotent: a per-share journal at
-&lt;storage-dir&gt;/shares/&lt;name&gt;/.dittofs-migrate-to-cas.state lets you
+\<storage-dir>/shares/\<name>/.dittofs-migrate-to-cas.state lets you
 resume after a crash or Ctrl-C without re-uploading already-migrated
 chunks. Successful completion writes
-&lt;storage-dir&gt;/shares/&lt;name&gt;/.cas-migrated-v1 via atomic rename;
+\<storage-dir>/shares/\<name>/.cas-migrated-v1 via atomic rename;
 the boot guard refuses to start dfs until this sentinel exists (exit
 code 78).
 
@@ -407,20 +446,25 @@ By default, the server runs in the background (daemon mode). Use --foreground
 to run in the foreground for debugging or when managed by a process supervisor.
 
 Use --config to specify a custom configuration file, or it will use the
-default location at $XDG_CONFIG_HOME/dittofs/config.yaml.
+default location at $XDG\_CONFIG\_HOME/dittofs/config.yaml.
 
 Examples:
-  # Start in background (default)
-  dfs start
 
-  # Start in foreground
-  dfs start --foreground
+# Start in background (default)
 
-  # Start with custom config file
-  dfs start --config /etc/dittofs/config.yaml
+dfs start
 
-  # Start with environment variable overrides
-  DITTOFS_LOGGING_LEVEL=DEBUG dfs start --foreground
+# Start in foreground
+
+dfs start --foreground
+
+# Start with custom config file
+
+dfs start --config /etc/dittofs/config.yaml
+
+# Start with environment variable overrides
+
+DITTOFS\_LOGGING\_LEVEL=DEBUG dfs start --foreground
 
 ```
 dfs start [flags]
@@ -449,21 +493,26 @@ Display the current status of the DittoFS server.
 This command checks the server health by calling the health endpoint
 and displays status, uptime, and control plane DB reachability.
 
-When an API token is provided (--api-token or DFS_API_TOKEN), per-entity
+When an API token is provided (--api-token or DFS\_API\_TOKEN), per-entity
 status is fetched from the list endpoints and displayed as a color-coded table.
 
 Examples:
-  # Check status (uses default settings)
-  dfs status
 
-  # Check status with custom API port
-  dfs status --api-port 9080
+# Check status (uses default settings)
 
-  # Check status with per-entity details
-  dfs status --api-token &lt;token&gt;
+dfs status
 
-  # Output as JSON
-  dfs status --output json
+# Check status with custom API port
+
+dfs status --api-port 9080
+
+# Check status with per-entity details
+
+dfs status --api-token \<token>
+
+# Output as JSON
+
+dfs status --output json
 
 ```
 dfs status [flags]
@@ -494,14 +543,18 @@ By default, sends a graceful shutdown signal. Use --force for immediate
 termination.
 
 Examples:
-  # Stop server (uses default PID file)
-  dfs stop
 
-  # Stop server using custom PID file
-  dfs stop --pid-file /var/run/dittofs.pid
+# Stop server (uses default PID file)
 
-  # Force stop
-  dfs stop --force
+dfs stop
+
+# Stop server using custom PID file
+
+dfs stop --pid-file /var/run/dittofs.pid
+
+# Force stop
+
+dfs stop --force
 
 ```
 dfs stop [flags]
@@ -544,153 +597,152 @@ Global flags:
 
 ## `dfsctl`
 
-- [`dfsctl`](#dfsctl) — DittoFS Control - Remote management client
-  - [`dfsctl adapter`](#dfsctl-adapter) — Protocol adapter management
-    - [`dfsctl adapter disable`](#dfsctl-adapter-disable) — Disable an adapter
-    - [`dfsctl adapter edit`](#dfsctl-adapter-edit) — Edit an adapter
-    - [`dfsctl adapter enable`](#dfsctl-adapter-enable) — Enable an adapter
-    - [`dfsctl adapter list`](#dfsctl-adapter-list) — List protocol adapters
-    - [`dfsctl adapter settings`](#dfsctl-adapter-settings) — Manage adapter settings
-      - [`dfsctl adapter settings nfs`](#dfsctl-adapter-settings-nfs) — Manage NFS adapter settings
-        - [`dfsctl adapter settings nfs reset`](#dfsctl-adapter-settings-nfs-reset) — Reset adapter settings to defaults
-        - [`dfsctl adapter settings nfs show`](#dfsctl-adapter-settings-nfs-show) — Show current adapter settings
-        - [`dfsctl adapter settings nfs update`](#dfsctl-adapter-settings-nfs-update) — Update adapter settings
-      - [`dfsctl adapter settings smb`](#dfsctl-adapter-settings-smb) — Manage SMB adapter settings
-        - [`dfsctl adapter settings smb reset`](#dfsctl-adapter-settings-smb-reset) — Reset adapter settings to defaults
-        - [`dfsctl adapter settings smb show`](#dfsctl-adapter-settings-smb-show) — Show current adapter settings
-        - [`dfsctl adapter settings smb update`](#dfsctl-adapter-settings-smb-update) — Update adapter settings
-  - [`dfsctl bench`](#dfsctl-bench) — Run filesystem benchmarks
-    - [`dfsctl bench compare`](#dfsctl-bench-compare) — Compare benchmark results from multiple systems
-    - [`dfsctl bench run`](#dfsctl-bench-run) — Run filesystem benchmarks
-    - [`dfsctl bench storage-tiers`](#dfsctl-bench-storage-tiers) — Benchmark storage tier performance (cold/warm/local-only)
-  - [`dfsctl client`](#dfsctl-client) — Manage connected clients
-    - [`dfsctl client disconnect`](#dfsctl-client-disconnect) — Disconnect a client
-    - [`dfsctl client list`](#dfsctl-client-list) — List connected clients
-    - [`dfsctl client sessions`](#dfsctl-client-sessions) — Manage NFS client sessions
-      - [`dfsctl client sessions destroy`](#dfsctl-client-sessions-destroy) — Force-destroy a session
-      - [`dfsctl client sessions list`](#dfsctl-client-sessions-list) — List sessions for a client
-  - [`dfsctl completion`](#dfsctl-completion) — Generate shell completion script
-  - [`dfsctl context`](#dfsctl-context) — Manage server contexts
-    - [`dfsctl context current`](#dfsctl-context-current) — Show current context
-    - [`dfsctl context delete`](#dfsctl-context-delete) — Delete a context
-    - [`dfsctl context list`](#dfsctl-context-list) — List all configured contexts
-    - [`dfsctl context rename`](#dfsctl-context-rename) — Rename a context
-    - [`dfsctl context use`](#dfsctl-context-use) — Switch to a different context
-  - [`dfsctl grace`](#dfsctl-grace) — Manage NFSv4 grace period
-    - [`dfsctl grace end`](#dfsctl-grace-end) — Force-end the grace period
-    - [`dfsctl grace status`](#dfsctl-grace-status) — Show grace period status
-  - [`dfsctl group`](#dfsctl-group) — Group management
-    - [`dfsctl group add-user`](#dfsctl-group-add-user) — Add a user to a group
-    - [`dfsctl group create`](#dfsctl-group-create) — Create a new group
-    - [`dfsctl group delete`](#dfsctl-group-delete) — Delete a group
-    - [`dfsctl group edit`](#dfsctl-group-edit) — Edit a group
-    - [`dfsctl group get`](#dfsctl-group-get) — Get group details
-    - [`dfsctl group list`](#dfsctl-group-list) — List all groups
-    - [`dfsctl group remove-user`](#dfsctl-group-remove-user) — Remove a user from a group
-  - [`dfsctl identity-provider`](#dfsctl-identity-provider) — Identity provider (LDAP/AD, Kerberos) management
-    - [`dfsctl identity-provider configure`](#dfsctl-identity-provider-configure) — Configure Kerberos machine-account settings
-    - [`dfsctl identity-provider get`](#dfsctl-identity-provider-get) — Show an identity provider's configuration (secrets redacted)
-    - [`dfsctl identity-provider list`](#dfsctl-identity-provider-list) — List identity providers and their state
-    - [`dfsctl identity-provider set`](#dfsctl-identity-provider-set) — Create or replace an identity provider's configuration
-    - [`dfsctl identity-provider test`](#dfsctl-identity-provider-test) — Test an identity provider's configuration without persisting it
-  - [`dfsctl idmap`](#dfsctl-idmap) — Manage identity mappings
-    - [`dfsctl idmap add`](#dfsctl-idmap-add) — Add an identity mapping
-    - [`dfsctl idmap list`](#dfsctl-idmap-list) — List identity mappings
-    - [`dfsctl idmap remove`](#dfsctl-idmap-remove) — Remove an identity mapping
-    - [`dfsctl idmap sid`](#dfsctl-idmap-sid) — Manage foreign-SID UID/GID allocations
-      - [`dfsctl idmap sid delete`](#dfsctl-idmap-sid-delete) — Delete a foreign-SID UID/GID allocation
-      - [`dfsctl idmap sid list`](#dfsctl-idmap-sid-list) — List foreign-SID UID/GID allocations
-  - [`dfsctl login`](#dfsctl-login) — Authenticate with DittoFS server
-  - [`dfsctl logout`](#dfsctl-logout) — Clear stored credentials
-  - [`dfsctl netgroup`](#dfsctl-netgroup) — Manage netgroups (IP access control)
-    - [`dfsctl netgroup add-member`](#dfsctl-netgroup-add-member) — Add a member to a netgroup
-    - [`dfsctl netgroup create`](#dfsctl-netgroup-create) — Create a new netgroup
-    - [`dfsctl netgroup delete`](#dfsctl-netgroup-delete) — Delete a netgroup
-    - [`dfsctl netgroup list`](#dfsctl-netgroup-list) — List all netgroups
-    - [`dfsctl netgroup remove-member`](#dfsctl-netgroup-remove-member) — Remove a member from a netgroup
-    - [`dfsctl netgroup show`](#dfsctl-netgroup-show) — Show netgroup details
-  - [`dfsctl quota`](#dfsctl-quota) — Per-identity quota management
-    - [`dfsctl quota list`](#dfsctl-quota-list) — List all quotas on a share
-    - [`dfsctl quota rm`](#dfsctl-quota-rm) — Remove a per-identity quota
-    - [`dfsctl quota set`](#dfsctl-quota-set) — Create or update a per-identity quota
-  - [`dfsctl settings`](#dfsctl-settings) — Server settings management
-    - [`dfsctl settings get`](#dfsctl-settings-get) — Get a setting value
-    - [`dfsctl settings list`](#dfsctl-settings-list) — List all settings
-    - [`dfsctl settings set`](#dfsctl-settings-set) — Set a setting value
-  - [`dfsctl share`](#dfsctl-share) — Share management
-    - [`dfsctl share create`](#dfsctl-share-create) — Create a new share
-    - [`dfsctl share delete`](#dfsctl-share-delete) — Delete a share
-    - [`dfsctl share disable`](#dfsctl-share-disable) — Disable a share (drain clients, block new connections)
-    - [`dfsctl share edit`](#dfsctl-share-edit) — Edit a share
-    - [`dfsctl share enable`](#dfsctl-share-enable) — Enable a share (accept new connections)
-    - [`dfsctl share list`](#dfsctl-share-list) — List all shares
-    - [`dfsctl share list-mounts`](#dfsctl-share-list-mounts) — List mounted DittoFS shares
-    - [`dfsctl share mount`](#dfsctl-share-mount) — Mount a share via NFS or SMB
-    - [`dfsctl share nfs-config`](#dfsctl-share-nfs-config) — Manage per-share NFS adapter configuration
-      - [`dfsctl share nfs-config set`](#dfsctl-share-nfs-config-set) — Update a share's NFS adapter configuration
-      - [`dfsctl share nfs-config show`](#dfsctl-share-nfs-config-show) — Show a share's NFS adapter configuration
-    - [`dfsctl share permission`](#dfsctl-share-permission) — Manage share permissions
-      - [`dfsctl share permission grant`](#dfsctl-share-permission-grant) — Grant permission on a share
-      - [`dfsctl share permission list`](#dfsctl-share-permission-list) — List permissions on a share
-      - [`dfsctl share permission revoke`](#dfsctl-share-permission-revoke) — Revoke permission from a share
-    - [`dfsctl share show`](#dfsctl-share-show) — Show share details
-    - [`dfsctl share snapshot`](#dfsctl-share-snapshot) — Manage share snapshots (create, list, show, delete, restore)
-      - [`dfsctl share snapshot create`](#dfsctl-share-snapshot-create) — Create a snapshot of a share
-      - [`dfsctl share snapshot delete`](#dfsctl-share-snapshot-delete) — Delete a snapshot
-      - [`dfsctl share snapshot list`](#dfsctl-share-snapshot-list) — List snapshots for a share
-      - [`dfsctl share snapshot restore`](#dfsctl-share-snapshot-restore) — Restore a snapshot into a (disabled) share
-      - [`dfsctl share snapshot show`](#dfsctl-share-snapshot-show) — Show details of a snapshot
-    - [`dfsctl share snapshot-policy`](#dfsctl-share-snapshot-policy) — Manage scheduled snapshot policies (schedule + retention)
-      - [`dfsctl share snapshot-policy delete`](#dfsctl-share-snapshot-policy-delete) — Delete a share's snapshot policy
-      - [`dfsctl share snapshot-policy list`](#dfsctl-share-snapshot-policy-list) — List all snapshot policies
-      - [`dfsctl share snapshot-policy run`](#dfsctl-share-snapshot-policy-run) — Trigger a share's snapshot policy now (manual override)
-      - [`dfsctl share snapshot-policy set`](#dfsctl-share-snapshot-policy-set) — Create or update a share's snapshot policy
-      - [`dfsctl share snapshot-policy show`](#dfsctl-share-snapshot-policy-show) — Show a share's snapshot policy
-    - [`dfsctl share unmount`](#dfsctl-share-unmount) — Unmount a mounted share
-    - [`dfsctl share warm`](#dfsctl-share-warm) — Warm a share's local block cache
-  - [`dfsctl status`](#dfsctl-status) — Show server status
-  - [`dfsctl store`](#dfsctl-store) — Store management
-    - [`dfsctl store block`](#dfsctl-store-block) — Block store management
-      - [`dfsctl store block audit-refcounts`](#dfsctl-store-block-audit-refcounts) — Verify every manifest block reference has a backing FileBlock row
-      - [`dfsctl store block evict`](#dfsctl-store-block-evict) — Evict block store data
-      - [`dfsctl store block gc`](#dfsctl-store-block-gc) — Run garbage collection for a block store share
-      - [`dfsctl store block gc-status`](#dfsctl-store-block-gc-status) — Show the last block-store GC run summary for a share
-      - [`dfsctl store block health`](#dfsctl-store-block-health) — Check block store health
-      - [`dfsctl store block local`](#dfsctl-store-block-local) — Local block store management
-        - [`dfsctl store block local add`](#dfsctl-store-block-local-add) — Add a local block store
-        - [`dfsctl store block local edit`](#dfsctl-store-block-local-edit) — Edit a local block store
-        - [`dfsctl store block local list`](#dfsctl-store-block-local-list) — List local block stores
-        - [`dfsctl store block local remove`](#dfsctl-store-block-local-remove) — Remove a local block store
-      - [`dfsctl store block remote`](#dfsctl-store-block-remote) — Remote block store management
-        - [`dfsctl store block remote add`](#dfsctl-store-block-remote-add) — Add a remote block store
-        - [`dfsctl store block remote edit`](#dfsctl-store-block-remote-edit) — Edit a remote block store
-        - [`dfsctl store block remote list`](#dfsctl-store-block-remote-list) — List remote block stores
-        - [`dfsctl store block remote remove`](#dfsctl-store-block-remote-remove) — Remove a remote block store
-      - [`dfsctl store block stats`](#dfsctl-store-block-stats) — Show block store statistics
-    - [`dfsctl store metadata`](#dfsctl-store-metadata) — Manage metadata stores
-      - [`dfsctl store metadata add`](#dfsctl-store-metadata-add) — Add a metadata store
-      - [`dfsctl store metadata edit`](#dfsctl-store-metadata-edit) — Edit a metadata store
-      - [`dfsctl store metadata health`](#dfsctl-store-metadata-health) — Check metadata store health
-      - [`dfsctl store metadata list`](#dfsctl-store-metadata-list) — List metadata stores
-      - [`dfsctl store metadata remove`](#dfsctl-store-metadata-remove) — Remove a metadata store
-  - [`dfsctl switch-user`](#dfsctl-switch-user) — Switch to a different user on the current server
-  - [`dfsctl system`](#dfsctl-system) — System operations
-    - [`dfsctl system drain-uploads`](#dfsctl-system-drain-uploads) — Wait for all pending uploads to complete
-  - [`dfsctl trash`](#dfsctl-trash) — Recycle-bin management
-    - [`dfsctl trash empty`](#dfsctl-trash-empty) — Empty a share's recycle bin
-    - [`dfsctl trash list`](#dfsctl-trash-list) — List recycle-bin entries for a share
-    - [`dfsctl trash restore`](#dfsctl-trash-restore) — Restore a recycled file or directory
-    - [`dfsctl trash status`](#dfsctl-trash-status) — Show recycle-bin status for a share
-  - [`dfsctl user`](#dfsctl-user) — User management
-    - [`dfsctl user change-password`](#dfsctl-user-change-password) — Change your own password
-    - [`dfsctl user create`](#dfsctl-user-create) — Create a new user
-    - [`dfsctl user delete`](#dfsctl-user-delete) — Delete a user
-    - [`dfsctl user edit`](#dfsctl-user-edit) — Edit a user
-    - [`dfsctl user get`](#dfsctl-user-get) — Get user details
-    - [`dfsctl user list`](#dfsctl-user-list) — List all users
-    - [`dfsctl user password`](#dfsctl-user-password) — Reset a user's password
-  - [`dfsctl version`](#dfsctl-version) — Show version information
-
+* [`dfsctl`](#dfsctl) — DittoFS Control - Remote management client
+  * [`dfsctl adapter`](#dfsctl-adapter) — Protocol adapter management
+    * [`dfsctl adapter disable`](#dfsctl-adapter-disable) — Disable an adapter
+    * [`dfsctl adapter edit`](#dfsctl-adapter-edit) — Edit an adapter
+    * [`dfsctl adapter enable`](#dfsctl-adapter-enable) — Enable an adapter
+    * [`dfsctl adapter list`](#dfsctl-adapter-list) — List protocol adapters
+    * [`dfsctl adapter settings`](#dfsctl-adapter-settings) — Manage adapter settings
+      * [`dfsctl adapter settings nfs`](#dfsctl-adapter-settings-nfs) — Manage NFS adapter settings
+        * [`dfsctl adapter settings nfs reset`](#dfsctl-adapter-settings-nfs-reset) — Reset adapter settings to defaults
+        * [`dfsctl adapter settings nfs show`](#dfsctl-adapter-settings-nfs-show) — Show current adapter settings
+        * [`dfsctl adapter settings nfs update`](#dfsctl-adapter-settings-nfs-update) — Update adapter settings
+      * [`dfsctl adapter settings smb`](#dfsctl-adapter-settings-smb) — Manage SMB adapter settings
+        * [`dfsctl adapter settings smb reset`](#dfsctl-adapter-settings-smb-reset) — Reset adapter settings to defaults
+        * [`dfsctl adapter settings smb show`](#dfsctl-adapter-settings-smb-show) — Show current adapter settings
+        * [`dfsctl adapter settings smb update`](#dfsctl-adapter-settings-smb-update) — Update adapter settings
+  * [`dfsctl bench`](#dfsctl-bench) — Run filesystem benchmarks
+    * [`dfsctl bench compare`](#dfsctl-bench-compare) — Compare benchmark results from multiple systems
+    * [`dfsctl bench run`](#dfsctl-bench-run) — Run filesystem benchmarks
+    * [`dfsctl bench storage-tiers`](#dfsctl-bench-storage-tiers) — Benchmark storage tier performance (cold/warm/local-only)
+  * [`dfsctl client`](#dfsctl-client) — Manage connected clients
+    * [`dfsctl client disconnect`](#dfsctl-client-disconnect) — Disconnect a client
+    * [`dfsctl client list`](#dfsctl-client-list) — List connected clients
+    * [`dfsctl client sessions`](#dfsctl-client-sessions) — Manage NFS client sessions
+      * [`dfsctl client sessions destroy`](#dfsctl-client-sessions-destroy) — Force-destroy a session
+      * [`dfsctl client sessions list`](#dfsctl-client-sessions-list) — List sessions for a client
+  * [`dfsctl completion`](#dfsctl-completion) — Generate shell completion script
+  * [`dfsctl context`](#dfsctl-context) — Manage server contexts
+    * [`dfsctl context current`](#dfsctl-context-current) — Show current context
+    * [`dfsctl context delete`](#dfsctl-context-delete) — Delete a context
+    * [`dfsctl context list`](#dfsctl-context-list) — List all configured contexts
+    * [`dfsctl context rename`](#dfsctl-context-rename) — Rename a context
+    * [`dfsctl context use`](#dfsctl-context-use) — Switch to a different context
+  * [`dfsctl grace`](#dfsctl-grace) — Manage NFSv4 grace period
+    * [`dfsctl grace end`](#dfsctl-grace-end) — Force-end the grace period
+    * [`dfsctl grace status`](#dfsctl-grace-status) — Show grace period status
+  * [`dfsctl group`](#dfsctl-group) — Group management
+    * [`dfsctl group add-user`](#dfsctl-group-add-user) — Add a user to a group
+    * [`dfsctl group create`](#dfsctl-group-create) — Create a new group
+    * [`dfsctl group delete`](#dfsctl-group-delete) — Delete a group
+    * [`dfsctl group edit`](#dfsctl-group-edit) — Edit a group
+    * [`dfsctl group get`](#dfsctl-group-get) — Get group details
+    * [`dfsctl group list`](#dfsctl-group-list) — List all groups
+    * [`dfsctl group remove-user`](#dfsctl-group-remove-user) — Remove a user from a group
+  * [`dfsctl identity-provider`](#dfsctl-identity-provider) — Identity provider (LDAP/AD, Kerberos) management
+    * [`dfsctl identity-provider configure`](#dfsctl-identity-provider-configure) — Configure Kerberos machine-account settings
+    * [`dfsctl identity-provider get`](#dfsctl-identity-provider-get) — Show an identity provider's configuration (secrets redacted)
+    * [`dfsctl identity-provider list`](#dfsctl-identity-provider-list) — List identity providers and their state
+    * [`dfsctl identity-provider set`](#dfsctl-identity-provider-set) — Create or replace an identity provider's configuration
+    * [`dfsctl identity-provider test`](#dfsctl-identity-provider-test) — Test an identity provider's configuration without persisting it
+  * [`dfsctl idmap`](#dfsctl-idmap) — Manage identity mappings
+    * [`dfsctl idmap add`](#dfsctl-idmap-add) — Add an identity mapping
+    * [`dfsctl idmap list`](#dfsctl-idmap-list) — List identity mappings
+    * [`dfsctl idmap remove`](#dfsctl-idmap-remove) — Remove an identity mapping
+    * [`dfsctl idmap sid`](#dfsctl-idmap-sid) — Manage foreign-SID UID/GID allocations
+      * [`dfsctl idmap sid delete`](#dfsctl-idmap-sid-delete) — Delete a foreign-SID UID/GID allocation
+      * [`dfsctl idmap sid list`](#dfsctl-idmap-sid-list) — List foreign-SID UID/GID allocations
+  * [`dfsctl login`](#dfsctl-login) — Authenticate with DittoFS server
+  * [`dfsctl logout`](#dfsctl-logout) — Clear stored credentials
+  * [`dfsctl netgroup`](#dfsctl-netgroup) — Manage netgroups (IP access control)
+    * [`dfsctl netgroup add-member`](#dfsctl-netgroup-add-member) — Add a member to a netgroup
+    * [`dfsctl netgroup create`](#dfsctl-netgroup-create) — Create a new netgroup
+    * [`dfsctl netgroup delete`](#dfsctl-netgroup-delete) — Delete a netgroup
+    * [`dfsctl netgroup list`](#dfsctl-netgroup-list) — List all netgroups
+    * [`dfsctl netgroup remove-member`](#dfsctl-netgroup-remove-member) — Remove a member from a netgroup
+    * [`dfsctl netgroup show`](#dfsctl-netgroup-show) — Show netgroup details
+  * [`dfsctl quota`](#dfsctl-quota) — Per-identity quota management
+    * [`dfsctl quota list`](#dfsctl-quota-list) — List all quotas on a share
+    * [`dfsctl quota rm`](#dfsctl-quota-rm) — Remove a per-identity quota
+    * [`dfsctl quota set`](#dfsctl-quota-set) — Create or update a per-identity quota
+  * [`dfsctl settings`](#dfsctl-settings) — Server settings management
+    * [`dfsctl settings get`](#dfsctl-settings-get) — Get a setting value
+    * [`dfsctl settings list`](#dfsctl-settings-list) — List all settings
+    * [`dfsctl settings set`](#dfsctl-settings-set) — Set a setting value
+  * [`dfsctl share`](#dfsctl-share) — Share management
+    * [`dfsctl share create`](#dfsctl-share-create) — Create a new share
+    * [`dfsctl share delete`](#dfsctl-share-delete) — Delete a share
+    * [`dfsctl share disable`](#dfsctl-share-disable) — Disable a share (drain clients, block new connections)
+    * [`dfsctl share edit`](#dfsctl-share-edit) — Edit a share
+    * [`dfsctl share enable`](#dfsctl-share-enable) — Enable a share (accept new connections)
+    * [`dfsctl share list`](#dfsctl-share-list) — List all shares
+    * [`dfsctl share list-mounts`](#dfsctl-share-list-mounts) — List mounted DittoFS shares
+    * [`dfsctl share mount`](#dfsctl-share-mount) — Mount a share via NFS or SMB
+    * [`dfsctl share nfs-config`](#dfsctl-share-nfs-config) — Manage per-share NFS adapter configuration
+      * [`dfsctl share nfs-config set`](#dfsctl-share-nfs-config-set) — Update a share's NFS adapter configuration
+      * [`dfsctl share nfs-config show`](#dfsctl-share-nfs-config-show) — Show a share's NFS adapter configuration
+    * [`dfsctl share permission`](#dfsctl-share-permission) — Manage share permissions
+      * [`dfsctl share permission grant`](#dfsctl-share-permission-grant) — Grant permission on a share
+      * [`dfsctl share permission list`](#dfsctl-share-permission-list) — List permissions on a share
+      * [`dfsctl share permission revoke`](#dfsctl-share-permission-revoke) — Revoke permission from a share
+    * [`dfsctl share show`](#dfsctl-share-show) — Show share details
+    * [`dfsctl share snapshot`](#dfsctl-share-snapshot) — Manage share snapshots (create, list, show, delete, restore)
+      * [`dfsctl share snapshot create`](#dfsctl-share-snapshot-create) — Create a snapshot of a share
+      * [`dfsctl share snapshot delete`](#dfsctl-share-snapshot-delete) — Delete a snapshot
+      * [`dfsctl share snapshot list`](#dfsctl-share-snapshot-list) — List snapshots for a share
+      * [`dfsctl share snapshot restore`](#dfsctl-share-snapshot-restore) — Restore a snapshot into a (disabled) share
+      * [`dfsctl share snapshot show`](#dfsctl-share-snapshot-show) — Show details of a snapshot
+    * [`dfsctl share snapshot-policy`](#dfsctl-share-snapshot-policy) — Manage scheduled snapshot policies (schedule + retention)
+      * [`dfsctl share snapshot-policy delete`](#dfsctl-share-snapshot-policy-delete) — Delete a share's snapshot policy
+      * [`dfsctl share snapshot-policy list`](#dfsctl-share-snapshot-policy-list) — List all snapshot policies
+      * [`dfsctl share snapshot-policy run`](#dfsctl-share-snapshot-policy-run) — Trigger a share's snapshot policy now (manual override)
+      * [`dfsctl share snapshot-policy set`](#dfsctl-share-snapshot-policy-set) — Create or update a share's snapshot policy
+      * [`dfsctl share snapshot-policy show`](#dfsctl-share-snapshot-policy-show) — Show a share's snapshot policy
+    * [`dfsctl share unmount`](#dfsctl-share-unmount) — Unmount a mounted share
+    * [`dfsctl share warm`](#dfsctl-share-warm) — Warm a share's local block cache
+  * [`dfsctl status`](#dfsctl-status) — Show server status
+  * [`dfsctl store`](#dfsctl-store) — Store management
+    * [`dfsctl store block`](#dfsctl-store-block) — Block store management
+      * [`dfsctl store block audit-refcounts`](#dfsctl-store-block-audit-refcounts) — Verify every manifest block reference has a backing FileBlock row
+      * [`dfsctl store block evict`](#dfsctl-store-block-evict) — Evict block store data
+      * [`dfsctl store block gc`](#dfsctl-store-block-gc) — Run garbage collection for a block store share
+      * [`dfsctl store block gc-status`](#dfsctl-store-block-gc-status) — Show the last block-store GC run summary for a share
+      * [`dfsctl store block health`](#dfsctl-store-block-health) — Check block store health
+      * [`dfsctl store block local`](#dfsctl-store-block-local) — Local block store management
+        * [`dfsctl store block local add`](#dfsctl-store-block-local-add) — Add a local block store
+        * [`dfsctl store block local edit`](#dfsctl-store-block-local-edit) — Edit a local block store
+        * [`dfsctl store block local list`](#dfsctl-store-block-local-list) — List local block stores
+        * [`dfsctl store block local remove`](#dfsctl-store-block-local-remove) — Remove a local block store
+      * [`dfsctl store block remote`](#dfsctl-store-block-remote) — Remote block store management
+        * [`dfsctl store block remote add`](#dfsctl-store-block-remote-add) — Add a remote block store
+        * [`dfsctl store block remote edit`](#dfsctl-store-block-remote-edit) — Edit a remote block store
+        * [`dfsctl store block remote list`](#dfsctl-store-block-remote-list) — List remote block stores
+        * [`dfsctl store block remote remove`](#dfsctl-store-block-remote-remove) — Remove a remote block store
+      * [`dfsctl store block stats`](#dfsctl-store-block-stats) — Show block store statistics
+    * [`dfsctl store metadata`](#dfsctl-store-metadata) — Manage metadata stores
+      * [`dfsctl store metadata add`](#dfsctl-store-metadata-add) — Add a metadata store
+      * [`dfsctl store metadata edit`](#dfsctl-store-metadata-edit) — Edit a metadata store
+      * [`dfsctl store metadata health`](#dfsctl-store-metadata-health) — Check metadata store health
+      * [`dfsctl store metadata list`](#dfsctl-store-metadata-list) — List metadata stores
+      * [`dfsctl store metadata remove`](#dfsctl-store-metadata-remove) — Remove a metadata store
+  * [`dfsctl switch-user`](#dfsctl-switch-user) — Switch to a different user on the current server
+  * [`dfsctl system`](#dfsctl-system) — System operations
+    * [`dfsctl system drain-uploads`](#dfsctl-system-drain-uploads) — Wait for all pending uploads to complete
+  * [`dfsctl trash`](#dfsctl-trash) — Recycle-bin management
+    * [`dfsctl trash empty`](#dfsctl-trash-empty) — Empty a share's recycle bin
+    * [`dfsctl trash list`](#dfsctl-trash-list) — List recycle-bin entries for a share
+    * [`dfsctl trash restore`](#dfsctl-trash-restore) — Restore a recycled file or directory
+    * [`dfsctl trash status`](#dfsctl-trash-status) — Show recycle-bin status for a share
+  * [`dfsctl user`](#dfsctl-user) — User management
+    * [`dfsctl user change-password`](#dfsctl-user-change-password) — Change your own password
+    * [`dfsctl user create`](#dfsctl-user-create) — Create a new user
+    * [`dfsctl user delete`](#dfsctl-user-delete) — Delete a user
+    * [`dfsctl user edit`](#dfsctl-user-edit) — Edit a user
+    * [`dfsctl user get`](#dfsctl-user-get) — Get user details
+    * [`dfsctl user list`](#dfsctl-user-list) — List all users
+    * [`dfsctl user password`](#dfsctl-user-password) — Reset a user's password
+  * [`dfsctl version`](#dfsctl-version) — Show version information
 
 ### `dfsctl`
 
@@ -701,7 +753,7 @@ dfsctl is the command-line client for managing DittoFS servers remotely.
 Use this tool to manage users, groups, shares, stores, and server settings
 through the DittoFS REST API.
 
-Use "dfsctl [command] --help" for more information about a command.
+Use "dfsctl \[command] --help" for more information about a command.
 
 Flags:
 
@@ -727,20 +779,26 @@ Adapter commands allow you to list, enable, disable, and edit protocol adapters.
 These operations require admin privileges.
 
 Examples:
-  # List adapters
-  dfsctl adapter list
 
-  # Enable NFS adapter on port 12049
-  dfsctl adapter enable nfs --port 12049
+# List adapters
 
-  # Disable SMB adapter
-  dfsctl adapter disable smb
+dfsctl adapter list
 
-  # Edit adapter interactively
-  dfsctl adapter edit nfs
+# Enable NFS adapter on port 12049
 
-  # Edit adapter settings with flags
-  dfsctl adapter edit nfs --port 3049
+dfsctl adapter enable nfs --port 12049
+
+# Disable SMB adapter
+
+dfsctl adapter disable smb
+
+# Edit adapter interactively
+
+dfsctl adapter edit nfs
+
+# Edit adapter settings with flags
+
+dfsctl adapter edit nfs --port 3049
 
 Global flags:
 
@@ -763,11 +821,14 @@ Disable an adapter
 Disable a protocol adapter on the DittoFS server.
 
 Examples:
-  # Disable NFS adapter
-  dfsctl adapter disable nfs
 
-  # Disable SMB adapter
-  dfsctl adapter disable smb
+# Disable NFS adapter
+
+dfsctl adapter disable nfs
+
+# Disable SMB adapter
+
+dfsctl adapter disable smb
 
 ```
 dfsctl adapter disable <type>
@@ -797,17 +858,22 @@ When run without flags, opens an interactive editor to modify adapter properties
 When flags are provided, only the specified fields are updated.
 
 Examples:
-  # Edit adapter interactively
-  dfsctl adapter edit nfs
 
-  # Update port directly
-  dfsctl adapter edit nfs --port 3049
+# Edit adapter interactively
 
-  # Enable/disable adapter
-  dfsctl adapter edit smb --enabled false
+dfsctl adapter edit nfs
 
-  # Update configuration
-  dfsctl adapter edit nfs --config '&#123;"read_size":65536&#125;'
+# Update port directly
+
+dfsctl adapter edit nfs --port 3049
+
+# Enable/disable adapter
+
+dfsctl adapter edit smb --enabled false
+
+# Update configuration
+
+dfsctl adapter edit nfs --config '\{"read\_size":65536}'
 
 ```
 dfsctl adapter edit <type> [flags]
@@ -844,14 +910,18 @@ Enable a protocol adapter on the DittoFS server.
 If the adapter doesn't exist, it will be created.
 
 Examples:
-  # Enable NFS adapter with default port
-  dfsctl adapter enable nfs
 
-  # Enable NFS adapter on specific port
-  dfsctl adapter enable nfs --port 2049
+# Enable NFS adapter with default port
 
-  # Enable SMB adapter
-  dfsctl adapter enable smb --port 445
+dfsctl adapter enable nfs
+
+# Enable NFS adapter on specific port
+
+dfsctl adapter enable nfs --port 2049
+
+# Enable SMB adapter
+
+dfsctl adapter enable smb --port 445
 
 ```
 dfsctl adapter enable <type> [flags]
@@ -884,11 +954,14 @@ List protocol adapters
 List all protocol adapters on the DittoFS server.
 
 Examples:
-  # List as table
-  dfsctl adapter list
 
-  # List as JSON
-  dfsctl adapter list -o json
+# List as table
+
+dfsctl adapter list
+
+# List as JSON
+
+dfsctl adapter list -o json
 
 ```
 dfsctl adapter list
@@ -917,17 +990,22 @@ Manage protocol adapter settings on the DittoFS server.
 The adapter type (nfs or smb) must be specified as the first argument.
 
 Examples:
-  # Show NFS adapter settings
-  dfsctl adapter settings nfs show
 
-  # Update NFS lease time
-  dfsctl adapter settings nfs update --lease-time 120
+# Show NFS adapter settings
 
-  # Reset all NFS settings to defaults
-  dfsctl adapter settings nfs reset
+dfsctl adapter settings nfs show
 
-  # Reset a specific NFS setting
-  dfsctl adapter settings nfs reset --setting lease_time
+# Update NFS lease time
+
+dfsctl adapter settings nfs update --lease-time 120
+
+# Reset all NFS settings to defaults
+
+dfsctl adapter settings nfs reset
+
+# Reset a specific NFS setting
+
+dfsctl adapter settings nfs reset --setting lease\_time
 
 ```
 dfsctl adapter settings <type>
@@ -981,11 +1059,14 @@ If --setting is specified, only that setting is reset. Otherwise, all settings
 are reset to defaults.
 
 Examples:
-  # Reset all NFS settings
-  dfsctl adapter settings nfs reset
 
-  # Reset only lease_time
-  dfsctl adapter settings nfs reset --setting lease_time
+# Reset all NFS settings
+
+dfsctl adapter settings nfs reset
+
+# Reset only lease\_time
+
+dfsctl adapter settings nfs reset --setting lease\_time
 
 ```
 dfsctl adapter settings nfs reset [flags]
@@ -1018,14 +1099,17 @@ Show current adapter settings
 
 Show current adapter settings with defaults comparison.
 
-Non-default values are marked with '*'.
+Non-default values are marked with '\*'.
 
 Examples:
-  # Show NFS settings
-  dfsctl adapter settings nfs show
 
-  # Show SMB settings as JSON
-  dfsctl adapter settings smb show -o json
+# Show NFS settings
+
+dfsctl adapter settings nfs show
+
+# Show SMB settings as JSON
+
+dfsctl adapter settings smb show -o json
 
 ```
 dfsctl adapter settings nfs show
@@ -1054,14 +1138,18 @@ Update adapter settings with partial changes.
 Only specified flags are included in the update. Unspecified settings are not changed.
 
 Examples:
-  # Update NFS lease time
-  dfsctl adapter settings nfs update --lease-time 120
 
-  # Validate without applying
-  dfsctl adapter settings nfs update --lease-time 120 --dry-run
+# Update NFS lease time
 
-  # Bypass range validation
-  dfsctl adapter settings nfs update --lease-time 999 --force
+dfsctl adapter settings nfs update --lease-time 120
+
+# Validate without applying
+
+dfsctl adapter settings nfs update --lease-time 120 --dry-run
+
+# Bypass range validation
+
+dfsctl adapter settings nfs update --lease-time 999 --force
 
 ```
 dfsctl adapter settings nfs update [flags]
@@ -1145,11 +1233,14 @@ If --setting is specified, only that setting is reset. Otherwise, all settings
 are reset to defaults.
 
 Examples:
-  # Reset all NFS settings
-  dfsctl adapter settings nfs reset
 
-  # Reset only lease_time
-  dfsctl adapter settings nfs reset --setting lease_time
+# Reset all NFS settings
+
+dfsctl adapter settings nfs reset
+
+# Reset only lease\_time
+
+dfsctl adapter settings nfs reset --setting lease\_time
 
 ```
 dfsctl adapter settings smb reset [flags]
@@ -1182,14 +1273,17 @@ Show current adapter settings
 
 Show current adapter settings with defaults comparison.
 
-Non-default values are marked with '*'.
+Non-default values are marked with '\*'.
 
 Examples:
-  # Show NFS settings
-  dfsctl adapter settings nfs show
 
-  # Show SMB settings as JSON
-  dfsctl adapter settings smb show -o json
+# Show NFS settings
+
+dfsctl adapter settings nfs show
+
+# Show SMB settings as JSON
+
+dfsctl adapter settings smb show -o json
 
 ```
 dfsctl adapter settings smb show
@@ -1218,14 +1312,18 @@ Update adapter settings with partial changes.
 Only specified flags are included in the update. Unspecified settings are not changed.
 
 Examples:
-  # Update NFS lease time
-  dfsctl adapter settings nfs update --lease-time 120
 
-  # Validate without applying
-  dfsctl adapter settings nfs update --lease-time 120 --dry-run
+# Update NFS lease time
 
-  # Bypass range validation
-  dfsctl adapter settings nfs update --lease-time 999 --force
+dfsctl adapter settings nfs update --lease-time 120
+
+# Validate without applying
+
+dfsctl adapter settings nfs update --lease-time 120 --dry-run
+
+# Bypass range validation
+
+dfsctl adapter settings nfs update --lease-time 999 --force
 
 ```
 dfsctl adapter settings smb update [flags]
@@ -1270,17 +1368,22 @@ Benchmarks operate directly on the filesystem — no API authentication required
 Use this to measure DittoFS performance or compare against other NFS/SMB servers.
 
 Examples:
-  # Run all benchmarks on a mounted NFS share
-  dfsctl bench run /mnt/bench
 
-  # Run with custom parameters
-  dfsctl bench run /mnt/bench --threads 8 --file-size 512MiB --duration 30s
+# Run all benchmarks on a mounted NFS share
 
-  # Run specific workloads and save results
-  dfsctl bench run /mnt/bench --workload seq-write,seq-read --system dittofs --save results.json
+dfsctl bench run /mnt/bench
 
-  # Compare results from multiple systems
-  dfsctl bench compare dittofs.json kernel-nfs.json ganesha.json
+# Run with custom parameters
+
+dfsctl bench run /mnt/bench --threads 8 --file-size 512MiB --duration 30s
+
+# Run specific workloads and save results
+
+dfsctl bench run /mnt/bench --workload seq-write,seq-read --system dittofs --save results.json
+
+# Compare results from multiple systems
+
+dfsctl bench compare dittofs.json kernel-nfs.json ganesha.json
 
 Global flags:
 
@@ -1303,11 +1406,14 @@ Compare benchmark results from multiple systems
 Load two or more JSON result files and render a side-by-side comparison table.
 
 Examples:
-  # Compare DittoFS vs kernel NFS
-  dfsctl bench compare results/dittofs.json results/kernel-nfs.json
 
-  # Compare all results
-  dfsctl bench compare results/*.json
+# Compare DittoFS vs kernel NFS
+
+dfsctl bench compare results/dittofs.json results/kernel-nfs.json
+
+# Compare all results
+
+dfsctl bench compare results/\*.json
 
 ```
 dfsctl bench compare FILE [FILE...]
@@ -1336,14 +1442,18 @@ Run I/O and metadata benchmarks against the given directory.
 No API authentication is required — this operates purely on the filesystem.
 
 Examples:
-  # Run all benchmarks with defaults
-  dfsctl bench run /mnt/bench
 
-  # Run specific workloads with custom parameters
-  dfsctl bench run /mnt/bench --workload seq-write,seq-read --threads 8
+# Run all benchmarks with defaults
 
-  # Save results for later comparison
-  dfsctl bench run /mnt/bench --system dittofs --save results/dittofs.json
+dfsctl bench run /mnt/bench
+
+# Run specific workloads with custom parameters
+
+dfsctl bench run /mnt/bench --workload seq-write,seq-read --threads 8
+
+# Save results for later comparison
+
+dfsctl bench run /mnt/bench --system dittofs --save results/dittofs.json
 
 ```
 dfsctl bench run PATH [flags]
@@ -1386,26 +1496,31 @@ Run a 6-step storage tier benchmark that measures read performance at each
 storage level by selectively evicting layers between reads.
 
 This workload requires:
-  - An authenticated session (block store eviction requires admin access)
-  - A DittoFS server with a mounted share
-  - The share must be configured with a remote store for cold read testing
+
+* An authenticated session (block store eviction requires admin access)
+* A DittoFS server with a mounted share
+* The share must be configured with a remote store for cold read testing
 
 The benchmark runs the following steps for each file size:
-  1. Write: Create test file via NFS/SMB mount
-  2. Evict all: Clear read buffer + local store via API
-  3. Cold read: Read file (data from remote store)
-  4. Warm read: Read file again (data in read buffer + local store)
-  5. Evict read buffer: Clear memory read buffer only via API
-  6. Local-only read: Read file (data from local FS store only)
+
+1. Write: Create test file via NFS/SMB mount
+2. Evict all: Clear read buffer + local store via API
+3. Cold read: Read file (data from remote store)
+4. Warm read: Read file again (data in read buffer + local store)
+5. Evict read buffer: Clear memory read buffer only via API
+6. Local-only read: Read file (data from local FS store only)
 
 Results show throughput and read buffer hit rate per step.
 
 Examples:
-  # Run with default sizes (10MB, 100MB, 1GB)
-  dfsctl bench storage-tiers --share /export --mount /mnt/test
 
-  # Custom file sizes
-  dfsctl bench storage-tiers --share /export --mount /mnt/test --sizes 1MB,10MB,50MB
+# Run with default sizes (10MB, 100MB, 1GB)
+
+dfsctl bench storage-tiers --share /export --mount /mnt/test
+
+# Custom file sizes
+
+dfsctl bench storage-tiers --share /export --mount /mnt/test --sizes 1MB,10MB,50MB
 
 ```
 dfsctl bench storage-tiers [flags]
@@ -1443,17 +1558,22 @@ Client commands allow you to list connected clients across all protocols
 and disconnect misbehaving ones. These operations require admin privileges.
 
 Examples:
-  # List all connected clients
-  dfsctl client list
 
-  # List only NFS clients
-  dfsctl client list --protocol nfs
+# List all connected clients
 
-  # List clients on a specific share
-  dfsctl client list --share /export
+dfsctl client list
 
-  # Disconnect a client by ID
-  dfsctl client disconnect nfs-42
+# List only NFS clients
+
+dfsctl client list --protocol nfs
+
+# List clients on a specific share
+
+dfsctl client list --share /export
+
+# Disconnect a client by ID
+
+dfsctl client disconnect nfs-42
 
 Global flags:
 
@@ -1480,11 +1600,14 @@ connection and triggers state revocation; for SMB clients it triggers session
 cleanup. Use with caution.
 
 Examples:
-  # Disconnect a client (with confirmation prompt)
-  dfsctl client disconnect nfs-42
 
-  # Disconnect without confirmation
-  dfsctl client disconnect nfs-42 --force
+# Disconnect a client (with confirmation prompt)
+
+dfsctl client disconnect nfs-42
+
+# Disconnect without confirmation
+
+dfsctl client disconnect nfs-42 --force
 
 ```
 dfsctl client disconnect <client-id> [flags]
@@ -1520,17 +1643,22 @@ Displays NFS and SMB clients with their protocol, address,
 user, shares, and connection duration.
 
 Examples:
-  # List as table
-  dfsctl client list
 
-  # Filter by protocol
-  dfsctl client list --protocol nfs
+# List as table
 
-  # Filter by share
-  dfsctl client list --share /export
+dfsctl client list
 
-  # List as JSON
-  dfsctl client list -o json
+# Filter by protocol
+
+dfsctl client list --protocol nfs
+
+# Filter by share
+
+dfsctl client list --share /export
+
+# List as JSON
+
+dfsctl client list -o json
 
 ```
 dfsctl client list [flags]
@@ -1567,11 +1695,14 @@ Session commands allow you to list active sessions and force-destroy
 misbehaving sessions. These operations require admin privileges.
 
 Examples:
-  # List sessions for a client
-  dfsctl client sessions list 0000000100000001
 
-  # Force-destroy a session
-  dfsctl client sessions destroy 0000000100000001 a1b2c3d4...
+# List sessions for a client
+
+dfsctl client sessions list 0000000100000001
+
+# Force-destroy a session
+
+dfsctl client sessions destroy 0000000100000001 a1b2c3d4...
 
 Global flags:
 
@@ -1597,11 +1728,14 @@ This will forcefully tear down the session, bypassing in-flight request checks.
 Use with caution -- the NFS client may experience errors.
 
 Examples:
-  # Destroy a session (with confirmation prompt)
-  dfsctl client sessions destroy 0000000100000001 a1b2c3d4e5f6a7b8...
 
-  # Destroy without confirmation
-  dfsctl client sessions destroy 0000000100000001 a1b2c3d4e5f6a7b8... --force
+# Destroy a session (with confirmation prompt)
+
+dfsctl client sessions destroy 0000000100000001 a1b2c3d4e5f6a7b8...
+
+# Destroy without confirmation
+
+dfsctl client sessions destroy 0000000100000001 a1b2c3d4e5f6a7b8... --force
 
 ```
 dfsctl client sessions destroy <client-id> <session-id> [flags]
@@ -1634,11 +1768,14 @@ List sessions for a client
 List all NFSv4.1 sessions for a given client by its hex-encoded client ID.
 
 Examples:
-  # List sessions as table
-  dfsctl client sessions list 0000000100000001
 
-  # List sessions as JSON
-  dfsctl client sessions list 0000000100000001 -o json
+# List sessions as table
+
+dfsctl client sessions list 0000000100000001
+
+# List sessions as JSON
+
+dfsctl client sessions list 0000000100000001 -o json
 
 ```
 dfsctl client sessions list <client-id>
@@ -1667,34 +1804,46 @@ Generate shell completion script for dfsctl.
 To load completions:
 
 Bash:
-  # Linux:
-  $ dfsctl completion bash > /etc/bash_completion.d/dfsctl
-  # macOS:
-  $ dfsctl completion bash > $(brew --prefix)/etc/bash_completion.d/dfsctl
+
+# Linux:
+
+$ dfsctl completion bash > /etc/bash\_completion.d/dfsctl
+
+# macOS:
+
+$ dfsctl completion bash > $(brew --prefix)/etc/bash\_completion.d/dfsctl
 
 Zsh:
-  # If shell completion is not already enabled in your environment,
-  # you will need to enable it. You can execute the following once:
-  $ echo "autoload -U compinit; compinit" >> ~/.zshrc
 
-  # To load completions for each session, execute once:
-  # Linux:
-  $ dfsctl completion zsh > "$&#123;fpath[1]&#125;/_dfsctl"
-  # macOS:
-  $ dfsctl completion zsh > $(brew --prefix)/share/zsh/site-functions/_dfsctl
+# If shell completion is not already enabled in your environment,
 
-  # You will need to start a new shell for this setup to take effect.
+# you will need to enable it. You can execute the following once:
+
+$ echo "autoload -U compinit; compinit" >> ~/.zshrc
+
+# To load completions for each session, execute once:
+
+# Linux:
+
+$ dfsctl completion zsh > "$\{fpath\[1]}/\_dfsctl"
+
+# macOS:
+
+$ dfsctl completion zsh > $(brew --prefix)/share/zsh/site-functions/\_dfsctl
+
+# You will need to start a new shell for this setup to take effect.
 
 Fish:
-  $ dfsctl completion fish > ~/.config/fish/completions/dfsctl.fish
+$ dfsctl completion fish > ~/.config/fish/completions/dfsctl.fish
 
 PowerShell:
-  PS> dfsctl completion powershell | Out-String | Invoke-Expression
+PS> dfsctl completion powershell | Out-String | Invoke-Expression
 
-  # To load completions for every new session, run:
-  PS> dfsctl completion powershell > dfsctl.ps1
-  # and source this file from your PowerShell profile.
+# To load completions for every new session, run:
 
+PS> dfsctl completion powershell > dfsctl.ps1
+
+# and source this file from your PowerShell profile.
 
 ```
 dfsctl completion [bash|zsh|fish|powershell]
@@ -1724,11 +1873,11 @@ Contexts allow you to save and switch between different server configurations,
 similar to kubectl contexts.
 
 Subcommands:
-  list     List all configured contexts
-  use      Switch to a different context
-  current  Show current context
-  rename   Rename a context
-  delete   Delete a context
+list     List all configured contexts
+use      Switch to a different context
+current  Show current context
+rename   Rename a context
+delete   Delete a context
 
 Global flags:
 
@@ -1751,11 +1900,14 @@ Show current context
 Display information about the current active context.
 
 Examples:
-  # Show current context
-  dfsctl context current
 
-  # Show as JSON
-  dfsctl context current --output json
+# Show current context
+
+dfsctl context current
+
+# Show as JSON
+
+dfsctl context current --output json
 
 ```
 dfsctl context current [flags]
@@ -1789,11 +1941,14 @@ Delete a server context.
 This removes the saved configuration and credentials for the context.
 
 Examples:
-  # Delete context named "staging"
-  dfsctl context delete staging
 
-  # Delete without confirmation
-  dfsctl context delete staging --force
+# Delete context named "staging"
+
+dfsctl context delete staging
+
+# Delete without confirmation
+
+dfsctl context delete staging --force
 
 ```
 dfsctl context delete <name> [flags]
@@ -1826,14 +1981,17 @@ List all configured contexts
 List all configured server contexts.
 
 Shows the context name, server URL, and username for each saved context.
-The current context is marked with an asterisk (*).
+The current context is marked with an asterisk (\*).
 
 Examples:
-  # List contexts as table
-  dfsctl context list
 
-  # List as JSON
-  dfsctl context list -o json
+# List contexts as table
+
+dfsctl context list
+
+# List as JSON
+
+dfsctl context list -o json
 
 ```
 dfsctl context list
@@ -1860,8 +2018,10 @@ Rename a context
 Rename an existing server context.
 
 Examples:
-  # Rename context from "default" to "production"
-  dfsctl context rename default production
+
+# Rename context from "default" to "production"
+
+dfsctl context rename default production
 
 ```
 dfsctl context rename <old-name> <new-name>
@@ -1890,8 +2050,10 @@ Switch to a different server context.
 This changes the active context used for subsequent commands.
 
 Examples:
-  # Switch to context named "production"
-  dfsctl context use production
+
+# Switch to context named "production"
+
+dfsctl context use production
 
 ```
 dfsctl context use <name>
@@ -1922,14 +2084,18 @@ period that occurs after server restart. During the grace period, clients
 reclaim their previously-held state (open files, locks).
 
 Examples:
-  # Check grace period status
-  dfsctl grace status
 
-  # Check status in JSON format
-  dfsctl grace status -o json
+# Check grace period status
 
-  # Force-end the grace period
-  dfsctl grace end
+dfsctl grace status
+
+# Check status in JSON format
+
+dfsctl grace status -o json
+
+# Force-end the grace period
+
+dfsctl grace end
 
 Global flags:
 
@@ -1956,8 +2122,10 @@ allowing new state-creating operations to proceed. Use this for fast
 recovery in development and testing environments.
 
 Examples:
-  # Force-end the grace period
-  dfsctl grace end
+
+# Force-end the grace period
+
+dfsctl grace end
 
 ```
 dfsctl grace end
@@ -1988,14 +2156,18 @@ reclaim progress. The grace period occurs after server restart to
 allow clients to reclaim their previously-held state.
 
 Examples:
-  # Show status as table
-  dfsctl grace status
 
-  # Show status as JSON
-  dfsctl grace status -o json
+# Show status as table
 
-  # Show status as YAML
-  dfsctl grace status -o yaml
+dfsctl grace status
+
+# Show status as JSON
+
+dfsctl grace status -o json
+
+# Show status as YAML
+
+dfsctl grace status -o yaml
 
 ```
 dfsctl grace status
@@ -2026,26 +2198,34 @@ as well as manage group membership.
 These operations require admin privileges.
 
 Examples:
-  # List all groups
-  dfsctl group list
 
-  # Get group details
-  dfsctl group get admins
+# List all groups
 
-  # Create a new group
-  dfsctl group create --name editors
+dfsctl group list
 
-  # Edit a group interactively
-  dfsctl group edit editors
+# Get group details
 
-  # Add a user to a group
-  dfsctl group add-user editors alice
+dfsctl group get admins
 
-  # Remove a user from a group
-  dfsctl group remove-user editors alice
+# Create a new group
 
-  # Delete a group
-  dfsctl group delete editors
+dfsctl group create --name editors
+
+# Edit a group interactively
+
+dfsctl group edit editors
+
+# Add a user to a group
+
+dfsctl group add-user editors alice
+
+# Remove a user from a group
+
+dfsctl group remove-user editors alice
+
+# Delete a group
+
+dfsctl group delete editors
 
 Global flags:
 
@@ -2068,8 +2248,10 @@ Add a user to a group
 Add a user to a group on the DittoFS server.
 
 Examples:
-  # Add user alice to group editors
-  dfsctl group add-user editors alice
+
+# Add user alice to group editors
+
+dfsctl group add-user editors alice
 
 ```
 dfsctl group add-user <group> <username>
@@ -2096,14 +2278,18 @@ Create a new group
 Create a new group on the DittoFS server.
 
 Examples:
-  # Create a group
-  dfsctl group create --name editors
 
-  # Create a group with specific GID
-  dfsctl group create --name editors --gid 1001
+# Create a group
 
-  # Create a group with description
-  dfsctl group create --name editors --description "Content editors"
+dfsctl group create --name editors
+
+# Create a group with specific GID
+
+dfsctl group create --name editors --gid 1001
+
+# Create a group with description
+
+dfsctl group create --name editors --description "Content editors"
 
 ```
 dfsctl group create [flags]
@@ -2141,11 +2327,14 @@ This action is irreversible. You will be prompted for confirmation
 unless --force is specified.
 
 Examples:
-  # Delete group with confirmation
-  dfsctl group delete editors
 
-  # Delete group without confirmation
-  dfsctl group delete editors --force
+# Delete group with confirmation
+
+dfsctl group delete editors
+
+# Delete group without confirmation
+
+dfsctl group delete editors --force
 
 ```
 dfsctl group delete <name> [flags]
@@ -2181,14 +2370,18 @@ When run without flags, opens an interactive editor to modify group properties.
 When flags are provided, only the specified fields are updated.
 
 Examples:
-  # Edit group interactively
-  dfsctl group edit editors
 
-  # Update GID directly
-  dfsctl group edit editors --gid 1002
+# Edit group interactively
 
-  # Update description
-  dfsctl group edit editors --description "New description"
+dfsctl group edit editors
+
+# Update GID directly
+
+dfsctl group edit editors --gid 1002
+
+# Update description
+
+dfsctl group edit editors --description "New description"
 
 ```
 dfsctl group edit <name> [flags]
@@ -2222,11 +2415,14 @@ Get group details
 Get detailed information about a group.
 
 Examples:
-  # Get group details as table
-  dfsctl group get admins
 
-  # Get as JSON
-  dfsctl group get admins -o json
+# Get group details as table
+
+dfsctl group get admins
+
+# Get as JSON
+
+dfsctl group get admins -o json
 
 ```
 dfsctl group get <name>
@@ -2253,14 +2449,18 @@ List all groups
 List all groups on the DittoFS server.
 
 Examples:
-  # List groups as table
-  dfsctl group list
 
-  # List as JSON
-  dfsctl group list -o json
+# List groups as table
 
-  # List as YAML
-  dfsctl group list -o yaml
+dfsctl group list
+
+# List as JSON
+
+dfsctl group list -o json
+
+# List as YAML
+
+dfsctl group list -o yaml
 
 ```
 dfsctl group list
@@ -2287,8 +2487,10 @@ Remove a user from a group
 Remove a user from a group on the DittoFS server.
 
 Examples:
-  # Remove user alice from group editors
-  dfsctl group remove-user editors alice
+
+# Remove user alice from group editors
+
+dfsctl group remove-user editors alice
 
 ```
 dfsctl group remove-user <group> <username>
@@ -2342,14 +2544,14 @@ The current configuration is read from the API, the specified flags are applied,
 and the result is written back. Fields not specified on the command line are
 preserved unchanged.
 
---machine-secret is write-only: omit it to keep the currently stored credential;
-provide a new value to rotate it. Submitting the redacted placeholder ("********")
+\--machine-secret is write-only: omit it to keep the currently stored credential;
+provide a new value to rotate it. Submitting the redacted placeholder ("\*\*\*\*\*\*\*\*")
 also preserves the stored secret.
 
 Changes take effect on the next server restart.
 
 Examples:
-  dfsctl identity-provider configure kerberos --machine-account-enabled --machine-account-name MYHOST$ --machine-secret 'p@ss' --machine-keytab /etc/krb5.keytab --dc-address 192.0.2.10 --dc-address 192.0.2.11
+dfsctl identity-provider configure kerberos --machine-account-enabled --machine-account-name MYHOST$ --machine-secret 'p@ss' --machine-keytab /etc/krb5.keytab --dc-address 192.0.2.10 --dc-address 192.0.2.11
 
 ```
 dfsctl identity-provider configure kerberos [flags]
@@ -2429,13 +2631,13 @@ Create or replace an identity provider's configuration
 
 Create or replace an identity provider's configuration from a JSON body.
 
-The JSON shape matches the API config schema. For LDAP, set "bind_password" to
-the real password (or "********" / omit to keep the stored one). LDAP changes
+The JSON shape matches the API config schema. For LDAP, set "bind\_password" to
+the real password (or "\*\*\*\*\*\*\*\*" / omit to keep the stored one). LDAP changes
 apply live; Kerberos changes apply on the next server restart.
 
 Examples:
-  dfsctl identity-provider set ldap --config '&#123;"enabled":true,"url":"ldaps://dc:636","base_dn":"DC=x,DC=y","bind_dn":"CN=svc,DC=x,DC=y","bind_password":"s3cret","idmap":"rfc2307"&#125;'
-  dfsctl identity-provider set kerberos --config @/path/to/krb.json
+dfsctl identity-provider set ldap --config '\{"enabled":true,"url":"ldaps://dc:636","base\_dn":"DC=x,DC=y","bind\_dn":"CN=svc,DC=x,DC=y","bind\_password":"s3cret","idmap":"rfc2307"}'
+dfsctl identity-provider set kerberos --config @/path/to/krb.json
 
 ```
 dfsctl identity-provider set <ldap|kerberos> --config '<json>' [flags]
@@ -2498,25 +2700,30 @@ Manage identity mappings (authentication principal to control plane user).
 Identity mappings allow you to associate authentication principals with
 local DittoFS user accounts. This works across protocols:
 
-  NFS/Kerberos:  alice@EXAMPLE.COM
-  SMB/NTLM:      CORP\alice
-  SMB/Kerberos:  alice@CORP.COM
+NFS/Kerberos:  alice@EXAMPLE.COM
+SMB/NTLM:      CORP\alice
+SMB/Kerberos:  alice@CORP.COM
 
 Mappings are shared across NFS and SMB, ensuring consistent uid/gid
 resolution in mixed-protocol deployments.
 
 Examples:
-  # List all identity mappings
-  dfsctl idmap list
 
-  # Map a Kerberos principal (works for both NFS and SMB)
-  dfsctl idmap add --principal alice@EXAMPLE.COM --username alice
+# List all identity mappings
 
-  # Map an NTLM domain user
-  dfsctl idmap add --principal 'CORP\alice' --username alice
+dfsctl idmap list
 
-  # Remove a mapping
-  dfsctl idmap remove --principal alice@EXAMPLE.COM
+# Map a Kerberos principal (works for both NFS and SMB)
+
+dfsctl idmap add --principal alice@EXAMPLE.COM --username alice
+
+# Map an NTLM domain user
+
+dfsctl idmap add --principal 'CORP\alice' --username alice
+
+# Remove a mapping
+
+dfsctl idmap remove --principal alice@EXAMPLE.COM
 
 Global flags:
 
@@ -2539,14 +2746,18 @@ Add an identity mapping
 Add a new identity mapping from an external identity to a DittoFS user.
 
 Examples:
-  # Map a Kerberos principal to a local user
-  dfsctl idmap add --principal alice@EXAMPLE.COM --username alice
 
-  # Map with explicit provider
-  dfsctl idmap add --provider kerberos --principal admin@CORP.COM --username alice
+# Map a Kerberos principal to a local user
 
-  # Map a numeric UID principal
-  dfsctl idmap add --principal 1000@localdomain --username bob
+dfsctl idmap add --principal alice@EXAMPLE.COM --username alice
+
+# Map with explicit provider
+
+dfsctl idmap add --provider kerberos --principal admin@CORP.COM --username alice
+
+# Map a numeric UID principal
+
+dfsctl idmap add --principal 1000@localdomain --username bob
 
 ```
 dfsctl idmap add [flags]
@@ -2581,14 +2792,18 @@ List identity mappings
 List identity mappings on the DittoFS server.
 
 Examples:
-  # List all mappings
-  dfsctl idmap list
 
-  # List only Kerberos mappings
-  dfsctl idmap list --provider kerberos
+# List all mappings
 
-  # List as JSON
-  dfsctl idmap list -o json
+dfsctl idmap list
+
+# List only Kerberos mappings
+
+dfsctl idmap list --provider kerberos
+
+# List as JSON
+
+dfsctl idmap list -o json
 
 ```
 dfsctl idmap list [flags]
@@ -2624,14 +2839,18 @@ This action is irreversible. You will be prompted for confirmation
 unless --force is specified.
 
 Examples:
-  # Remove with confirmation
-  dfsctl idmap remove --principal alice@EXAMPLE.COM
 
-  # Remove with explicit provider
-  dfsctl idmap remove --provider kerberos --principal alice@EXAMPLE.COM
+# Remove with confirmation
 
-  # Remove without confirmation
-  dfsctl idmap remove --principal alice@EXAMPLE.COM --force
+dfsctl idmap remove --principal alice@EXAMPLE.COM
+
+# Remove with explicit provider
+
+dfsctl idmap remove --provider kerberos --principal alice@EXAMPLE.COM
+
+# Remove without confirmation
+
+dfsctl idmap remove --principal alice@EXAMPLE.COM --force
 
 ```
 dfsctl idmap remove [flags]
@@ -2679,11 +2898,14 @@ SID to be re-allocated to a different UID/GID on its next resolution, which can
 re-attribute files owned by the old UID. Use with care.
 
 Examples:
-  # List all foreign-SID allocations
-  dfsctl idmap sid list
 
-  # Delete a foreign-SID allocation
-  dfsctl idmap sid delete S-1-5-21-111-222-333-1107
+# List all foreign-SID allocations
+
+dfsctl idmap sid list
+
+# Delete a foreign-SID allocation
+
+dfsctl idmap sid delete S-1-5-21-111-222-333-1107
 
 Global flags:
 
@@ -2711,11 +2933,14 @@ re-attribute files owned by the old UID. This action is irreversible. You will b
 prompted for confirmation unless --force is specified.
 
 Examples:
-  # Delete with confirmation
-  dfsctl idmap sid delete S-1-5-21-111-222-333-1107
 
-  # Delete without confirmation
-  dfsctl idmap sid delete S-1-5-21-111-222-333-1107 --force
+# Delete with confirmation
+
+dfsctl idmap sid delete S-1-5-21-111-222-333-1107
+
+# Delete without confirmation
+
+dfsctl idmap sid delete S-1-5-21-111-222-333-1107 --force
 
 ```
 dfsctl idmap sid delete <sid> [flags]
@@ -2748,11 +2973,14 @@ List foreign-SID UID/GID allocations
 List durable foreign-SID to Unix UID/GID allocations on the DittoFS server.
 
 Examples:
-  # List all foreign-SID allocations
-  dfsctl idmap sid list
 
-  # List as JSON
-  dfsctl idmap sid list -o json
+# List all foreign-SID allocations
+
+dfsctl idmap sid list
+
+# List as JSON
+
+dfsctl idmap sid list -o json
 
 ```
 dfsctl idmap sid list
@@ -2782,14 +3010,18 @@ On first login, you must specify the server URL. Subsequent logins will
 use the stored server URL unless overridden.
 
 Examples:
-  # First login to a server
-  dfsctl login --server http://localhost:8080 --username admin
 
-  # Login with password on command line (less secure)
-  dfsctl login --server http://localhost:8080 -u admin -p secret
+# First login to a server
 
-  # Re-login to stored server
-  dfsctl login
+dfsctl login --server http://localhost:8080 --username admin
+
+# Login with password on command line (less secure)
+
+dfsctl login --server http://localhost:8080 -u admin -p secret
+
+# Re-login to stored server
+
+dfsctl login
 
 ```
 dfsctl login [flags]
@@ -2827,8 +3059,10 @@ This removes the access and refresh tokens but keeps the server URL
 and context configuration for easy re-login.
 
 Examples:
-  # Logout from current context
-  dfsctl logout
+
+# Logout from current context
+
+dfsctl logout
 
 ```
 dfsctl logout
@@ -2858,23 +3092,30 @@ Netgroups define sets of IP addresses, CIDR ranges, or hostnames that can
 be referenced from share security policies to control access.
 
 Examples:
-  # List all netgroups
-  dfsctl netgroup list
 
-  # Create a netgroup
-  dfsctl netgroup create --name office-network
+# List all netgroups
 
-  # Show netgroup details
-  dfsctl netgroup show office-network
+dfsctl netgroup list
 
-  # Add a member
-  dfsctl netgroup add-member office-network --type cidr --value 192.168.1.0/24
+# Create a netgroup
 
-  # Remove a member
-  dfsctl netgroup remove-member office-network --member-id &lt;uuid&gt;
+dfsctl netgroup create --name office-network
 
-  # Delete a netgroup
-  dfsctl netgroup delete office-network
+# Show netgroup details
+
+dfsctl netgroup show office-network
+
+# Add a member
+
+dfsctl netgroup add-member office-network --type cidr --value 192.168.1.0/24
+
+# Remove a member
+
+dfsctl netgroup remove-member office-network --member-id \<uuid>
+
+# Delete a netgroup
+
+dfsctl netgroup delete office-network
 
 Global flags:
 
@@ -2897,14 +3138,18 @@ Add a member to a netgroup
 Add an IP address, CIDR range, or hostname to a netgroup.
 
 Examples:
-  # Add a single IP
-  dfsctl netgroup add-member office-network --type ip --value 192.168.1.100
 
-  # Add a CIDR range
-  dfsctl netgroup add-member office-network --type cidr --value 10.0.0.0/8
+# Add a single IP
 
-  # Add a hostname
-  dfsctl netgroup add-member office-network --type hostname --value server1.example.com
+dfsctl netgroup add-member office-network --type ip --value 192.168.1.100
+
+# Add a CIDR range
+
+dfsctl netgroup add-member office-network --type cidr --value 10.0.0.0/8
+
+# Add a hostname
+
+dfsctl netgroup add-member office-network --type hostname --value server1.example.com
 
 ```
 dfsctl netgroup add-member <name> [flags]
@@ -2938,11 +3183,14 @@ Create a new netgroup
 Create a new netgroup on the DittoFS server.
 
 Examples:
-  # Create a netgroup
-  dfsctl netgroup create --name office-network
 
-  # Create and output as JSON
-  dfsctl netgroup create --name office-network -o json
+# Create a netgroup
+
+dfsctl netgroup create --name office-network
+
+# Create and output as JSON
+
+dfsctl netgroup create --name office-network -o json
 
 ```
 dfsctl netgroup create [flags]
@@ -2981,11 +3229,14 @@ If the netgroup is referenced by any shares, the deletion will fail
 with a conflict error listing the affected shares.
 
 Examples:
-  # Delete netgroup with confirmation
-  dfsctl netgroup delete office-network
 
-  # Delete without confirmation
-  dfsctl netgroup delete office-network --force
+# Delete netgroup with confirmation
+
+dfsctl netgroup delete office-network
+
+# Delete without confirmation
+
+dfsctl netgroup delete office-network --force
 
 ```
 dfsctl netgroup delete <name> [flags]
@@ -3018,11 +3269,14 @@ List all netgroups
 List all netgroups on the DittoFS server.
 
 Examples:
-  # List netgroups as table
-  dfsctl netgroup list
 
-  # List as JSON
-  dfsctl netgroup list -o json
+# List netgroups as table
+
+dfsctl netgroup list
+
+# List as JSON
+
+dfsctl netgroup list -o json
 
 ```
 dfsctl netgroup list
@@ -3048,11 +3302,13 @@ Remove a member from a netgroup
 
 Remove a member from a netgroup by its member ID.
 
-Use 'dfsctl netgroup show &lt;name&gt;' to see member IDs.
+Use 'dfsctl netgroup show \<name>' to see member IDs.
 
 Examples:
-  # Remove a member by ID
-  dfsctl netgroup remove-member office-network --member-id 550e8400-e29b-41d4-a716-446655440000
+
+# Remove a member by ID
+
+dfsctl netgroup remove-member office-network --member-id 550e8400-e29b-41d4-a716-446655440000
 
 ```
 dfsctl netgroup remove-member <name> [flags]
@@ -3085,11 +3341,14 @@ Show netgroup details
 Show detailed information about a netgroup including all members.
 
 Examples:
-  # Show netgroup details
-  dfsctl netgroup show office-network
 
-  # Show as JSON
-  dfsctl netgroup show office-network -o json
+# Show netgroup details
+
+dfsctl netgroup show office-network
+
+# Show as JSON
+
+dfsctl netgroup show office-network -o json
 
 ```
 dfsctl netgroup show <name>
@@ -3120,20 +3379,26 @@ and a grace period before a soft threshold is enforced as hard. These operations
 require admin privileges.
 
 Examples:
-  # List all quotas on a share
-  dfsctl quota list /archive
 
-  # Set a per-user quota (uid 1000)
-  dfsctl quota set /archive --scope user --id 1000 --limit-bytes 10GiB --limit-files 100000
+# List all quotas on a share
 
-  # Set the default-user fallback quota (applies to users without an explicit quota)
-  dfsctl quota set /archive --scope default-user --limit-bytes 1GiB
+dfsctl quota list /archive
 
-  # Set a per-group quota with soft thresholds and a grace period
-  dfsctl quota set /archive --scope group --id 2000 --limit-bytes 50GiB --soft-bytes 45GiB --grace-seconds 604800
+# Set a per-user quota (uid 1000)
 
-  # Remove a per-user quota
-  dfsctl quota rm /archive --scope user --id 1000
+dfsctl quota set /archive --scope user --id 1000 --limit-bytes 10GiB --limit-files 100000
+
+# Set the default-user fallback quota (applies to users without an explicit quota)
+
+dfsctl quota set /archive --scope default-user --limit-bytes 1GiB
+
+# Set a per-group quota with soft thresholds and a grace period
+
+dfsctl quota set /archive --scope group --id 2000 --limit-bytes 50GiB --soft-bytes 45GiB --grace-seconds 604800
+
+# Remove a per-user quota
+
+dfsctl quota rm /archive --scope user --id 1000
 
 Global flags:
 
@@ -3156,11 +3421,14 @@ List all quotas on a share
 List all per-identity quotas configured on a share.
 
 Examples:
-  # List quotas as a table
-  dfsctl quota list /archive
 
-  # List as JSON
-  dfsctl quota list /archive -o json
+# List quotas as a table
+
+dfsctl quota list /archive
+
+# List as JSON
+
+dfsctl quota list /archive -o json
 
 ```
 dfsctl quota list <share>
@@ -3190,14 +3458,18 @@ This action is irreversible. You will be prompted for confirmation
 unless --force is specified.
 
 Examples:
-  # Remove a per-user quota (uid 1000)
-  dfsctl quota rm /archive --scope user --id 1000
 
-  # Remove the default-user fallback quota
-  dfsctl quota rm /archive --scope default-user
+# Remove a per-user quota (uid 1000)
 
-  # Remove without confirmation
-  dfsctl quota rm /archive --scope group --id 2000 --force
+dfsctl quota rm /archive --scope user --id 1000
+
+# Remove the default-user fallback quota
+
+dfsctl quota rm /archive --scope default-user
+
+# Remove without confirmation
+
+dfsctl quota rm /archive --scope group --id 2000 --force
 
 ```
 dfsctl quota rm <share> [flags]
@@ -3238,14 +3510,18 @@ applied to any user without an explicit user quota and takes no --id.
 A byte or file limit of 0 (the default) means "no limit on that dimension".
 
 Examples:
-  # Per-user quota (uid 1000): 10GiB / 100k files
-  dfsctl quota set /archive --scope user --id 1000 --limit-bytes 10GiB --limit-files 100000
 
-  # Default-user fallback quota
-  dfsctl quota set /archive --scope default-user --limit-bytes 1GiB
+# Per-user quota (uid 1000): 10GiB / 100k files
 
-  # Per-group quota with soft thresholds and a 7-day grace period
-  dfsctl quota set /archive --scope group --id 2000 --limit-bytes 50GiB --soft-bytes 45GiB --grace-seconds 604800
+dfsctl quota set /archive --scope user --id 1000 --limit-bytes 10GiB --limit-files 100000
+
+# Default-user fallback quota
+
+dfsctl quota set /archive --scope default-user --limit-bytes 1GiB
+
+# Per-group quota with soft thresholds and a 7-day grace period
+
+dfsctl quota set /archive --scope group --id 2000 --limit-bytes 50GiB --soft-bytes 45GiB --grace-seconds 604800
 
 ```
 dfsctl quota set <share> [flags]
@@ -3287,14 +3563,18 @@ Settings commands allow you to get, set, and list server configuration settings.
 These operations require admin privileges.
 
 Examples:
-  # List all settings
-  dfsctl settings list
 
-  # Get a specific setting
-  dfsctl settings get logging.level
+# List all settings
 
-  # Set a setting value
-  dfsctl settings set logging.level DEBUG
+dfsctl settings list
+
+# Get a specific setting
+
+dfsctl settings get logging.level
+
+# Set a setting value
+
+dfsctl settings set logging.level DEBUG
 
 Global flags:
 
@@ -3317,11 +3597,14 @@ Get a setting value
 Get the value of a server setting.
 
 Examples:
-  # Get a setting
-  dfsctl settings get logging.level
 
-  # Get as JSON
-  dfsctl settings get logging.level -o json
+# Get a setting
+
+dfsctl settings get logging.level
+
+# Get as JSON
+
+dfsctl settings get logging.level -o json
 
 ```
 dfsctl settings get <key>
@@ -3348,11 +3631,14 @@ List all settings
 List all server settings.
 
 Examples:
-  # List as table
-  dfsctl settings list
 
-  # List as JSON
-  dfsctl settings list -o json
+# List as table
+
+dfsctl settings list
+
+# List as JSON
+
+dfsctl settings list -o json
 
 ```
 dfsctl settings list
@@ -3379,11 +3665,14 @@ Set a setting value
 Set the value of a server setting.
 
 Examples:
-  # Set logging level
-  dfsctl settings set logging.level DEBUG
 
-  # Set a numeric value
-  dfsctl settings set server.port 8080
+# Set logging level
+
+dfsctl settings set logging.level DEBUG
+
+# Set a numeric value
+
+dfsctl settings set server.port 8080
 
 ```
 dfsctl settings set <key> <value>
@@ -3414,32 +3703,42 @@ resolves the verb as the subcommand and `<name>` as its positional
 argument. These operations require admin privileges.
 
 Examples:
-  # List all shares
-  dfsctl share list
 
-  # Create a new share
-  dfsctl share create --name /archive --metadata default --local fs-cache --remote s3-store
+# List all shares
 
-  # Show share details
-  dfsctl share show /archive
+dfsctl share list
 
-  # Edit a share interactively
-  dfsctl share edit /archive
+# Create a new share
 
-  # Edit a share with flags
-  dfsctl share edit /archive --read-only true
+dfsctl share create --name /archive --metadata default --local fs-cache --remote s3-store
 
-  # Disable a share (drain clients, block new connections)
-  dfsctl share disable /archive
+# Show share details
 
-  # Re-enable a share
-  dfsctl share enable /archive
+dfsctl share show /archive
 
-  # Delete a share
-  dfsctl share delete /archive
+# Edit a share interactively
 
-  # Grant permission
-  dfsctl share permission grant /archive --user alice --level read-write
+dfsctl share edit /archive
+
+# Edit a share with flags
+
+dfsctl share edit /archive --read-only true
+
+# Disable a share (drain clients, block new connections)
+
+dfsctl share disable /archive
+
+# Re-enable a share
+
+dfsctl share enable /archive
+
+# Delete a share
+
+dfsctl share delete /archive
+
+# Grant permission
+
+dfsctl share permission grant /archive --user alice --level read-write
 
 Global flags:
 
@@ -3465,32 +3764,42 @@ A share requires a metadata store and a local block store. A remote block store
 is optional and enables tiered storage (local cache + remote durable storage).
 
 Examples:
-  # Create a share with local block store only
-  dfsctl share create --name /data --metadata default --local fs-cache
 
-  # Create a share with local and remote block stores
-  dfsctl share create --name /archive --metadata default --local fs-cache --remote s3-store
+# Create a share with local block store only
 
-  # Create a read-only share
-  dfsctl share create --name /readonly --metadata default --local fs-cache --read-only
+dfsctl share create --name /data --metadata default --local fs-cache
 
-  # Create with default permission allowing all users read-write access
-  dfsctl share create --name /shared --metadata default --local fs-cache --remote s3-store --default-permission read-write
+# Create a share with local and remote block stores
 
-  # Create with description
-  dfsctl share create --name /docs --metadata default --local fs-cache --description "Documentation files"
+dfsctl share create --name /archive --metadata default --local fs-cache --remote s3-store
 
-  # Create a pinned share (blocks never evicted)
-  dfsctl share create --name /edge-data --metadata default --local fs-cache --retention pin
+# Create a read-only share
 
-  # Create with TTL retention (evict after 72 hours of no access)
-  dfsctl share create --name /logs --metadata default --local fs-cache --retention ttl --retention-ttl 72h
+dfsctl share create --name /readonly --metadata default --local fs-cache --read-only
 
-  # Create with per-share cache size overrides
-  dfsctl share create --name /bigdata --metadata default --local fs-cache --local-store-size 10GiB --read-buffer-size 2GiB
+# Create with default permission allowing all users read-write access
 
-  # Create with per-share quota
-  dfsctl share create --name /limited --metadata default --local fs-cache --quota-bytes 10GiB
+dfsctl share create --name /shared --metadata default --local fs-cache --remote s3-store --default-permission read-write
+
+# Create with description
+
+dfsctl share create --name /docs --metadata default --local fs-cache --description "Documentation files"
+
+# Create a pinned share (blocks never evicted)
+
+dfsctl share create --name /edge-data --metadata default --local fs-cache --retention pin
+
+# Create with TTL retention (evict after 72 hours of no access)
+
+dfsctl share create --name /logs --metadata default --local fs-cache --retention ttl --retention-ttl 72h
+
+# Create with per-share cache size overrides
+
+dfsctl share create --name /bigdata --metadata default --local fs-cache --local-store-size 10GiB --read-buffer-size 2GiB
+
+# Create with per-share quota
+
+dfsctl share create --name /limited --metadata default --local fs-cache --quota-bytes 10GiB
 
 ```
 dfsctl share create [flags]
@@ -3549,11 +3858,14 @@ This action is irreversible. You will be prompted for confirmation
 unless --force is specified.
 
 Examples:
-  # Delete share with confirmation
-  dfsctl share delete /archive
 
-  # Delete share without confirmation
-  dfsctl share delete /archive --force
+# Delete share with confirmation
+
+dfsctl share delete /archive
+
+# Delete share without confirmation
+
+dfsctl share delete /archive --force
 
 ```
 dfsctl share delete <name> [flags]
@@ -3586,7 +3898,7 @@ Disable a share (drain clients, block new connections)
 Disable a share on the DittoFS server.
 
 Disabling a share drains connected clients synchronously (NFS MOUNT / NFSv4
-PUTFH / SMB TREE_CONNECT are refused for disabled shares) and blocks new
+PUTFH / SMB TREE\_CONNECT are refused for disabled shares) and blocks new
 connections until the share is re-enabled. This is the safety gate that
 must precede a metadata-store restore.
 
@@ -3595,11 +3907,14 @@ lifecycle shutdown timeout fires). Exit code is 0 when the share has been
 marked disabled and all in-flight clients have been notified.
 
 Examples:
-  # Disable a share before restoring its metadata store
-  dfsctl share disable /archive
 
-  # Emit the updated Share record as JSON
-  dfsctl share disable /archive -o json
+# Disable a share before restoring its metadata store
+
+dfsctl share disable /archive
+
+# Emit the updated Share record as JSON
+
+dfsctl share disable /archive -o json
 
 ```
 dfsctl share disable <name>
@@ -3629,44 +3944,58 @@ When run without flags, opens an interactive editor to modify share properties.
 When flags are provided, only the specified fields are updated.
 
 Examples:
-  # Edit share interactively
-  dfsctl share edit /archive
 
-  # Update local block store reference
-  dfsctl share edit /archive --local new-fs-cache
+# Edit share interactively
 
-  # Update remote block store reference
-  dfsctl share edit /archive --remote new-s3-store
+dfsctl share edit /archive
 
-  # Make share read-only
-  dfsctl share edit /archive --read-only true
+# Update local block store reference
 
-  # Make share writable
-  dfsctl share edit /archive --read-only false
+dfsctl share edit /archive --local new-fs-cache
 
-  # Set default permission to allow all users read-write access
-  dfsctl share edit /archive --default-permission read-write
+# Update remote block store reference
 
-  # Update description
-  dfsctl share edit /archive --description "New description"
+dfsctl share edit /archive --remote new-s3-store
 
-  # Change retention policy to pin (blocks never evicted)
-  dfsctl share edit /archive --retention pin
+# Make share read-only
 
-  # Change retention policy to TTL with 72-hour window
-  dfsctl share edit /archive --retention ttl --retention-ttl 72h
+dfsctl share edit /archive --read-only true
 
-  # Override per-share disk cache size
-  dfsctl share edit /archive --local-store-size 10GiB
+# Make share writable
 
-  # Override per-share read buffer size
-  dfsctl share edit /archive --read-buffer-size 2GiB
+dfsctl share edit /archive --read-only false
 
-  # Set per-share quota
-  dfsctl share edit /archive --quota-bytes 10GiB
+# Set default permission to allow all users read-write access
 
-  # Remove quota (set to unlimited)
-  dfsctl share edit /archive --quota-bytes 0
+dfsctl share edit /archive --default-permission read-write
+
+# Update description
+
+dfsctl share edit /archive --description "New description"
+
+# Change retention policy to pin (blocks never evicted)
+
+dfsctl share edit /archive --retention pin
+
+# Change retention policy to TTL with 72-hour window
+
+dfsctl share edit /archive --retention ttl --retention-ttl 72h
+
+# Override per-share disk cache size
+
+dfsctl share edit /archive --local-store-size 10GiB
+
+# Override per-share read buffer size
+
+dfsctl share edit /archive --read-buffer-size 2GiB
+
+# Set per-share quota
+
+dfsctl share edit /archive --quota-bytes 10GiB
+
+# Remove quota (set to unlimited)
+
+dfsctl share edit /archive --quota-bytes 0
 
 ```
 dfsctl share edit <name> [flags]
@@ -3720,11 +4049,14 @@ set by 'share disable'. Re-enabling is a deliberate operator act; no
 mid-restore safety check is performed — the operator owns the timing.
 
 Examples:
-  # Enable a share after a completed metadata-store restore
-  dfsctl share enable /archive
 
-  # Emit the updated Share record as JSON
-  dfsctl share enable /archive -o json
+# Enable a share after a completed metadata-store restore
+
+dfsctl share enable /archive
+
+# Emit the updated Share record as JSON
+
+dfsctl share enable /archive -o json
 
 ```
 dfsctl share enable <name>
@@ -3751,14 +4083,18 @@ List all shares
 List all shares on the DittoFS server.
 
 Examples:
-  # List shares as table
-  dfsctl share list
 
-  # List as JSON
-  dfsctl share list -o json
+# List shares as table
 
-  # List as YAML
-  dfsctl share list -o yaml
+dfsctl share list
+
+# List as JSON
+
+dfsctl share list -o json
+
+# List as YAML
+
+dfsctl share list -o yaml
 
 ```
 dfsctl share list
@@ -3788,14 +4124,18 @@ This command shows NFS and SMB mounts from localhost that are likely DittoFS sha
 Optionally filter by share name.
 
 Examples:
-  # List all mounted DittoFS shares
-  dfsctl share list-mounts
 
-  # Filter by share name
-  dfsctl share list-mounts /export
+# List all mounted DittoFS shares
 
-  # Short alias
-  dfsctl share mounts
+dfsctl share list-mounts
+
+# Filter by share name
+
+dfsctl share list-mounts /export
+
+# Short alias
+
+dfsctl share mounts
 
 ```
 dfsctl share list-mounts [share]
@@ -3822,34 +4162,42 @@ Mount a share via NFS or SMB
 Mount a DittoFS share at a local mount point using NFS or SMB protocol.
 
 For SMB mounts, credentials are resolved in order:
-  1. --username/--password flags
-  2. DITTOFS_PASSWORD environment variable (for password)
-  3. Current login context username
-  4. Interactive password prompt
+
+1. \--username/--password flags
+2. DITTOFS\_PASSWORD environment variable (for password)
+3. Current login context username
+4. Interactive password prompt
 
 Examples:
-  # Mount via NFS
-  dfsctl share mount /export --protocol nfs /mnt/dittofs
 
-  # Mount via SMB
-  dfsctl share mount /export --protocol smb /mnt/dittofs
+# Mount via NFS
 
-  # Mount via SMB with explicit credentials
-  dfsctl share mount /export --protocol smb --username alice /mnt/dittofs
+dfsctl share mount /export --protocol nfs /mnt/dittofs
 
-  # Mount via SMB with password from environment
-  DITTOFS_PASSWORD=secret dfsctl share mount /export --protocol smb /mnt/dittofs
+# Mount via SMB
 
-  # Mount to user directory without sudo (macOS only, recommended)
-  mkdir -p ~/mnt/dittofs && dfsctl share mount /export --protocol smb ~/mnt/dittofs
+dfsctl share mount /export --protocol smb /mnt/dittofs
+
+# Mount via SMB with explicit credentials
+
+dfsctl share mount /export --protocol smb --username alice /mnt/dittofs
+
+# Mount via SMB with password from environment
+
+DITTOFS\_PASSWORD=secret dfsctl share mount /export --protocol smb /mnt/dittofs
+
+# Mount to user directory without sudo (macOS only, recommended)
+
+mkdir -p ~/mnt/dittofs && dfsctl share mount /export --protocol smb ~/mnt/dittofs
 
 Note: Mount commands typically require sudo/root privileges on Unix systems.
 
 Platform differences for SMB with sudo:
-  - Linux: Mount owner set to your user via uid/gid options (default mode 0755)
-  - macOS: Mount owned by root (uid/gid removed in Catalina), default mode 0777
-  - macOS alternative: mount to ~/mnt without sudo for user-owned mount
-  - Windows: Uses 'net use' to map network drives (e.g., dfsctl share mount /export --protocol smb Z:)
+
+* Linux: Mount owner set to your user via uid/gid options (default mode 0755)
+* macOS: Mount owned by root (uid/gid removed in Catalina), default mode 0777
+* macOS alternative: mount to ~/mnt without sudo for user-owned mount
+* Windows: Uses 'net use' to map network drives (e.g., dfsctl share mount /export --protocol smb Z:)
 
 ```
 dfsctl share mount [share] [mountpoint] [flags]
@@ -3892,14 +4240,18 @@ export. Netgroup changes take effect immediately; other fields apply on the
 next adapter restart.
 
 Examples:
-  # Show a share's NFS config
-  dfsctl share nfs-config show /export
 
-  # Associate a netgroup with the share's NFS export
-  dfsctl share nfs-config set /export --netgroup office-network
+# Show a share's NFS config
 
-  # Remove the netgroup association (allow all clients)
-  dfsctl share nfs-config set /export --netgroup ""
+dfsctl share nfs-config show /export
+
+# Associate a netgroup with the share's NFS export
+
+dfsctl share nfs-config set /export --netgroup office-network
+
+# Remove the netgroup association (allow all clients)
+
+dfsctl share nfs-config set /export --netgroup ""
 
 Global flags:
 
@@ -3978,17 +4330,22 @@ Permission commands allow you to grant, revoke, and list permissions
 for users and groups on shares.
 
 Examples:
-  # Grant read-write permission to a user
-  dfsctl share permission grant /archive --user alice --level read-write
 
-  # Grant read permission to a group
-  dfsctl share permission grant /archive --group editors --level read
+# Grant read-write permission to a user
 
-  # Revoke permission from a user
-  dfsctl share permission revoke /archive --user alice
+dfsctl share permission grant /archive --user alice --level read-write
 
-  # List permissions on a share
-  dfsctl share permission list /archive
+# Grant read permission to a group
+
+dfsctl share permission grant /archive --group editors --level read
+
+# Revoke permission from a user
+
+dfsctl share permission revoke /archive --user alice
+
+# List permissions on a share
+
+dfsctl share permission list /archive
 
 Global flags:
 
@@ -4011,17 +4368,21 @@ Grant permission on a share
 Grant permission to a user or group on a share.
 
 Permission levels:
-  - none: No access
-  - read: Read-only access
-  - read-write: Read and write access
-  - admin: Full administrative access
+
+* none: No access
+* read: Read-only access
+* read-write: Read and write access
+* admin: Full administrative access
 
 Examples:
-  # Grant read-write to user
-  dfsctl share permission grant /archive --user alice --level read-write
 
-  # Grant read to group
-  dfsctl share permission grant /archive --group editors --level read
+# Grant read-write to user
+
+dfsctl share permission grant /archive --user alice --level read-write
+
+# Grant read to group
+
+dfsctl share permission grant /archive --group editors --level read
 
 ```
 dfsctl share permission grant <share> [flags]
@@ -4056,11 +4417,14 @@ List permissions on a share
 List all permissions configured on a share.
 
 Examples:
-  # List permissions as table
-  dfsctl share permission list /archive
 
-  # List as JSON
-  dfsctl share permission list /archive -o json
+# List permissions as table
+
+dfsctl share permission list /archive
+
+# List as JSON
+
+dfsctl share permission list /archive -o json
 
 ```
 dfsctl share permission list <share>
@@ -4087,11 +4451,14 @@ Revoke permission from a share
 Revoke permission from a user or group on a share.
 
 Examples:
-  # Revoke permission from user
-  dfsctl share permission revoke /archive --user alice
 
-  # Revoke permission from group
-  dfsctl share permission revoke /archive --group editors
+# Revoke permission from user
+
+dfsctl share permission revoke /archive --user alice
+
+# Revoke permission from group
+
+dfsctl share permission revoke /archive --group editors
 
 ```
 dfsctl share permission revoke <share> [flags]
@@ -4125,11 +4492,14 @@ Show share details
 Show detailed information about a share including retention settings.
 
 Examples:
-  # Show share details
-  dfsctl share show /edge-data
 
-  # Show as JSON
-  dfsctl share show /edge-data -o json
+# Show share details
+
+dfsctl share show /edge-data
+
+# Show as JSON
+
+dfsctl share show /edge-data -o json
 
 ```
 dfsctl share show <name>
@@ -4159,21 +4529,27 @@ A snapshot captures the full state of a share at a point in time. It can
 be inspected, listed, deleted, or restored back onto a (disabled) share.
 
 Examples:
-  # Create a snapshot and wait for it to be ready
-  dfsctl share snapshot create /archive --name weekly
 
-  # List snapshots for a share
-  dfsctl share snapshot list /archive
+# Create a snapshot and wait for it to be ready
 
-  # Show details of a single snapshot
-  dfsctl share snapshot show /archive snap-abc123
+dfsctl share snapshot create /archive --name weekly
 
-  # Delete a snapshot (prompts for confirmation)
-  dfsctl share snapshot delete /archive snap-abc123
+# List snapshots for a share
 
-  # Restore a snapshot onto a disabled share
-  dfsctl share disable /archive
-  dfsctl share snapshot restore /archive snap-abc123
+dfsctl share snapshot list /archive
+
+# Show details of a single snapshot
+
+dfsctl share snapshot show /archive snap-abc123
+
+# Delete a snapshot (prompts for confirmation)
+
+dfsctl share snapshot delete /archive snap-abc123
+
+# Restore a snapshot onto a disabled share
+
+dfsctl share disable /archive
+dfsctl share snapshot restore /archive snap-abc123
 
 Global flags:
 
@@ -4200,17 +4576,22 @@ state (ready or failed). Use --no-wait to return immediately after the
 snapshot is enqueued.
 
 Examples:
-  # Block until snapshot is ready
-  dfsctl share snapshot create /archive --name weekly
 
-  # Return immediately with the new snapshot ID
-  dfsctl share snapshot create /archive --no-wait
+# Block until snapshot is ready
 
-  # Skip the remote-durability verify step
-  dfsctl share snapshot create /archive --no-verify
+dfsctl share snapshot create /archive --name weekly
 
-  # Retry a failed previous snapshot
-  dfsctl share snapshot create /archive --retry snap-prev123
+# Return immediately with the new snapshot ID
+
+dfsctl share snapshot create /archive --no-wait
+
+# Skip the remote-durability verify step
+
+dfsctl share snapshot create /archive --no-verify
+
+# Retry a failed previous snapshot
+
+dfsctl share snapshot create /archive --retry snap-prev123
 
 ```
 dfsctl share snapshot create <share> [flags]
@@ -4246,11 +4627,14 @@ Delete a snapshot
 Delete a snapshot. This is irreversible.
 
 Examples:
-  # Delete with prompt
-  dfsctl share snapshot delete /archive snap-abc123
 
-  # Delete without prompt
-  dfsctl share snapshot delete /archive snap-abc123 --yes
+# Delete with prompt
+
+dfsctl share snapshot delete /archive snap-abc123
+
+# Delete without prompt
+
+dfsctl share snapshot delete /archive snap-abc123 --yes
 
 ```
 dfsctl share snapshot delete <share> <id> [flags]
@@ -4283,17 +4667,22 @@ List snapshots for a share
 List snapshots for a share, newest-first.
 
 Examples:
-  # List as table
-  dfsctl share snapshot list /archive
 
-  # Filter by state
-  dfsctl share snapshot list /archive --state ready
+# List as table
 
-  # Filter by name prefix
-  dfsctl share snapshot list /archive --name-prefix weekly
+dfsctl share snapshot list /archive
 
-  # JSON output
-  dfsctl share snapshot list /archive -o json
+# Filter by state
+
+dfsctl share snapshot list /archive --state ready
+
+# Filter by name prefix
+
+dfsctl share snapshot list /archive --name-prefix weekly
+
+# JSON output
+
+dfsctl share snapshot list /archive -o json
 
 ```
 dfsctl share snapshot list <share> [flags]
@@ -4333,15 +4722,19 @@ snapshot is taken before the reset and its ID is printed on success
 (delete it once you have verified the restored share).
 
 Examples:
-  # Restore with prompt
-  dfsctl share disable /archive
-  dfsctl share snapshot restore /archive snap-abc123
 
-  # Restore without prompt
-  dfsctl share snapshot restore /archive snap-abc123 --yes
+# Restore with prompt
 
-  # Restore a snapshot that is not remotely durable
-  dfsctl share snapshot restore /archive snap-abc123 --yes --force
+dfsctl share disable /archive
+dfsctl share snapshot restore /archive snap-abc123
+
+# Restore without prompt
+
+dfsctl share snapshot restore /archive snap-abc123 --yes
+
+# Restore a snapshot that is not remotely durable
+
+dfsctl share snapshot restore /archive snap-abc123 --yes --force
 
 ```
 dfsctl share snapshot restore <share> <id> [flags]
@@ -4401,20 +4794,26 @@ interval and prunes old scheduler-created snapshots past the retention
 bounds (keep-last and/or ttl). Manually-created snapshots are never pruned.
 
 Examples:
-  # Daily snapshots, keep the newest 7, drop anything older than 30 days
-  dfsctl share snapshot-policy set /archive --interval @daily --keep-last 7 --ttl 720h
 
-  # Show a share's policy
-  dfsctl share snapshot-policy show /archive
+# Daily snapshots, keep the newest 7, drop anything older than 30 days
 
-  # List every policy
-  dfsctl share snapshot-policy list
+dfsctl share snapshot-policy set /archive --interval @daily --keep-last 7 --ttl 720h
 
-  # Trigger the policy immediately, ignoring its interval
-  dfsctl share snapshot-policy run /archive
+# Show a share's policy
 
-  # Remove a share's policy
-  dfsctl share snapshot-policy delete /archive
+dfsctl share snapshot-policy show /archive
+
+# List every policy
+
+dfsctl share snapshot-policy list
+
+# Trigger the policy immediately, ignoring its interval
+
+dfsctl share snapshot-policy run /archive
+
+# Remove a share's policy
+
+dfsctl share snapshot-policy delete /archive
 
 Global flags:
 
@@ -4517,7 +4916,7 @@ Create or update a share's snapshot policy
 
 Create or update a share's snapshot policy.
 
---interval accepts a Go duration ("24h", "6h", "1h30m") or a shorthand
+\--interval accepts a Go duration ("24h", "6h", "1h30m") or a shorthand
 (@hourly, @daily, @weekly). Retention is bounded by --keep-last (0 = no
 count bound) and --ttl (Go duration, empty = no age bound); a snapshot is
 pruned when it falls outside the newest keep-last OR is older than ttl.
@@ -4526,8 +4925,8 @@ Re-running set on an existing policy updates the config but preserves the
 run clock (it does not reset the next-run time).
 
 Examples:
-  dfsctl share snapshot-policy set /archive --interval @daily --keep-last 7 --ttl 720h
-  dfsctl share snapshot-policy set /archive --interval 6h --disabled
+dfsctl share snapshot-policy set /archive --interval @daily --keep-last 7 --ttl 720h
+dfsctl share snapshot-policy set /archive --interval 6h --disabled
 
 ```
 dfsctl share snapshot-policy set <share> [flags]
@@ -4586,14 +4985,18 @@ Unmount a mounted share
 Unmount a DittoFS share from a local mount point.
 
 Examples:
-  # Unmount a share (positional argument is the mount point path)
-  dfsctl share unmount /mnt/dittofs
 
-  # Force unmount if busy
-  dfsctl share unmount --force /mnt/dittofs
+# Unmount a share (positional argument is the mount point path)
 
-  # Windows: unmount a mapped drive
-  dfsctl share unmount Z:
+dfsctl share unmount /mnt/dittofs
+
+# Force unmount if busy
+
+dfsctl share unmount --force /mnt/dittofs
+
+# Windows: unmount a mapped drive
+
+dfsctl share unmount Z:
 
 Note: Unmount commands typically require sudo/root privileges on Unix systems.
 Unmount identifies the target by mount-point path rather than share name
@@ -4638,11 +5041,14 @@ The share must have a remote tier configured. A pinned share with a bounded
 local tier may fail with a disk-full error if its working set exceeds the tier.
 
 Examples:
-  # Start a warm job and exit
-  dfsctl share warm /archive
 
-  # Start and follow progress until done
-  dfsctl share warm --watch /archive
+# Start a warm job and exit
+
+dfsctl share warm /archive
+
+# Start and follow progress until done
+
+dfsctl share warm --watch /archive
 
 ```
 dfsctl share warm <name> [flags]
@@ -4681,11 +5087,14 @@ When authenticated, per-entity status is fetched from the list
 endpoints and displayed as a color-coded table.
 
 Examples:
-  # Check status of connected server
-  dfsctl status
 
-  # Output as JSON
-  dfsctl status -o json
+# Check status of connected server
+
+dfsctl status
+
+# Output as JSON
+
+dfsctl status -o json
 
 ```
 dfsctl status
@@ -4715,23 +5124,30 @@ Store commands allow you to create, list, update, and delete stores.
 These operations require admin privileges.
 
 Examples:
-  # List metadata stores
-  dfsctl store metadata list
 
-  # Add a new metadata store
-  dfsctl store metadata add --name new-meta --type memory
+# List metadata stores
 
-  # List local block stores
-  dfsctl store block local list
+dfsctl store metadata list
 
-  # List remote block stores
-  dfsctl store block remote list
+# Add a new metadata store
 
-  # Add a local block store
-  dfsctl store block local add --name fs-cache --type fs --config '&#123;"path":"/data/blocks"&#125;'
+dfsctl store metadata add --name new-meta --type memory
 
-  # Add a remote block store
-  dfsctl store block remote add --name s3-store --type s3 --config '&#123;"bucket":"my-bucket"&#125;'
+# List local block stores
+
+dfsctl store block local list
+
+# List remote block stores
+
+dfsctl store block remote list
+
+# Add a local block store
+
+dfsctl store block local add --name fs-cache --type fs --config '\{"path":"/data/blocks"}'
+
+# Add a remote block store
+
+dfsctl store block remote add --name s3-store --type s3 --config '\{"bucket":"my-bucket"}'
 
 Global flags:
 
@@ -4758,17 +5174,22 @@ fast disk-backed storage, while remote block stores provide durable cloud
 storage (e.g., S3).
 
 Examples:
-  # List local block stores
-  dfsctl store block local list
 
-  # Add a local filesystem block store
-  dfsctl store block local add --name fs-cache --type fs --config '&#123;"path":"/data/blocks"&#125;'
+# List local block stores
 
-  # List remote block stores
-  dfsctl store block remote list
+dfsctl store block local list
 
-  # Add an S3 remote block store
-  dfsctl store block remote add --name s3-store --type s3 --config '&#123;"bucket":"my-bucket","region":"us-east-1"&#125;'
+# Add a local filesystem block store
+
+dfsctl store block local add --name fs-cache --type fs --config '\{"path":"/data/blocks"}'
+
+# List remote block stores
+
+dfsctl store block remote list
+
+# Add an S3 remote block store
+
+dfsctl store block remote add --name s3-store --type s3 --config '\{"bucket":"my-bucket","region":"us-east-1"}'
 
 Global flags:
 
@@ -4804,12 +5225,12 @@ RefCount is not maintained in the content-addressed-store model (CAS blocks
 are written Pending and never transition to Remote), so that sum was
 structurally always 0 and produced false-positive "delta" alarms.
 
-Persists last-run summary at &lt;localStore&gt;/audit-state/last-inv02.json
+Persists last-run summary at \<localStore>/audit-state/last-inv02.json
 analogously to GC's last-run.json. Operator-invokable; no periodic schedule.
 
 Examples:
-  dfsctl store block audit-refcounts myshare
-  dfsctl store block audit-refcounts myshare -o json
+dfsctl store block audit-refcounts myshare
+dfsctl store block audit-refcounts myshare -o json
 
 ```
 dfsctl store block audit-refcounts <share>
@@ -4844,20 +5265,26 @@ Safety: Eviction of local blocks is refused if no remote store is
 configured for a share, since that would cause data loss.
 
 Examples:
-  # Evict all storage tiers for all shares
-  dfsctl store block evict
 
-  # Evict only read buffer
-  dfsctl store block evict --read-buffer-only
+# Evict all storage tiers for all shares
 
-  # Evict only local disk data
-  dfsctl store block evict --local-only
+dfsctl store block evict
 
-  # Evict data for a specific share
-  dfsctl store block evict --share /export
+# Evict only read buffer
 
-  # Verbose output
-  dfsctl store block evict -v
+dfsctl store block evict --read-buffer-only
+
+# Evict only local disk data
+
+dfsctl store block evict --local-only
+
+# Evict data for a specific share
+
+dfsctl store block evict --share /export
+
+# Verbose output
+
+dfsctl store block evict -v
 
 ```
 dfsctl store block evict [flags]
@@ -4898,16 +5325,16 @@ whose LastModified is older than the configured grace period (default
 1h). The last-run.json summary is persisted under the share's gc-state
 directory and can be inspected with:
 
-  dfsctl store block gc-status &lt;share&gt;
+dfsctl store block gc-status \<share>
 
-Use --dry-run to skip deletes and print up to dry_run_sample_size
+Use --dry-run to skip deletes and print up to dry\_run\_sample\_size
 candidate keys (default 1000). Recommended for first-time deployment
 confidence and for debugging suspected mark-phase bugs.
 
 Examples:
-  dfsctl store block gc myshare
-  dfsctl store block gc myshare --dry-run
-  dfsctl store block gc myshare -o json
+dfsctl store block gc myshare
+dfsctl store block gc myshare --dry-run
+dfsctl store block gc myshare -o json
 
 ```
 dfsctl store block gc <share> [flags]
@@ -4939,14 +5366,14 @@ Show the last block-store GC run summary for a share
 
 Print the most recent garbage collection run summary for the named share.
 
-Reads &lt;gcStateRoot&gt;/last-run.json, which is overwritten by every
+Reads \<gcStateRoot>/last-run.json, which is overwritten by every
 completed GC run. Returns exit 1 with a friendly message if no run has
 been recorded yet (the share has never been GC'd, or its local store
 has no persistent root).
 
 Examples:
-  dfsctl store block gc-status myshare
-  dfsctl store block gc-status myshare -o json
+dfsctl store block gc-status myshare
+dfsctl store block gc-status myshare -o json
 
 ```
 dfsctl store block gc-status <share>
@@ -4978,14 +5405,18 @@ For remote S3 stores, performs a HeadBucket call to verify connectivity.
 For remote memory stores, always reports healthy.
 
 Examples:
-  # Check health of a local block store
-  dfsctl store block health --kind local --name fs-cache
 
-  # Check health of a remote block store
-  dfsctl store block health --kind remote --name s3-store
+# Check health of a local block store
 
-  # Output as JSON
-  dfsctl store block health --kind remote --name s3-store -o json
+dfsctl store block health --kind local --name fs-cache
+
+# Check health of a remote block store
+
+dfsctl store block health --kind remote --name s3-store
+
+# Output as JSON
+
+dfsctl store block health --kind remote --name s3-store -o json
 
 ```
 dfsctl store block health [flags]
@@ -5022,14 +5453,18 @@ Local block stores provide fast disk-backed storage for file content blocks.
 Supported types: fs (filesystem), memory (testing)
 
 Examples:
-  # List local block stores
-  dfsctl store block local list
 
-  # Add a filesystem block store
-  dfsctl store block local add --name fs-cache --type fs --config '&#123;"path":"/data/blocks"&#125;'
+# List local block stores
 
-  # Add a memory block store (for testing)
-  dfsctl store block local add --name test-local --type memory
+dfsctl store block local list
+
+# Add a filesystem block store
+
+dfsctl store block local add --name fs-cache --type fs --config '\{"path":"/data/blocks"}'
+
+# Add a memory block store (for testing)
+
+dfsctl store block local add --name test-local --type memory
 
 Global flags:
 
@@ -5052,25 +5487,31 @@ Add a local block store
 Add a new local block store to the DittoFS server.
 
 Supported types:
-  - fs: Filesystem-backed block store (fast, persistent)
-  - memory: In-memory block store (fast, ephemeral, for testing)
+
+* fs: Filesystem-backed block store (fast, persistent)
+* memory: In-memory block store (fast, ephemeral, for testing)
 
 Type-specific options:
-  fs:
-    --path: Block directory path (or prompted interactively)
+fs:
+\--path: Block directory path (or prompted interactively)
 
 Examples:
-  # Add a filesystem block store
-  dfsctl store block local add --name fs-cache --type fs --path /data/blocks
 
-  # Add with JSON config
-  dfsctl store block local add --name fs-cache --type fs --config '&#123;"path":"/data/blocks"&#125;'
+# Add a filesystem block store
 
-  # Add a memory store (for testing)
-  dfsctl store block local add --name test-local --type memory
+dfsctl store block local add --name fs-cache --type fs --path /data/blocks
 
-  # Add interactively (prompts for path)
-  dfsctl store block local add --name fs-cache --type fs
+# Add with JSON config
+
+dfsctl store block local add --name fs-cache --type fs --config '\{"path":"/data/blocks"}'
+
+# Add a memory store (for testing)
+
+dfsctl store block local add --name test-local --type memory
+
+# Add interactively (prompts for path)
+
+dfsctl store block local add --name fs-cache --type fs
 
 ```
 dfsctl store block local add [flags]
@@ -5109,14 +5550,18 @@ When run without flags, opens an interactive editor to modify store properties.
 When flags are provided, only the specified fields are updated.
 
 Examples:
-  # Edit interactively
-  dfsctl store block local edit default-local
 
-  # Update config with JSON
-  dfsctl store block local edit default-local --config '&#123;"path":"/new/path"&#125;'
+# Edit interactively
 
-  # Update path for fs store
-  dfsctl store block local edit default-local --path /new/path
+dfsctl store block local edit default-local
+
+# Update config with JSON
+
+dfsctl store block local edit default-local --config '\{"path":"/new/path"}'
+
+# Update path for fs store
+
+dfsctl store block local edit default-local --path /new/path
 
 ```
 dfsctl store block local edit <name> [flags]
@@ -5151,11 +5596,14 @@ List local block stores
 List all local block stores on the DittoFS server.
 
 Examples:
-  # List as table
-  dfsctl store block local list
 
-  # List as JSON
-  dfsctl store block local list -o json
+# List as table
+
+dfsctl store block local list
+
+# List as JSON
+
+dfsctl store block local list -o json
 
 ```
 dfsctl store block local list
@@ -5184,11 +5632,14 @@ Remove a local block store from the DittoFS server.
 Warning: This will fail if the store is in use by any shares.
 
 Examples:
-  # Remove with confirmation
-  dfsctl store block local remove fs-cache
 
-  # Remove without confirmation
-  dfsctl store block local remove fs-cache --force
+# Remove with confirmation
+
+dfsctl store block local remove fs-cache
+
+# Remove without confirmation
+
+dfsctl store block local remove fs-cache --force
 
 ```
 dfsctl store block local remove <name> [flags]
@@ -5224,14 +5675,18 @@ Remote block stores provide durable cloud storage for file content blocks.
 Supported types: s3 (AWS S3 or S3-compatible), memory (testing)
 
 Examples:
-  # List remote block stores
-  dfsctl store block remote list
 
-  # Add an S3 block store
-  dfsctl store block remote add --name s3-store --type s3 --config '&#123;"bucket":"my-bucket","region":"us-east-1"&#125;'
+# List remote block stores
 
-  # Add a memory block store (for testing)
-  dfsctl store block remote add --name test-remote --type memory
+dfsctl store block remote list
+
+# Add an S3 block store
+
+dfsctl store block remote add --name s3-store --type s3 --config '\{"bucket":"my-bucket","region":"us-east-1"}'
+
+# Add a memory block store (for testing)
+
+dfsctl store block remote add --name test-remote --type memory
 
 Global flags:
 
@@ -5254,33 +5709,40 @@ Add a remote block store
 Add a new remote block store to the DittoFS server.
 
 Supported types:
-  - s3: AWS S3 or S3-compatible store (durable, production)
-  - memory: In-memory store (fast, ephemeral, for testing)
+
+* s3: AWS S3 or S3-compatible store (durable, production)
+* memory: In-memory store (fast, ephemeral, for testing)
 
 Type-specific options:
-  s3:
-    --bucket: S3 bucket name (or prompted interactively)
-    --region: AWS region (default: us-east-1)
-    --endpoint: Custom endpoint for S3-compatible stores
-    --prefix: Key prefix within the bucket
-    --access-key: AWS access key ID
-    --secret-key: AWS secret access key
+s3:
+\--bucket: S3 bucket name (or prompted interactively)
+\--region: AWS region (default: us-east-1)
+\--endpoint: Custom endpoint for S3-compatible stores
+\--prefix: Key prefix within the bucket
+\--access-key: AWS access key ID
+\--secret-key: AWS secret access key
 
 Examples:
-  # Add an S3 store with flags
-  dfsctl store block remote add --name s3-store --type s3 --bucket my-bucket --region us-west-2
 
-  # Add an S3 store interactively
-  dfsctl store block remote add --name s3-store --type s3
+# Add an S3 store with flags
 
-  # Add a MinIO store (S3-compatible)
-  dfsctl store block remote add --name minio-store --type s3 --bucket data --endpoint http://localhost:9000
+dfsctl store block remote add --name s3-store --type s3 --bucket my-bucket --region us-west-2
 
-  # Add an S3 store with zstd block compression
-  dfsctl store block remote add --name prod-s3 --type s3 --bucket my-bucket --compression zstd
+# Add an S3 store interactively
 
-  # Add a memory store (for testing)
-  dfsctl store block remote add --name test-remote --type memory
+dfsctl store block remote add --name s3-store --type s3
+
+# Add a MinIO store (S3-compatible)
+
+dfsctl store block remote add --name minio-store --type s3 --bucket data --endpoint http://localhost:9000
+
+# Add an S3 store with zstd block compression
+
+dfsctl store block remote add --name prod-s3 --type s3 --bucket my-bucket --compression zstd
+
+# Add a memory store (for testing)
+
+dfsctl store block remote add --name test-remote --type memory
 
 ```
 dfsctl store block remote add [flags]
@@ -5333,14 +5795,18 @@ When run without flags, opens an interactive editor to modify store properties.
 When flags are provided, only the specified fields are updated.
 
 Examples:
-  # Edit interactively
-  dfsctl store block remote edit s3-store
 
-  # Update config with JSON
-  dfsctl store block remote edit s3-store --config '&#123;"bucket":"new-bucket"&#125;'
+# Edit interactively
 
-  # Update S3 settings
-  dfsctl store block remote edit s3-store --bucket new-bucket --region us-west-2
+dfsctl store block remote edit s3-store
+
+# Update config with JSON
+
+dfsctl store block remote edit s3-store --config '\{"bucket":"new-bucket"}'
+
+# Update S3 settings
+
+dfsctl store block remote edit s3-store --bucket new-bucket --region us-west-2
 
 ```
 dfsctl store block remote edit <name> [flags]
@@ -5379,11 +5845,14 @@ List remote block stores
 List all remote block stores on the DittoFS server.
 
 Examples:
-  # List as table
-  dfsctl store block remote list
 
-  # List as JSON
-  dfsctl store block remote list -o json
+# List as table
+
+dfsctl store block remote list
+
+# List as JSON
+
+dfsctl store block remote list -o json
 
 ```
 dfsctl store block remote list
@@ -5412,11 +5881,14 @@ Remove a remote block store from the DittoFS server.
 Warning: This will fail if the store is in use by any shares.
 
 Examples:
-  # Remove with confirmation
-  dfsctl store block remote remove s3-store
 
-  # Remove without confirmation
-  dfsctl store block remote remove s3-store --force
+# Remove with confirmation
+
+dfsctl store block remote remove s3-store
+
+# Remove without confirmation
+
+dfsctl store block remote remove s3-store --force
 
 ```
 dfsctl store block remote remove <name> [flags]
@@ -5452,14 +5924,18 @@ Without --share, shows aggregated totals across all shares with a per-share brea
 With --share, shows statistics for a single share only.
 
 Examples:
-  # Show aggregated block store stats
-  dfsctl store block stats
 
-  # Show stats for a specific share
-  dfsctl store block stats --share /export
+# Show aggregated block store stats
 
-  # Output as JSON
-  dfsctl store block stats -o json
+dfsctl store block stats
+
+# Show stats for a specific share
+
+dfsctl store block stats --share /export
+
+# Output as JSON
+
+dfsctl store block stats -o json
 
 ```
 dfsctl store block stats [flags]
@@ -5495,14 +5971,18 @@ Metadata stores hold file system structure, attributes, and permissions.
 Supported types: memory, badger, postgres
 
 Examples:
-  # List metadata stores
-  dfsctl store metadata list
 
-  # Add a memory store
-  dfsctl store metadata add --name fast-meta --type memory
+# List metadata stores
 
-  # Add a BadgerDB store
-  dfsctl store metadata add --name persistent-meta --type badger --config '&#123;"path":"/data/meta"&#125;'
+dfsctl store metadata list
+
+# Add a memory store
+
+dfsctl store metadata add --name fast-meta --type memory
+
+# Add a BadgerDB store
+
+dfsctl store metadata add --name persistent-meta --type badger --config '\{"path":"/data/meta"}'
 
 Global flags:
 
@@ -5525,32 +6005,39 @@ Add a metadata store
 Add a new metadata store to the DittoFS server.
 
 Supported types:
-  - memory: In-memory store (fast, ephemeral)
-  - badger: BadgerDB store (persistent, embedded)
-  - postgres: PostgreSQL store (persistent, distributed)
+
+* memory: In-memory store (fast, ephemeral)
+* badger: BadgerDB store (persistent, embedded)
+* postgres: PostgreSQL store (persistent, distributed)
 
 Type-specific options:
-  badger:
-    --db-path: Path to BadgerDB directory (or prompted interactively)
+badger:
+\--db-path: Path to BadgerDB directory (or prompted interactively)
 
-  postgres:
-    --config: JSON with connection settings, or omit for interactive prompts
+postgres:
+\--config: JSON with connection settings, or omit for interactive prompts
 
 Examples:
-  # Add a memory store
-  dfsctl store metadata add --name fast-meta --type memory
 
-  # Add a BadgerDB store with flags
-  dfsctl store metadata add --name persistent-meta --type badger --db-path /data/meta
+# Add a memory store
 
-  # Add a BadgerDB store interactively
-  dfsctl store metadata add --name persistent-meta --type badger
+dfsctl store metadata add --name fast-meta --type memory
 
-  # Add a PostgreSQL store with JSON config
-  dfsctl store metadata add --name pg-meta --type postgres --config '&#123;"host":"localhost","dbname":"dittofs"&#125;'
+# Add a BadgerDB store with flags
 
-  # Add a PostgreSQL store interactively
-  dfsctl store metadata add --name pg-meta --type postgres
+dfsctl store metadata add --name persistent-meta --type badger --db-path /data/meta
+
+# Add a BadgerDB store interactively
+
+dfsctl store metadata add --name persistent-meta --type badger
+
+# Add a PostgreSQL store with JSON config
+
+dfsctl store metadata add --name pg-meta --type postgres --config '\{"host":"localhost","dbname":"dittofs"}'
+
+# Add a PostgreSQL store interactively
+
+dfsctl store metadata add --name pg-meta --type postgres
 
 ```
 dfsctl store metadata add [flags]
@@ -5589,17 +6076,22 @@ When run without flags, opens an interactive editor to modify store properties.
 When flags are provided, only the specified fields are updated.
 
 Examples:
-  # Edit interactively (default)
-  dfsctl store metadata edit default
 
-  # Update config with JSON
-  dfsctl store metadata edit default --config '&#123;"path":"/new/path"&#125;'
+# Edit interactively (default)
 
-  # Update type
-  dfsctl store metadata edit default --type badger
+dfsctl store metadata edit default
 
-  # Update BadgerDB path
-  dfsctl store metadata edit default --db-path /new/path
+# Update config with JSON
+
+dfsctl store metadata edit default --config '\{"path":"/new/path"}'
+
+# Update type
+
+dfsctl store metadata edit default --type badger
+
+# Update BadgerDB path
+
+dfsctl store metadata edit default --db-path /new/path
 
 ```
 dfsctl store metadata edit <name> [flags]
@@ -5637,11 +6129,14 @@ If the store is loaded in the runtime, calls its native health check method.
 Otherwise, reports that the store is not loaded.
 
 Examples:
-  # Check health of a metadata store
-  dfsctl store metadata health --name fast-meta
 
-  # Output as JSON
-  dfsctl store metadata health --name fast-meta -o json
+# Check health of a metadata store
+
+dfsctl store metadata health --name fast-meta
+
+# Output as JSON
+
+dfsctl store metadata health --name fast-meta -o json
 
 ```
 dfsctl store metadata health [flags]
@@ -5674,11 +6169,14 @@ List metadata stores
 List all metadata stores on the DittoFS server.
 
 Examples:
-  # List as table
-  dfsctl store metadata list
 
-  # List as JSON
-  dfsctl store metadata list -o json
+# List as table
+
+dfsctl store metadata list
+
+# List as JSON
+
+dfsctl store metadata list -o json
 
 ```
 dfsctl store metadata list
@@ -5707,11 +6205,14 @@ Remove a metadata store from the DittoFS server.
 Warning: This may fail if the store is in use by any shares.
 
 Examples:
-  # Remove with confirmation
-  dfsctl store metadata remove fast-meta
 
-  # Remove without confirmation
-  dfsctl store metadata remove fast-meta --force
+# Remove with confirmation
+
+dfsctl store metadata remove fast-meta
+
+# Remove without confirmation
+
+dfsctl store metadata remove fast-meta --force
 
 ```
 dfsctl store metadata remove <name> [flags]
@@ -5750,11 +6251,14 @@ If a context already exists for this user on the same server and has a valid
 (non-expired) token, it switches to that context without re-authenticating.
 
 Examples:
-  # Switch to user marmos91 (will prompt for password)
-  dfsctl switch-user marmos91
 
-  # Switch with password on command line
-  dfsctl switch-user marmos91 -p secret
+# Switch to user marmos91 (will prompt for password)
+
+dfsctl switch-user marmos91
+
+# Switch with password on command line
+
+dfsctl switch-user marmos91 -p secret
 
 ```
 dfsctl switch-user <username> [flags]
@@ -5811,11 +6315,14 @@ between workloads. The command blocks until all uploads are drained or
 the server-side timeout (5 minutes) is reached.
 
 Examples:
-  # Drain all pending uploads
-  dfsctl system drain-uploads
 
-  # Output as JSON
-  dfsctl system drain-uploads -o json
+# Drain all pending uploads
+
+dfsctl system drain-uploads
+
+# Output as JSON
+
+dfsctl system drain-uploads -o json
 
 ```
 dfsctl system drain-uploads
@@ -5846,10 +6353,10 @@ per-share recycle bin instead of being purged immediately. Use these commands
 to inspect, restore, or empty that bin.
 
 Examples:
-  dfsctl trash list myshare
-  dfsctl trash restore myshare "#recycle/2026-06-01/report.txt"
-  dfsctl trash empty myshare --force
-  dfsctl trash status myshare
+dfsctl trash list myshare
+dfsctl trash restore myshare "#recycle/2026-06-01/report.txt"
+dfsctl trash empty myshare --force
+dfsctl trash status myshare
 
 Global flags:
 
@@ -5874,8 +6381,8 @@ Permanently remove every recycled root from a share's recycle bin.
 This cannot be undone. Use --force to skip any server-side safety checks.
 
 Examples:
-  dfsctl trash empty myshare
-  dfsctl trash empty myshare --force
+dfsctl trash empty myshare
+dfsctl trash empty myshare --force
 
 ```
 dfsctl trash empty <share> [flags]
@@ -5912,8 +6419,8 @@ before deletion, who deleted it, when, its size, and whether it is a
 directory subtree.
 
 Examples:
-  dfsctl trash list myshare
-  dfsctl trash list myshare -o json
+dfsctl trash list myshare
+dfsctl trash list myshare -o json
 
 ```
 dfsctl trash list <share>
@@ -5937,15 +6444,15 @@ Global flags:
 
 Restore a recycled file or directory
 
-Restore the recycled root at &lt;bin-path&gt; back into the share.
+Restore the recycled root at \<bin-path> back into the share.
 
 Without --to the entry is restored to the path it occupied before deletion.
 Use --to to restore it elsewhere — useful when the original location is now
 occupied.
 
 Examples:
-  dfsctl trash restore myshare "#recycle/2026-06-01/report.txt"
-  dfsctl trash restore myshare "#recycle/2026-06-01/report.txt" --to /restored/report.txt
+dfsctl trash restore myshare "#recycle/2026-06-01/report.txt"
+dfsctl trash restore myshare "#recycle/2026-06-01/report.txt" --to /restored/report.txt
 
 ```
 dfsctl trash restore <share> <bin-path> [flags]
@@ -5979,8 +6486,8 @@ Print the recycle-bin roll-up for a share: whether trash is enabled,
 how many recycled roots it holds, their total size, and the oldest deletion.
 
 Examples:
-  dfsctl trash status myshare
-  dfsctl trash status myshare -o json
+dfsctl trash status myshare
+dfsctl trash status myshare -o json
 
 ```
 dfsctl trash status <share>
@@ -6010,20 +6517,26 @@ User commands allow you to create, list, edit, and delete users.
 These operations require admin privileges.
 
 Examples:
-  # List all users
-  dfsctl user list
 
-  # Create a new user interactively
-  dfsctl user create
+# List all users
 
-  # Create a user with flags
-  dfsctl user create --username alice --password secret --role user
+dfsctl user list
 
-  # Edit a user interactively
-  dfsctl user edit alice
+# Create a new user interactively
 
-  # Delete a user
-  dfsctl user delete alice
+dfsctl user create
+
+# Create a user with flags
+
+dfsctl user create --username alice --password secret --role user
+
+# Edit a user interactively
+
+dfsctl user edit alice
+
+# Delete a user
+
+dfsctl user delete alice
 
 Global flags:
 
@@ -6049,11 +6562,14 @@ This is used when you need to change your password, especially
 when the server requires a password change after initial login.
 
 Examples:
-  # Change password interactively
-  dfsctl user change-password
 
-  # Change password with flags (less secure)
-  dfsctl user change-password --current oldpass --new newpass
+# Change password interactively
+
+dfsctl user change-password
+
+# Change password with flags (less secure)
+
+dfsctl user change-password --current oldpass --new newpass
 
 ```
 dfsctl user change-password [flags]
@@ -6090,23 +6606,30 @@ If username or password are not provided via flags, you will be prompted
 to enter them interactively.
 
 Examples:
-  # Create user interactively
-  dfsctl user create
 
-  # Create user with flags
-  dfsctl user create --username alice --password secret
+# Create user interactively
 
-  # Create admin user
-  dfsctl user create --username admin2 --password secret --role admin
+dfsctl user create
 
-  # Create user with email and groups
-  dfsctl user create --username bob --password secret --email bob@example.com --groups editors,viewers
+# Create user with flags
 
-  # Create user with specific UID and primary GID
-  dfsctl user create --username bob --password secret --uid 1001 --gid 1001
+dfsctl user create --username alice --password secret
 
-  # Create user with your current host UID and GID (for NFS access)
-  dfsctl user create --username bob --password secret --host-uid --host-gid
+# Create admin user
+
+dfsctl user create --username admin2 --password secret --role admin
+
+# Create user with email and groups
+
+dfsctl user create --username bob --password secret --email bob@example.com --groups editors,viewers
+
+# Create user with specific UID and primary GID
+
+dfsctl user create --username bob --password secret --uid 1001 --gid 1001
+
+# Create user with your current host UID and GID (for NFS access)
+
+dfsctl user create --username bob --password secret --host-uid --host-gid
 
 ```
 dfsctl user create [flags]
@@ -6151,11 +6674,14 @@ This action is irreversible. You will be prompted for confirmation
 unless --force is specified.
 
 Examples:
-  # Delete user with confirmation
-  dfsctl user delete alice
 
-  # Delete user without confirmation
-  dfsctl user delete alice --force
+# Delete user with confirmation
+
+dfsctl user delete alice
+
+# Delete user without confirmation
+
+dfsctl user delete alice --force
 
 ```
 dfsctl user delete <username> [flags]
@@ -6191,23 +6717,30 @@ When run without flags, opens an interactive editor to modify user properties.
 When flags are provided, only the specified fields are updated.
 
 Examples:
-  # Edit user interactively
-  dfsctl user edit alice
 
-  # Update email directly
-  dfsctl user edit alice --email alice@newdomain.com
+# Edit user interactively
 
-  # Update role to admin
-  dfsctl user edit alice --role admin
+dfsctl user edit alice
 
-  # Disable user
-  dfsctl user edit alice --enabled false
+# Update email directly
 
-  # Update multiple fields
-  dfsctl user edit alice --email alice@example.com --groups editors,admins
+dfsctl user edit alice --email alice@newdomain.com
 
-  # Update UID and primary GID
-  dfsctl user edit alice --uid 1001 --gid 1001
+# Update role to admin
+
+dfsctl user edit alice --role admin
+
+# Disable user
+
+dfsctl user edit alice --enabled false
+
+# Update multiple fields
+
+dfsctl user edit alice --email alice@example.com --groups editors,admins
+
+# Update UID and primary GID
+
+dfsctl user edit alice --uid 1001 --gid 1001
 
 ```
 dfsctl user edit <username> [flags]
@@ -6246,11 +6779,14 @@ Get user details
 Get detailed information about a user.
 
 Examples:
-  # Get user details as table
-  dfsctl user get alice
 
-  # Get as JSON
-  dfsctl user get alice -o json
+# Get user details as table
+
+dfsctl user get alice
+
+# Get as JSON
+
+dfsctl user get alice -o json
 
 ```
 dfsctl user get <username>
@@ -6277,14 +6813,18 @@ List all users
 List all users on the DittoFS server.
 
 Examples:
-  # List users as table
-  dfsctl user list
 
-  # List as JSON
-  dfsctl user list -o json
+# List users as table
 
-  # List as YAML
-  dfsctl user list -o yaml
+dfsctl user list
+
+# List as JSON
+
+dfsctl user list -o json
+
+# List as YAML
+
+dfsctl user list -o yaml
 
 ```
 dfsctl user list
@@ -6314,11 +6854,14 @@ This sets the user's password and marks them as needing to change it
 on next login.
 
 Examples:
-  # Reset password interactively
-  dfsctl user password alice
 
-  # Reset password with flag (less secure)
-  dfsctl user password alice --password newsecret
+# Reset password interactively
+
+dfsctl user password alice
+
+# Reset password with flag (less secure)
+
+dfsctl user password alice --password newsecret
 
 ```
 dfsctl user password <username> [flags]
@@ -6373,4 +6916,3 @@ Global flags:
       --token string         Bearer token (overrides stored credential)
   -v, --verbose              Enable verbose output
 ```
-

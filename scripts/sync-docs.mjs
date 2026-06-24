@@ -212,6 +212,67 @@ function stripLeadingH1(md) {
   return md.replace(/^\s*#\s+.+?\r?\n+/, "");
 }
 
+// Real HTML tags we keep verbatim (DittoFS docs use small table/markup tags).
+const KEEP_HTML_TAGS = new Set([
+  "br", "hr", "b", "i", "em", "strong", "sub", "sup", "kbd", "code", "a", "p",
+  "table", "thead", "tbody", "tr", "td", "th", "img", "div", "span", "details",
+  "summary", "ul", "ol", "li", "blockquote", "pre",
+]);
+
+// Astro's plain-markdown build is lenient, but the starlight-versions snapshot
+// pipeline re-parses every doc as MDX. Two markdown constructs that are legal
+// in CommonMark but blow up MDX must be normalized at vendor time so both the
+// latest build and the version snapshots succeed:
+//   1. GFM autolinks <https://…/…> — MDX reads the `/` as a JSX tag name.
+//   2. Angle-bracket placeholders in prose like <command>, <path>, <name> —
+//      MDX reads them as JSX and acorn fails on the (empty/invalid) expression.
+// Both are only normalized OUTSIDE fenced code blocks and inline code spans,
+// so literal samples stay intact.
+function normalizeForMdx(md) {
+  let inFence = false;
+  return md
+    .split("\n")
+    .map((line) => {
+      const fenceMatch = line.match(/^\s*(```|~~~)/);
+      if (fenceMatch) {
+        inFence = !inFence;
+        return line;
+      }
+      if (inFence) return line;
+
+      // Protect inline code spans (`...`) from rewriting.
+      const spans = [];
+      let work = line.replace(/`[^`]*`/g, (m) => {
+        spans.push(m);
+        return ` ${spans.length - 1} `;
+      });
+
+      // 1. Autolinks -> explicit markdown links.
+      work = work.replace(
+        /<((?:https?|mailto):[^ <>]+)>/g,
+        (_m, url) => `[${url}](${url})`,
+      );
+
+      // 1b. Escape bare curly braces — MDX reads {…} / ${…} as JS expressions
+      //     and acorn throws on the embedded CLI --help / JSON dumps.
+      work = work.replace(/[{}]/g, (c) => (c === "{" ? "&#123;" : "&#125;"));
+
+      // 2. Escape angle-bracket placeholders that are not real HTML tags.
+      work = work.replace(
+        /<\/?([A-Za-z][A-Za-z0-9_-]*)(\s[^<>]*)?\/?>/g,
+        (m, tag) => {
+          if (KEEP_HTML_TAGS.has(tag.toLowerCase())) return m;
+          // Render as literal text: <command> -> &lt;command&gt;
+          return m.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        },
+      );
+
+      // Restore inline code spans.
+      return work.replace(/ (\d+) /g, (_m, i) => spans[Number(i)]);
+    })
+    .join("\n");
+}
+
 const usedAssets = new Set();
 
 // Register an asset reference (path may be like ../assets/pro/x.png or
@@ -325,11 +386,14 @@ async function main() {
     }
 
     let body = stripLeadingH1(raw);
+    body = normalizeForMdx(body);
     body = rewriteLinksAndAssets(body, doc.src);
 
     // Point "Edit page" at the real source in the main repo, not this site's
     // vendored copy. Pin snapshots to their tag; latest tracks develop.
-    const editRef = DOCS_VERSION ? `${DOCS_VERSION}.0` : "develop";
+    const editRef =
+      process.env.DITTOFS_DOCS_EDITREF ||
+      (DOCS_VERSION ? `${DOCS_VERSION}.0` : "develop");
     const editUrl = `${GITHUB_REPO}/edit/${editRef}/docs/${doc.src}`;
 
     const frontmatter =

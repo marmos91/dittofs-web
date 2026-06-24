@@ -1,10 +1,10 @@
 ---
-title: "Snapshots"
-description: "Point-in-time share snapshots, restore runbook, and recovery."
-editUrl: "https://github.com/marmos91/dittofs/edit/develop/docs/guide/snapshots.md"
+title: Snapshots
+description: Point-in-time share snapshots, restore runbook, and recovery.
+editUrl: https://github.com/marmos91/dittofs/edit/v0.22.0/docs/guide/snapshots.md
 sidebar:
   order: 1
-# Synced from dittofs/docs/guide/snapshots.md — do not edit here.
+slug: v0.22/docs/operations/snapshots
 ---
 
 Point-in-time, reference-based protection for a DittoFS share.
@@ -12,21 +12,21 @@ Operator guide: model, CLI, restore runbook, recovery paths, failure modes.
 
 ## Table of Contents
 
-- [1. Overview](#1-overview)
-- [2. Snapshot model](#2-snapshot-model)
-- [3. CLI walkthrough](#3-cli-walkthrough)
-- [4. Creating a snapshot](#4-creating-a-snapshot)
-- [5. Listing and inspecting](#5-listing-and-inspecting)
-- [6. Deleting a snapshot](#6-deleting-a-snapshot)
-- [7. Restore runbook](#7-restore-runbook)
-- [8. Recovering from the safety snapshot](#8-recovering-from-the-safety-snapshot)
-  - [8.1 Automatic crash recovery](#81-automatic-crash-recovery)
-- [9. The verify gate](#9-the-verify-gate)
-- [10. GC hold semantics](#10-gc-hold-semantics)
-- [11. Failure modes and recovery](#11-failure-modes-and-recovery)
-- [12. Scheduled snapshots (policies)](#12-scheduled-snapshots-policies)
-- [13. Limitations](#13-limitations)
-- [14. REST API reference](#14-rest-api-reference)
+* [1. Overview](#1-overview)
+* [2. Snapshot model](#2-snapshot-model)
+* [3. CLI walkthrough](#3-cli-walkthrough)
+* [4. Creating a snapshot](#4-creating-a-snapshot)
+* [5. Listing and inspecting](#5-listing-and-inspecting)
+* [6. Deleting a snapshot](#6-deleting-a-snapshot)
+* [7. Restore runbook](#7-restore-runbook)
+* [8. Recovering from the safety snapshot](#8-recovering-from-the-safety-snapshot)
+  * [8.1 Automatic crash recovery](#81-automatic-crash-recovery)
+* [9. The verify gate](#9-the-verify-gate)
+* [10. GC hold semantics](#10-gc-hold-semantics)
+* [11. Failure modes and recovery](#11-failure-modes-and-recovery)
+* [12. Scheduled snapshots (policies)](#12-scheduled-snapshots-policies)
+* [13. Limitations](#13-limitations)
+* [14. REST API reference](#14-rest-api-reference)
 
 ## 1. Overview
 
@@ -40,10 +40,10 @@ deleted.
 
 Snapshots give two operator-level guarantees:
 
-- **Metadata is fully restorable.** The metadata dump preserves the
+* **Metadata is fully restorable.** The metadata dump preserves the
   exact file tree, permissions, ACLs, timestamps, byte-range locks
   (where applicable), and `[]BlockRef` lists at snapshot time.
-- **Referenced CAS blocks are held.** Even if every file in the live
+* **Referenced CAS blocks are held.** Even if every file in the live
   share is overwritten or deleted, the blocks needed to reconstruct
   the snapshot stay in the block store. There is no data copy: the
   hold is a reference, not a duplication.
@@ -263,11 +263,11 @@ be torn.
 To prevent this, the metadata store captures the dump and the manifest from
 **a single consistent read-view**:
 
-- **postgres** — one `REPEATABLE READ` transaction; all table `COPY`s and
+* **postgres** — one `REPEATABLE READ` transaction; all table `COPY`s and
   the block-hash query observe the same MVCC snapshot.
-- **badger** — one managed read transaction (`db.View`); the whole
+* **badger** — one managed read transaction (`db.View`); the whole
   key-space iteration and hash extraction share that snapshot.
-- **memory** — the in-memory maps are read under the store write lock,
+* **memory** — the in-memory maps are read under the store write lock,
   which every mutation also takes, so the dump and manifest reflect the
   same instant.
 
@@ -281,9 +281,9 @@ point-in-time image under active load.
 The snapshot still completes, the GC hold still applies, but the
 `remote_durable` flag is `false`. Use it when:
 
-- You want a fast local-only snapshot for an imminent risky operation
+* You want a fast local-only snapshot for an imminent risky operation
   (e.g., a config push that might break an adapter).
-- The remote block store is temporarily unreachable but the local
+* The remote block store is temporarily unreachable but the local
   block store is intact.
 
 Restoring a `remote_durable=false` snapshot requires the explicit
@@ -575,12 +575,12 @@ $ dfsctl share enable /photos
 
 Two important properties:
 
-- **Each restore creates a fresh safety snap.** Restoring the safety
+* **Each restore creates a fresh safety snap.** Restoring the safety
   snap creates ANOTHER safety snap that captures the
   post-first-restore state. The chain depth grows by one with every
   restore. There is no auto-cleanup — operators delete safety snaps
   explicitly after validation.
-- **Safety snaps are full snapshots.** They occupy a normal slot in
+* **Safety snaps are full snapshots.** They occupy a normal slot in
   `list`, hold GC references, and respect every `--state` /
   `--name-prefix` filter. There is no separate query for "show me
   the safety snaps for share X" — convention names them
@@ -592,11 +592,11 @@ Two important properties:
 Keep them until you have confidence the restored state is correct.
 A reasonable cadence:
 
-- Sample-verify the restored share immediately after `enable`.
-- Run downstream consumers (the application stack that uses the
+* Sample-verify the restored share immediately after `enable`.
+* Run downstream consumers (the application stack that uses the
   share) for a grace period — for example, one business day or one
   full backup-window — and confirm no integrity issues surface.
-- Delete the safety snap once the grace period elapses.
+* Delete the safety snap once the grace period elapses.
 
 Failing to delete safety snaps eventually consumes GC budget
 (blocks held by the chain cannot be reclaimed until the chain is
@@ -613,16 +613,16 @@ metadata wiped but the dump replay incomplete.
 
 DittoFS makes this **self-healing** with no operator action:
 
-- **Marker.** Immediately after the safety snapshot is verified and
+* **Marker.** Immediately after the safety snapshot is verified and
   before the first destructive step, restore writes a durable
   *restore-in-progress marker* to the control-plane database. The
   marker records the target snapshot, the safety snapshot to roll
   back to, and the furthest step reached. It is cleared only after
   the restore fully completes and post-verifies.
-- **Detection.** On every startup, before any adapter begins serving
+* **Detection.** On every startup, before any adapter begins serving
   traffic, the server scans for restore markers. A marker that is
   still present means a restore was interrupted.
-- **Rollback.** For each surviving marker the server automatically
+* **Rollback.** For each surviving marker the server automatically
   restores the named safety snapshot — rolling the share back to its
   exact pre-restore state — then clears the marker. The rollback runs
   in a mode that creates no new safety snapshot and writes no new
@@ -693,12 +693,12 @@ one rule:
 
 Concretely:
 
-- GC's mark phase enumerates `<localStoreDir>/snapshots/<share>/*/manifest.hashes`
+* GC's mark phase enumerates `<localStoreDir>/snapshots/<share>/*/manifest.hashes`
   at sweep start and reads every hash referenced inside.
-- Those hashes are unioned with the live `FileAttr.Blocks` hashes
+* Those hashes are unioned with the live `FileAttr.Blocks` hashes
   from the metadata store.
-- Any block whose hash is in the union survives the sweep.
-- Any block whose hash is in neither is unreferenced and is swept.
+* Any block whose hash is in the union survives the sweep.
+* Any block whose hash is in neither is unreferenced and is swept.
 
 A `failed` snapshot whose orchestration crashed partway through may
 have a partial manifest file. GC still respects it as a hold — better
@@ -825,12 +825,12 @@ a partial state.
 
 **Recovery.** Two cases:
 
-- **The daemon kept running** (HTTP timeout, manual cancel): the
+* **The daemon kept running** (HTTP timeout, manual cancel): the
   process is still up, so startup crash recovery did not run.
   Re-restore the safety snap to roll back manually, or simply re-run
   the original restore (the share is disabled, so it is not serving
   the partial state).
-- **The daemon crashed / was killed** mid-restore: the durable
+* **The daemon crashed / was killed** mid-restore: the durable
   restore-in-progress marker survives, and the **next startup
   automatically rolls the share back to the safety snapshot** before
   any adapter serves traffic (see
@@ -880,20 +880,20 @@ policies on a configurable interval.
 
 ### Cadence and retention
 
-- **Interval** — a Go duration (`24h`, `6h`, `1h30m`) or a shorthand
+* **Interval** — a Go duration (`24h`, `6h`, `1h30m`) or a shorthand
   (`@hourly`, `@daily`, `@weekly`). The share is snapshotted when this
   much time has elapsed since its last scheduled run.
-- **Retention** — two independent bounds, either or both:
-  - `keep-last N` — keep only the newest `N` scheduler-created snapshots
+* **Retention** — two independent bounds, either or both:
+  * `keep-last N` — keep only the newest `N` scheduler-created snapshots
     (`0` disables the count bound).
-  - `ttl` — drop scheduler-created snapshots older than this Go duration
+  * `ttl` — drop scheduler-created snapshots older than this Go duration
     (empty/`0` disables the age bound).
-  - A snapshot is pruned when it falls **outside the newest `N`** OR is
+  * A snapshot is pruned when it falls **outside the newest `N`** OR is
     **older than `ttl`**.
-- **Manual snapshots are never auto-pruned.** Only snapshots created by
+* **Manual snapshots are never auto-pruned.** Only snapshots created by
   the scheduler are eligible; anything made with `snapshot create`
   (`scheduled=false`) is left untouched.
-- **Overlap is skipped.** If a snapshot for the share is already in
+* **Overlap is skipped.** If a snapshot for the share is already in
   flight when the policy comes due, the scheduler logs and skips that
   tick (it does not queue a second one); the next tick retries.
 
@@ -919,11 +919,11 @@ policy-created snapshots list, show, and restore exactly like manual ones.
 
 ### Configuration
 
-- `snapshot.scheduler_poll_interval` (default `1m`,
+* `snapshot.scheduler_poll_interval` (default `1m`,
   `DITTOFS_SNAPSHOT_SCHEDULER_POLL_INTERVAL`) — how often the daemon
   scans for due policies. The per-share `interval` (not this knob)
   governs how often a share is actually snapshotted.
-- `snapshot.scheduler_disabled` (default `false`,
+* `snapshot.scheduler_disabled` (default `false`,
   `DITTOFS_SNAPSHOT_SCHEDULER_DISABLED`) — turn the scheduler off
   entirely. Policies are still stored and can be run manually with
   `snapshot-policy run`.
@@ -948,30 +948,30 @@ spec:
 
 ## 13. Limitations
 
-- **No cross-share restore.** A snapshot of `/photos` can only be
+* **No cross-share restore.** A snapshot of `/photos` can only be
   restored back into `/photos`. There is no surface to clone or
   fork a share through the snapshots feature.
-- **No encryption.** Snapshot artifacts inherit whatever
+* **No encryption.** Snapshot artifacts inherit whatever
   encryption (or lack thereof) is configured on the block store
   and the file system holding `<localStoreDir>/snapshots/`. There
   is no snapshot-specific encryption today.
-- **No auto-cleanup of safety snaps.** Each restore leaves a
+* **No auto-cleanup of safety snaps.** Each restore leaves a
   safety snap. Operators delete them after validation.
-- **Synchronous restore.** The HTTP request blocks; the CLI
+* **Synchronous restore.** The HTTP request blocks; the CLI
   blocks. Bounded by `snapshot.restore_http_timeout` (default 30
   minutes). There is no async restore with a poll endpoint.
-- **Single-node only.** Snapshots live alongside the share inside
+* **Single-node only.** Snapshots live alongside the share inside
   one daemon's local store. There is no cluster-aware snapshot
   surface yet.
-- **No portable archive format.** Snapshots cannot be exported,
+* **No portable archive format.** Snapshots cannot be exported,
   emailed, or restored on a different daemon's storage. They
   protect against accidental writes and deletes; they do not
   protect against losing the daemon's storage.
 
 For background on these decisions, see
-[ARCHITECTURE.md — Share Snapshots](/docs/contributing/architecture#share-snapshots).
+[ARCHITECTURE.md — Share Snapshots](/v0.22/docs/contributing/architecture#share-snapshots).
 For the CLI surface, see
-[CLI.md — Share Snapshots](/docs/getting-started/cli#share-snapshots).
+[CLI.md — Share Snapshots](/v0.22/docs/getting-started/cli#share-snapshots).
 
 ## 14. REST API reference
 
