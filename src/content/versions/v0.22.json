@@ -1,0 +1,54 @@
+{
+  "sidebar": [
+    {
+      "label": "Getting Started",
+      "items": [
+        {
+          "autogenerate": {
+            "directory": "docs/getting-started"
+          }
+        }
+      ]
+    },
+    {
+      "label": "Connect Clients",
+      "items": [
+        {
+          "autogenerate": {
+            "directory": "docs/connect"
+          }
+        }
+      ]
+    },
+    {
+      "label": "Features & Operations",
+      "items": [
+        {
+          "autogenerate": {
+            "directory": "docs/operations"
+          }
+        }
+      ]
+    },
+    {
+      "label": "Contributing",
+      "items": [
+        {
+          "autogenerate": {
+            "directory": "docs/contributing"
+          }
+        }
+      ]
+    },
+    {
+      "label": "Product",
+      "items": [
+        {
+          "autogenerate": {
+            "directory": "docs/product"
+          }
+        }
+      ]
+    }
+  ]
+}

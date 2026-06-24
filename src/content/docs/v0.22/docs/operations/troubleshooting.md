@@ -1,30 +1,31 @@
 ---
-title: "Troubleshooting"
-description: "Common issues and how to resolve them."
-editUrl: "https://github.com/marmos91/dittofs/edit/develop/docs/guide/troubleshooting.md"
+title: Troubleshooting
+description: Common issues and how to resolve them.
+editUrl: https://github.com/marmos91/dittofs/edit/v0.22.0/docs/guide/troubleshooting.md
 sidebar:
   order: 6
-# Synced from dittofs/docs/guide/troubleshooting.md — do not edit here.
+slug: v0.22/docs/operations/troubleshooting
 ---
 
 This guide covers common issues and their solutions when working with DittoFS.
 
 ## Table of Contents
 
-- [Connection Issues](#connection-issues)
-- [Mount Issues](#mount-issues)
-  - [SMB mount permission denied (macOS)](#smb-mount-permission-denied-macos)
-- [Permission Issues](#permission-issues)
-- [File Handle Issues](#file-handle-issues)
-- [Performance Issues](#performance-issues)
-- [Cross-Protocol Issues](#cross-protocol-issues)
-- [Logging and Debugging](#logging-and-debugging)
+* [Connection Issues](#connection-issues)
+* [Mount Issues](#mount-issues)
+  * [SMB mount permission denied (macOS)](#smb-mount-permission-denied-macos)
+* [Permission Issues](#permission-issues)
+* [File Handle Issues](#file-handle-issues)
+* [Performance Issues](#performance-issues)
+* [Cross-Protocol Issues](#cross-protocol-issues)
+* [Logging and Debugging](#logging-and-debugging)
 
 ## Connection Issues
 
 ### Cannot mount: Connection refused
 
 **Symptoms:**
+
 ```
 mount.nfs: Connection refused
 ```
@@ -64,6 +65,7 @@ mount.nfs: Connection refused
 ### Connection timeout
 
 **Symptoms:**
+
 ```
 mount.nfs: Connection timed out
 ```
@@ -91,6 +93,7 @@ mount.nfs: Connection timed out
 ### Invalid file system
 
 **Symptoms:**
+
 ```
 mount: /mnt/nfs: invalid file system.
 ```
@@ -98,6 +101,7 @@ mount: /mnt/nfs: invalid file system.
 **Cause:** The mount point directory does not exist.
 
 **Solution:** Create the mount point before mounting:
+
 ```bash
 # Linux
 sudo mkdir -p /mnt/nfs
@@ -111,6 +115,7 @@ mount -t nfs -o tcp,port=12049,mountport=12049 localhost:/export /tmp/nfs
 ### Permission denied when mounting
 
 **Symptoms:**
+
 ```
 mount.nfs: access denied by server while mounting
 ```
@@ -147,6 +152,7 @@ mount.nfs: access denied by server while mounting
 ### No such file or directory
 
 **Symptoms:**
+
 ```
 mount.nfs: mounting localhost:/export failed, reason given by server: No such file or directory
 ```
@@ -168,6 +174,7 @@ mount.nfs: mounting localhost:/export failed, reason given by server: No such fi
 ### SMB mount permission denied (macOS)
 
 **Symptoms:**
+
 ```
 zsh: permission denied: /tmp/smb-test/file.txt
 ```
@@ -189,12 +196,14 @@ sudo dfsctl share mount --protocol smb /export /mnt/share
 ```
 
 **Alternative - mount to user directory without sudo:**
+
 ```bash
 mkdir -p ~/mnt/share
 dfsctl share mount --protocol smb /export ~/mnt/share
 ```
 
-**If using manual mount_smbfs:**
+**If using manual mount\_smbfs:**
+
 ```bash
 # Mount as your user, not root
 sudo -u $USER mount_smbfs //user:pass@localhost:12445/export /mnt/share
@@ -203,13 +212,14 @@ sudo -u $USER mount_smbfs //user:pass@localhost:12445/export /mnt/share
 **Note:** This is a macOS-specific issue. On Linux, `dfsctl share mount` uses uid/gid
 options which work correctly.
 
-See [Known Limitations](/docs/operations/faq#macos-mount-owner-only-access) for details.
+See [Known Limitations](/v0.22/docs/operations/faq#macos-mount-owner-only-access) for details.
 
 ## Permission Issues
 
 ### Permission denied on file operations
 
 **Symptoms:**
+
 ```
 touch: cannot touch 'file.txt': Permission denied
 ```
@@ -250,6 +260,7 @@ touch: cannot touch 'file.txt': Permission denied
 ### Read-only filesystem
 
 **Symptoms:**
+
 ```
 touch: cannot touch 'file.txt': Read-only file system
 ```
@@ -274,14 +285,16 @@ touch: cannot touch 'file.txt': Read-only file system
 ### Stale file handle
 
 **Symptoms:**
+
 ```
 ls: cannot access 'file.txt': Stale file handle
 ```
 
 **Causes:**
-- Server was restarted with in-memory metadata (handles lost)
-- File was deleted while client held a handle
-- Metadata backend was changed
+
+* Server was restarted with in-memory metadata (handles lost)
+* File was deleted while client held a handle
+* Metadata backend was changed
 
 **Solutions:**
 
@@ -310,6 +323,7 @@ ls: cannot access 'file.txt': Stale file handle
 ### Slow read/write operations
 
 **Diagnostics:**
+
 ```bash
 # Run benchmarks to identify bottleneck
 ./scripts/benchmark.sh --profile
@@ -344,6 +358,7 @@ tail -f ~/.local/state/dittofs/dittofs.log | grep -i "slow\|timeout"
 ### High memory usage
 
 **Diagnostics:**
+
 ```bash
 # Profile memory usage
 go test -bench=. -memprofile=mem.prof ./test/e2e/
@@ -353,6 +368,7 @@ go tool pprof mem.prof
 **Solutions:**
 
 1. **Check for memory leaks in logs**
+
 2. **Reduce max connections:**
    ```yaml
    adapters:
@@ -374,11 +390,13 @@ go tool pprof mem.prof
 ### Enable Debug Logging
 
 **Via environment variable:**
+
 ```bash
 DITTOFS_LOGGING_LEVEL=DEBUG ./dfs start
 ```
 
 **Via configuration:**
+
 ```yaml
 logging:
   level: DEBUG
@@ -390,10 +408,10 @@ logging:
 
 **Key log patterns:**
 
-- `[INFO] NFS: Accepted connection from 127.0.0.1:54321` - Client connected
-- `[DEBUG] NFS: LOOKUP(handle=..., name=file.txt)` - Operation details
-- `[ERROR] NFS: Failed to read file: no such file` - Error conditions
-- `[DEBUG] Auth: UID=1000, GID=1000, GIDs=[1000,4,20]` - Authentication context
+* `[INFO] NFS: Accepted connection from 127.0.0.1:54321` - Client connected
+* `[DEBUG] NFS: LOOKUP(handle=..., name=file.txt)` - Operation details
+* `[ERROR] NFS: Failed to read file: no such file` - Error conditions
+* `[DEBUG] Auth: UID=1000, GID=1000, GIDs=[1000,4,20]` - Authentication context
 
 ### Capture Traffic
 
@@ -430,6 +448,7 @@ When running both NFS and SMB adapters simultaneously, the shared LockManager co
 ### File Locked by Another Protocol
 
 **Symptoms:**
+
 ```
 NFS: NFS4ERR_SHARE_DENIED or NFS4ERR_LOCKED
 SMB: STATUS_SHARING_VIOLATION or STATUS_LOCK_NOT_GRANTED
@@ -438,6 +457,7 @@ SMB: STATUS_SHARING_VIOLATION or STATUS_LOCK_NOT_GRANTED
 **Cause:** An SMB client holds an exclusive lease (RWH) or byte-range lock on a file that an NFS client is trying to access, or vice versa.
 
 **Diagnosis:**
+
 ```bash
 # Check active locks and leases via debug logging
 DITTOFS_LOGGING_LEVEL=DEBUG ./dfs start
@@ -448,6 +468,7 @@ DITTOFS_LOGGING_LEVEL=DEBUG ./dfs start
 ```
 
 **Resolution:**
+
 1. Wait for the lease/delegation break to complete (the LockManager automatically initiates breaks)
 2. If the break times out (35s for SMB leases, 90s for NFS delegations), the server force-revokes and the operation proceeds
 3. Check if the client holding the lock is still connected
@@ -455,16 +476,19 @@ DITTOFS_LOGGING_LEVEL=DEBUG ./dfs start
 ### Delegation Recall Timeouts
 
 **Symptoms:**
+
 ```
 [WARN] delegation recall timeout: delegID=abc123 client=nfs-client elapsed=90s
 ```
 
-**Cause:** An NFS client did not respond to a CB_RECALL (callback recall) within the configured timeout (default 90 seconds). This happens when:
-- The NFS client is unresponsive or has network issues
-- The NFS client's backchannel is broken
-- The CB_RECALL message was lost
+**Cause:** An NFS client did not respond to a CB\_RECALL (callback recall) within the configured timeout (default 90 seconds). This happens when:
+
+* The NFS client is unresponsive or has network issues
+* The NFS client's backchannel is broken
+* The CB\_RECALL message was lost
 
 **Resolution:**
+
 1. After timeout, the delegation is **force-revoked** and the conflicting operation proceeds
 2. Check NFS client connectivity and backchannel health
 3. Adjust timeout if needed:
@@ -482,14 +506,17 @@ DITTOFS_LOGGING_LEVEL=DEBUG ./dfs start
 ### Lease Break Storms
 
 **Symptoms:**
+
 ```
 [INFO] cross_protocol_break: file=/export/data.bin protocol=smb->nfs type=lease_break count=47 period=60s
 ```
+
 Rapid grant-break-grant-break cycles visible in logs.
 
 **Cause:** Two clients (one NFS, one SMB) are alternately opening the same file with conflicting access modes, causing the LockManager to repeatedly break and re-grant caching state.
 
 **Resolution:**
+
 1. DittoFS has a built-in **anti-storm cache** (default 30-second TTL) that prevents re-grants after a break
 2. If storms persist, increase the anti-storm TTL:
    ```yaml
@@ -504,14 +531,16 @@ Rapid grant-break-grant-break cycles visible in logs.
 ### SMB Client Cannot Write to NFS-Delegated File
 
 **Symptoms:**
-- SMB WRITE or CREATE (write access) hangs for several seconds before succeeding
-- Or fails with STATUS_SHARING_VIOLATION
 
-**Cause:** An NFS client holds a write delegation on the file. The LockManager must recall the delegation via CB_RECALL and wait for the NFS client to return it before the SMB write can proceed.
+* SMB WRITE or CREATE (write access) hangs for several seconds before succeeding
+* Or fails with STATUS\_SHARING\_VIOLATION
+
+**Cause:** An NFS client holds a write delegation on the file. The LockManager must recall the delegation via CB\_RECALL and wait for the NFS client to return it before the SMB write can proceed.
 
 **Expected behavior:** This is correct cross-protocol coordination. The delay is the delegation recall round-trip time (typically under 1 second for responsive NFS clients, up to 90 seconds for the timeout).
 
 **Resolution:**
+
 1. This is normal behavior -- the SMB write will succeed once the NFS delegation is returned
 2. If the delay is unacceptable, disable delegations for the share (reduces NFS performance)
 3. Monitor recall latency in debug logs
@@ -519,17 +548,19 @@ Rapid grant-break-grant-break cycles visible in logs.
 ### NFS Client Sees Stale Data After SMB Write
 
 **Symptoms:**
-- NFS client reads file and gets old content after an SMB client has written new content
+
+* NFS client reads file and gets old content after an SMB client has written new content
 
 **Cause:** The NFS client cached the file data under a read delegation, and the delegation recall + cache invalidation has not completed yet.
 
 **Resolution:**
-1. DittoFS automatically sends CB_RECALL to NFS clients when an SMB client modifies a file
+
+1. DittoFS automatically sends CB\_RECALL to NFS clients when an SMB client modifies a file
 2. After the recall, the NFS client invalidates its cache and re-reads from the server
 3. If the NFS client is not responding to recalls:
-   - Check NFS client backchannel connectivity
-   - After delegation recall timeout (90s), the delegation is force-revoked
-   - NFS client's next request will fail with EXPIRED or ADMIN_REVOKED, forcing a refresh
+   * Check NFS client backchannel connectivity
+   * After delegation recall timeout (90s), the delegation is force-revoked
+   * NFS client's next request will fail with EXPIRED or ADMIN\_REVOKED, forcing a refresh
 4. Force a cache refresh on the NFS client:
    ```bash
    # Remount with noac to disable attribute caching
@@ -539,17 +570,19 @@ Rapid grant-break-grant-break cycles visible in logs.
 ### Directory Listing Inconsistency Across Protocols
 
 **Symptoms:**
-- Creating a file via SMB, but NFS `ls` does not show it (or vice versa)
+
+* Creating a file via SMB, but NFS `ls` does not show it (or vice versa)
 
 **Cause:** Directory change notifications have not yet broken the other protocol's directory lease/delegation.
 
 **Resolution:**
+
 1. DittoFS automatically breaks directory leases and delegations when `CreateFile`, `RemoveFile`, or `Rename` modifies a directory
 2. The break is processed through the LockManager and dispatched to both protocols
 3. If inconsistency persists:
-   - Verify directory leases are enabled: check `leases.directory_leases: true`
-   - Check for notification queue overflow (1024 events/directory capacity)
-   - Force a directory re-read: `ls -la /mnt/nfs/dir/` or refresh the SMB directory listing
+   * Verify directory leases are enabled: check `leases.directory_leases: true`
+   * Check for notification queue overflow (1024 events/directory capacity)
+   * Force a directory re-read: `ls -la /mnt/nfs/dir/` or refresh the SMB directory listing
 
 ### Diagnostic Commands
 
@@ -571,7 +604,7 @@ DITTOFS_LOGGING_LEVEL=DEBUG ./dfs start
 | Log Message | Level | Meaning |
 |-------------|-------|---------|
 | `cross_protocol_break` | INFO | A caching break was initiated across protocols |
-| `delegation_recall` | DEBUG | CB_RECALL sent to NFS client |
+| `delegation_recall` | DEBUG | CB\_RECALL sent to NFS client |
 | `delegation_returned` | DEBUG | NFS client returned delegation voluntarily |
 | `delegation_force_revoked` | WARN | Delegation revoked after timeout |
 | `lease_break` | DEBUG | Lease break notification sent to SMB client |
@@ -587,6 +620,7 @@ DITTOFS_LOGGING_LEVEL=DEBUG ./dfs start
 **Cause:** The share name in the mount command doesn't match configuration.
 
 **Solution:** Check share names in config and use exact match:
+
 ```bash
 # If config has "name: /export"
 sudo mount -t nfs -o nfsvers=3,tcp,port=12049,mountport=12049 localhost:/export /mnt/test
@@ -597,6 +631,7 @@ sudo mount -t nfs -o nfsvers=3,tcp,port=12049,mountport=12049 localhost:/export 
 **Cause:** Server requires authentication but client isn't providing it.
 
 **Solution:** Either disable authentication or configure it properly:
+
 ```yaml
 shares:
   - name: /export
@@ -609,6 +644,7 @@ shares:
 **Cause:** Share references a non-existent metadata store.
 
 **Solution:** Ensure stores exist before creating the share:
+
 ```bash
 # Create the stores first
 ./dfsctl store metadata add --name my-store --type memory
@@ -623,11 +659,13 @@ shares:
 #### Client cannot establish NFSv4 session
 
 **Symptoms:**
+
 ```
 mount.nfs4: Protocol not supported
 ```
 
 **Solutions:**
+
 1. Verify NFSv4 is enabled in the adapter settings:
    ```bash
    dfsctl adapter settings nfs
@@ -641,11 +679,13 @@ mount.nfs4: Protocol not supported
 #### Session expired or lost
 
 **Symptoms:**
+
 ```
 NFS4ERR_EXPIRED or NFS4ERR_STALE_CLIENTID
 ```
 
 **Solutions:**
+
 1. The server may have restarted, causing session loss. Remount the share.
 2. Check the grace period status:
    ```bash
@@ -658,33 +698,38 @@ NFS4ERR_EXPIRED or NFS4ERR_STALE_CLIENTID
 #### Kerberos authentication fails
 
 **Symptoms:**
+
 ```
 mount.nfs4: access denied by server
 ```
-with RPCSEC_GSS configured.
+
+with RPCSEC\_GSS configured.
 
 **Solutions:**
+
 1. Verify the keytab file is accessible:
    ```bash
    klist -k /etc/krb5.keytab
    ```
 2. Check that the service principal matches the server hostname
 3. Verify clock synchronization between client and KDC (Kerberos requires clocks within 5 minutes)
-4. Enable debug logging to see the RPCSEC_GSS negotiation:
+4. Enable debug logging to see the RPCSEC\_GSS negotiation:
    ```bash
    DITTOFS_LOGGING_LEVEL=DEBUG ./dfs start
    ```
 
 ### ACL Issues
 
-#### ACL operations fail with NFS3ERR_NOTSUPP
+#### ACL operations fail with NFS3ERR\_NOTSUPP
 
 **Symptoms:**
+
 ```
 setfacl: Operation not supported
 ```
 
 **Solutions:**
+
 1. ACLs require NFSv4. Ensure you are mounting with NFSv4:
    ```bash
    sudo mount -t nfs4 localhost:/export /mnt/test
@@ -698,9 +743,9 @@ If you're still experiencing issues:
 1. **Check existing issues:** [GitHub Issues](https://github.com/marmos91/dittofs/issues)
 2. **Enable debug logging** and capture relevant output
 3. **Open a new issue** with:
-   - DittoFS version
-   - Operating system and version
-   - Configuration file (redact sensitive info)
-   - Full error messages
-   - Debug logs showing the problem
-   - Steps to reproduce
+   * DittoFS version
+   * Operating system and version
+   * Configuration file (redact sensitive info)
+   * Full error messages
+   * Debug logs showing the problem
+   * Steps to reproduce

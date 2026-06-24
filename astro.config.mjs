@@ -2,6 +2,18 @@
 import { defineConfig } from "astro/config";
 import react from "@astrojs/react";
 import starlight from "@astrojs/starlight";
+import starlightVersions from "starlight-versions";
+
+/*
+ * Documentation versions. The latest docs are served at /docs/* (no entry
+ * here). Each released snapshot is listed below and served at /<slug>/docs/*
+ * (e.g. /v0.22/docs/getting-started). To cut a new version, see
+ * scripts/VERSIONING.md. Until the first release snapshot is created this list
+ * stays empty — an empty list leaves the site single-version with no switcher.
+ */
+const DOC_VERSIONS = [
+  { slug: "v0.22" },
+];
 
 // Canonical site URL. Overridable per-environment (preview deploys, etc.).
 const SITE = process.env.PUBLIC_SITE_URL || "https://dittofs.io";
@@ -31,6 +43,8 @@ export default defineConfig({
       ],
       // Docs live under src/content/docs/docs/** so they serve at /docs/*,
       // leaving the site root for the marketing landing page (src/pages/index.astro).
+      // Per-page "Edit" links point at the real source in the main repo and are
+      // set via each page's `editUrl` frontmatter by scripts/sync-docs.mjs.
       editLink: {
         baseUrl: `${GITHUB_REPO}/edit/develop/docs/`,
       },
@@ -43,13 +57,20 @@ export default defineConfig({
           ]
         : [],
       customCss: ["./src/styles/starlight.css"],
+      // The versions plugin requires at least one version; until the first
+      // release snapshot is cut, DOC_VERSIONS is empty and we omit the plugin
+      // (the site stays single-version, no switcher). Add a slug to
+      // DOC_VERSIONS to enable it. See scripts/VERSIONING.md.
+      plugins:
+        DOC_VERSIONS.length > 0
+          ? [starlightVersions({ versions: DOC_VERSIONS })]
+          : [],
       sidebar: [
-        { label: "Overview", items: [{ autogenerate: { directory: "docs/overview" } }] },
-        { label: "Protocols", items: [{ autogenerate: { directory: "docs/protocols" } }] },
-        { label: "Storage & Stores", items: [{ autogenerate: { directory: "docs/storage" } }] },
-        { label: "Security", items: [{ autogenerate: { directory: "docs/security" } }] },
-        { label: "Operations", items: [{ autogenerate: { directory: "docs/operations" } }] },
-        { label: "Reference", items: [{ autogenerate: { directory: "docs/reference" } }] },
+        { label: "Getting Started", items: [{ autogenerate: { directory: "docs/getting-started" } }] },
+        { label: "Connect Clients", items: [{ autogenerate: { directory: "docs/connect" } }] },
+        { label: "Features & Operations", items: [{ autogenerate: { directory: "docs/operations" } }] },
+        { label: "Contributing", items: [{ autogenerate: { directory: "docs/contributing" } }] },
+        { label: "Product", items: [{ autogenerate: { directory: "docs/product" } }] },
       ],
     }),
   ],
