@@ -55,39 +55,37 @@ Generate shell completion script
 
 Generate shell completion script for dfs.
 
-To load completions:
-
-Bash:
-  # Linux:
-  $ dfs completion bash > /etc/bash_completion.d/dfs
-  # macOS:
-  $ dfs completion bash > $(brew --prefix)/etc/bash_completion.d/dfs
-
-Zsh:
-  # If shell completion is not already enabled in your environment,
-  # you will need to enable it. You can execute the following once:
-  $ echo "autoload -U compinit; compinit" >> ~/.zshrc
-
-  # To load completions for each session, execute once:
-  # Linux:
-  $ dfs completion zsh > "$&#123;fpath[1]&#125;/_dfs"
-  # macOS:
-  $ dfs completion zsh > $(brew --prefix)/share/zsh/site-functions/_dfs
-
-  # You will need to start a new shell for this setup to take effect.
-
-Fish:
-  $ dfs completion fish > ~/.config/fish/completions/dfs.fish
-
-PowerShell:
-  PS> dfs completion powershell | Out-String | Invoke-Expression
-
-  # To load completions for every new session, run:
-  PS> dfs completion powershell > dfs.ps1
-  # and source this file from your PowerShell profile.
+The generated script enables tab-completion for dfs commands, subcommands, and
+flags in your shell. Pick the snippet for your shell and load it once.
 
 ```
 dfs completion [bash|zsh|fish|powershell]
+```
+
+**Examples:**
+
+```bash
+# Bash (Linux): install system-wide
+dfs completion bash > /etc/bash_completion.d/dfs
+
+# Bash (macOS, requires the Homebrew bash-completion package)
+dfs completion bash > $(brew --prefix)/etc/bash_completion.d/dfs
+
+# Zsh: enable completion once (if not already enabled), then install
+echo "autoload -U compinit; compinit" >> ~/.zshrc
+dfs completion zsh > "${fpath[1]}/_dfs"
+
+# Zsh (macOS, Homebrew)
+dfs completion zsh > $(brew --prefix)/share/zsh/site-functions/_dfs
+
+# Fish
+dfs completion fish > ~/.config/fish/completions/dfs.fish
+
+# PowerShell: load for the current session
+dfs completion powershell | Out-String | Invoke-Expression
+
+# PowerShell: persist across sessions by sourcing from your profile
+dfs completion powershell > dfs.ps1
 ```
 
 Global flags:
@@ -105,10 +103,13 @@ Manage DittoFS configuration files.
 Use 'dfs init' to create a new configuration file.
 
 Subcommands:
-  edit      Open configuration in editor
-  validate  Validate configuration file
-  show      Display current configuration
-  schema    Generate JSON schema for IDE/validation
+
+```
+edit      Open configuration in editor
+validate  Validate configuration file
+show      Display current configuration
+schema    Generate JSON schema for IDE/validation
+```
 
 Global flags:
 
@@ -151,9 +152,12 @@ Generate JSON schema for configuration
 Generate a JSON schema for the DittoFS configuration file.
 
 The schema can be used for:
-  - IDE autocompletion (VS Code, IntelliJ, etc.)
-  - Configuration file validation
-  - Documentation generation
+
+```
+- IDE autocompletion (VS Code, IntelliJ, etc.)
+- Configuration file validation
+- Documentation generation
+```
 
 ```
 dfs config schema [flags]
@@ -1521,12 +1525,15 @@ Benchmark DittoFS storage tier performance by measuring read throughput at each 
 The workload writes a file through the NFS/SMB mount, then reads it back three times — evicting a different cache layer before each read — to isolate cold (remote store), warm (local + read buffer), and local-only performance. Admin authentication is required to call the eviction API between reads. The share must have a remote block store configured for cold-read testing.
 
 Steps executed per file size:
-  1. Write via mount
-  2. Evict all (read buffer + local store)
-  3. Cold read (data fetched from remote store)
-  4. Warm read (data in read buffer + local store)
-  5. Evict read buffer only
-  6. Local-only read (data served from local FS store)
+
+```
+1. Write via mount
+2. Evict all (read buffer + local store)
+3. Cold read (data fetched from remote store)
+4. Warm read (data in read buffer + local store)
+5. Evict read buffer only
+6. Local-only read (data served from local FS store)
+```
 
 ```
 dfsctl bench storage-tiers [flags]
@@ -1809,39 +1816,37 @@ Generate shell completion script
 
 Generate shell completion script for dfsctl.
 
-To load completions:
-
-Bash:
-  # Linux:
-  $ dfsctl completion bash > /etc/bash_completion.d/dfsctl
-  # macOS:
-  $ dfsctl completion bash > $(brew --prefix)/etc/bash_completion.d/dfsctl
-
-Zsh:
-  # If shell completion is not already enabled in your environment,
-  # you will need to enable it. You can execute the following once:
-  $ echo "autoload -U compinit; compinit" >> ~/.zshrc
-
-  # To load completions for each session, execute once:
-  # Linux:
-  $ dfsctl completion zsh > "$&#123;fpath[1]&#125;/_dfsctl"
-  # macOS:
-  $ dfsctl completion zsh > $(brew --prefix)/share/zsh/site-functions/_dfsctl
-
-  # You will need to start a new shell for this setup to take effect.
-
-Fish:
-  $ dfsctl completion fish > ~/.config/fish/completions/dfsctl.fish
-
-PowerShell:
-  PS> dfsctl completion powershell | Out-String | Invoke-Expression
-
-  # To load completions for every new session, run:
-  PS> dfsctl completion powershell > dfsctl.ps1
-  # and source this file from your PowerShell profile.
+The generated script enables tab-completion for dfsctl commands, subcommands,
+and flags in your shell. Pick the snippet for your shell and load it once.
 
 ```
 dfsctl completion [bash|zsh|fish|powershell]
+```
+
+**Examples:**
+
+```bash
+# Bash (Linux): install system-wide
+dfsctl completion bash > /etc/bash_completion.d/dfsctl
+
+# Bash (macOS, requires the Homebrew bash-completion package)
+dfsctl completion bash > $(brew --prefix)/etc/bash_completion.d/dfsctl
+
+# Zsh: enable completion once (if not already enabled), then install
+echo "autoload -U compinit; compinit" >> ~/.zshrc
+dfsctl completion zsh > "${fpath[1]}/_dfsctl"
+
+# Zsh (macOS, Homebrew)
+dfsctl completion zsh > $(brew --prefix)/share/zsh/site-functions/_dfsctl
+
+# Fish
+dfsctl completion fish > ~/.config/fish/completions/dfsctl.fish
+
+# PowerShell: load for the current session
+dfsctl completion powershell | Out-String | Invoke-Expression
+
+# PowerShell: persist across sessions by sourcing from your profile
+dfsctl completion powershell > dfsctl.ps1
 ```
 
 Global flags:
@@ -2799,9 +2804,11 @@ local DittoFS user accounts. Mappings are shared across NFS and SMB, ensuring
 consistent uid/gid resolution in mixed-protocol deployments. Supported principal
 formats include:
 
-  NFS/Kerberos:  alice@EXAMPLE.COM
-  SMB/NTLM:      CORP\alice
-  SMB/Kerberos:  alice@CORP.COM
+```
+NFS/Kerberos:  alice@EXAMPLE.COM
+SMB/NTLM:      CORP\alice
+SMB/Kerberos:  alice@CORP.COM
+```
 
 Use "dfsctl idmap sid" to inspect the separate table of foreign-SID to
 Unix UID/GID allocations managed automatically by Active Directory resolution.
@@ -4301,10 +4308,20 @@ Mount a share via NFS or SMB
 Mount a DittoFS share at a local mount point using NFS or SMB protocol.
 
 For SMB mounts, credentials are resolved in order:
-  1. --username/--password flags
-  2. DITTOFS_PASSWORD environment variable (for password)
-  3. Current login context username
-  4. Interactive password prompt
+
+1. --username/--password flags
+2. DITTOFS_PASSWORD environment variable (for password)
+3. Current login context username
+4. Interactive password prompt
+
+Mount commands typically require sudo/root privileges on Unix systems.
+
+Platform differences for SMB with sudo:
+
+- Linux: mount owner set to your user via uid/gid options (default mode 0755)
+- macOS: mount owned by root (uid/gid removed in Catalina), default mode 0777
+- macOS alternative: mount to ~/mnt without sudo for a user-owned mount
+- Windows: uses 'net use' to map network drives (e.g. dfsctl share mount /export --protocol smb Z:)
 
 ```
 dfsctl share mount [share] [mountpoint] [flags]
@@ -4313,28 +4330,20 @@ dfsctl share mount [share] [mountpoint] [flags]
 **Examples:**
 
 ```bash
-  # Mount via NFS
-  dfsctl share mount /export --protocol nfs /mnt/dittofs
+# Mount via NFS
+dfsctl share mount /export --protocol nfs /mnt/dittofs
 
-  # Mount via SMB
-  dfsctl share mount /export --protocol smb /mnt/dittofs
+# Mount via SMB
+dfsctl share mount /export --protocol smb /mnt/dittofs
 
-  # Mount via SMB with explicit credentials
-  dfsctl share mount /export --protocol smb --username alice /mnt/dittofs
+# Mount via SMB with explicit credentials
+dfsctl share mount /export --protocol smb --username alice /mnt/dittofs
 
-  # Mount via SMB with password from environment
-  DITTOFS_PASSWORD=secret dfsctl share mount /export --protocol smb /mnt/dittofs
+# Mount via SMB with password from environment
+DITTOFS_PASSWORD=secret dfsctl share mount /export --protocol smb /mnt/dittofs
 
-  # Mount to user directory without sudo (macOS only, recommended)
-  mkdir -p ~/mnt/dittofs && dfsctl share mount /export --protocol smb ~/mnt/dittofs
-
-Note: Mount commands typically require sudo/root privileges on Unix systems.
-
-Platform differences for SMB with sudo:
-  - Linux: Mount owner set to your user via uid/gid options (default mode 0755)
-  - macOS: Mount owned by root (uid/gid removed in Catalina), default mode 0777
-  - macOS alternative: mount to ~/mnt without sudo for user-owned mount
-  - Windows: Uses 'net use' to map network drives (e.g., dfsctl share mount /export --protocol smb Z:)
+# Mount to user directory without sudo (macOS only, recommended)
+mkdir -p ~/mnt/dittofs && dfsctl share mount /export --protocol smb ~/mnt/dittofs
 ```
 
 Flags:
@@ -4540,10 +4549,13 @@ Grant a permission level to a user or group on a share.
 Specify exactly one of --user or --group together with --level. Re-running
 the command on a principal that already has a permission replaces the existing
 level. Permission levels in order of increasing access:
-  - none:       No access (explicitly blocks the principal)
-  - read:       Read-only access
-  - read-write: Read and write access
-  - admin:      Full administrative access including ACL management
+
+```
+- none:       No access (explicitly blocks the principal)
+- read:       Read-only access
+- read-write: Read and write access
+- admin:      Full administrative access including ACL management
+```
 
 ```
 dfsctl share permission grant <share> [flags]
@@ -5595,7 +5607,9 @@ whose LastModified is older than the configured grace period (default
 1h). The last-run.json summary is persisted under the share's gc-state
 directory and can be inspected with:
 
-  dfsctl store block gc-status &lt;share&gt;
+```
+dfsctl store block gc-status <share>
+```
 
 Use --dry-run to skip deletes and print up to dry_run_sample_size
 candidate keys (default 1000). Recommended for first-time deployment
@@ -5768,12 +5782,18 @@ Add a local block store
 Add a new local block store to the DittoFS server.
 
 Supported types:
-  - fs: Filesystem-backed block store (fast, persistent)
-  - memory: In-memory block store (fast, ephemeral, for testing)
+
+```
+- fs: Filesystem-backed block store (fast, persistent)
+- memory: In-memory block store (fast, ephemeral, for testing)
+```
 
 Type-specific options:
-  fs:
-    --path: Block directory path (or prompted interactively)
+
+```
+fs:
+  --path: Block directory path (or prompted interactively)
+```
 
 ```
 dfsctl store block local add [flags]
@@ -5998,17 +6018,23 @@ Add a remote block store
 Add a new remote block store to the DittoFS server.
 
 Supported types:
-  - s3: AWS S3 or S3-compatible store (durable, production)
-  - memory: In-memory store (fast, ephemeral, for testing)
+
+```
+- s3: AWS S3 or S3-compatible store (durable, production)
+- memory: In-memory store (fast, ephemeral, for testing)
+```
 
 Type-specific options:
-  s3:
-    --bucket: S3 bucket name (or prompted interactively)
-    --region: AWS region (default: us-east-1)
-    --endpoint: Custom endpoint for S3-compatible stores
-    --prefix: Key prefix within the bucket
-    --access-key: AWS access key ID
-    --secret-key: AWS secret access key
+
+```
+s3:
+  --bucket: S3 bucket name (or prompted interactively)
+  --region: AWS region (default: us-east-1)
+  --endpoint: Custom endpoint for S3-compatible stores
+  --prefix: Key prefix within the bucket
+  --access-key: AWS access key ID
+  --secret-key: AWS secret access key
+```
 
 ```
 dfsctl store block remote add [flags]
@@ -6050,6 +6076,7 @@ Flags:
       --encryption-kmip-key-uid string    KMIP managed symmetric key UID (kind=kmip)
       --endpoint string                   Custom S3 endpoint (for S3-compatible stores)
       --name string                       Store name (required)
+      --parallel-uploads int              Max parallel chunk uploads to this remote (0 = auto, scales with CPU count)
       --prefix string                     Key prefix within the bucket (for s3)
       --region string                     AWS region (for s3) (default "us-east-1")
       --secret-key string                 AWS secret access key (for s3)
@@ -6099,13 +6126,14 @@ dfsctl store block remote edit s3-store --bucket new-bucket --region us-west-2
 Flags:
 
 ```
-      --access-key string   AWS access key ID (for s3)
-      --bucket string       S3 bucket name (for s3)
-      --config string       Store configuration as JSON
-      --endpoint string     Custom S3 endpoint
-      --region string       AWS region (for s3)
-      --secret-key string   AWS secret access key (for s3)
-      --type string         Store type: s3, memory
+      --access-key string      AWS access key ID (for s3)
+      --bucket string          S3 bucket name (for s3)
+      --config string          Store configuration as JSON
+      --endpoint string        Custom S3 endpoint
+      --parallel-uploads int   Max parallel chunk uploads to this remote (0 = auto, scales with CPU count)
+      --region string          AWS region (for s3)
+      --secret-key string      AWS secret access key (for s3)
+      --type string            Store type: s3, memory
 ```
 
 Global flags:
@@ -6300,16 +6328,22 @@ Add a metadata store
 Add a new metadata store to the DittoFS server.
 
 Supported types:
-  - memory: In-memory store (fast, ephemeral)
-  - badger: BadgerDB store (persistent, embedded)
-  - postgres: PostgreSQL store (persistent, distributed)
+
+```
+- memory: In-memory store (fast, ephemeral)
+- badger: BadgerDB store (persistent, embedded)
+- postgres: PostgreSQL store (persistent, distributed)
+```
 
 Type-specific options:
-  badger:
-    --db-path: Path to BadgerDB directory (or prompted interactively)
 
-  postgres:
-    --config: JSON with connection settings, or omit for interactive prompts
+```
+badger:
+  --db-path: Path to BadgerDB directory (or prompted interactively)
+
+postgres:
+  --config: JSON with connection settings, or omit for interactive prompts
+```
 
 ```
 dfsctl store metadata add [flags]
