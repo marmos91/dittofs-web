@@ -29,11 +29,13 @@ formats may change.
 
 ## Where to go next
 
-- [Getting started](/docs/overview/getting-started/) — install the server and
-  mount your first share.
-- [Architecture](/docs/overview/architecture/) — how the pieces fit together.
-- [NFS](/docs/protocols/nfs/) and [SMB](/docs/protocols/smb/) — protocol
-  details and client usage.
-- [Configuration](/docs/operations/configuration/) — server config and store
-  management.
-- [CLI reference](/docs/reference/cli/) — every `dfs` and `dfsctl` command.
+- [Getting started](/docs/getting-started/getting-started/) — install the
+  server and mount your first share.
+- [Configuration](/docs/getting-started/configuration/) — server config and
+  store management.
+- [CLI reference](/docs/getting-started/cli/) — every `dfs` and `dfsctl`
+  command.
+- [NFS](/docs/connect/nfs/) and [SMB](/docs/connect/smb/) — protocol details
+  and client usage.
+- [Architecture](/docs/contributing/architecture/) — how the pieces fit
+  together (for contributors).

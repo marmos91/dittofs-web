@@ -1,9 +1,10 @@
 ---
 title: "Troubleshooting"
 description: "Common issues and how to resolve them."
+editUrl: "https://github.com/marmos91/dittofs/edit/develop/docs/guide/troubleshooting.md"
 sidebar:
-  order: 2
-# Synced from dittofs/docs/TROUBLESHOOTING.md — do not edit here.
+  order: 6
+# Synced from dittofs/docs/guide/troubleshooting.md — do not edit here.
 ---
 
 This guide covers common issues and their solutions when working with DittoFS.
@@ -54,7 +55,7 @@ mount.nfs: Connection refused
 4. **Verify configuration:**
    ```bash
    # Check the config file
-   cat ~/.config/dfs/config.yaml
+   cat ~/.config/dittofs/config.yaml
 
    # Start with debug logging
    DITTOFS_LOGGING_LEVEL=DEBUG ./dfs start
@@ -202,7 +203,7 @@ sudo -u $USER mount_smbfs //user:pass@localhost:12445/export /mnt/share
 **Note:** This is a macOS-specific issue. On Linux, `dfsctl share mount` uses uid/gid
 options which work correctly.
 
-See [Known Limitations](https://github.com/marmos91/dittofs/blob/develop/docs/KNOWN_LIMITATIONS.md#macos-mount-owner-only-access) for details.
+See [Known Limitations](/docs/operations/faq#macos-mount-owner-only-access) for details.
 
 ## Permission Issues
 
@@ -293,7 +294,7 @@ ls: cannot access 'file.txt': Stale file handle
 2. **For persistent handles, use BadgerDB metadata:**
    ```bash
    ./dfsctl store metadata add --name persistent --type badger \
-     --config '{"path":"/var/lib/dfs/metadata"}'
+     --config '{"path":"/var/lib/dittofs/metadata"}'
    ./dfsctl store block add --kind local --name default --type memory
    ./dfsctl share create --name /export --metadata persistent --local default
    ```
@@ -314,7 +315,7 @@ ls: cannot access 'file.txt': Stale file handle
 ./scripts/benchmark.sh --profile
 
 # Check server logs for slow operations
-tail -f ~/.config/dfs/dfs.log | grep -i "slow\|timeout"
+tail -f ~/.local/state/dittofs/dittofs.log | grep -i "slow\|timeout"
 ```
 
 **Solutions:**
