@@ -3958,7 +3958,7 @@ Flags:
       --allow-mfsymlink                 Convert 1067-byte XSym (Minshall+French) symlink files written by macOS/Windows SMB clients into real symlinks on CLOSE. Off by default (XSym files are stored as regular files).
       --change-notify-disabled          Reject SMB2 CHANGE_NOTIFY with STATUS_NOT_IMPLEMENTED on this share (mirrors Samba 'kernel change notify = no').
       --continuous-availability         Advertise SMB2_SHARE_CAP_CONTINUOUS_AVAILABILITY and allow SMB3 persistent durable handles on this share.
-      --default-permission string       Default permission (none|read|read-write|admin) (default "read-write")
+      --default-permission string       Default permission for unmapped UIDs (none|read|read-write|admin) (default "none")
       --description string              Share description
       --enable-trash                    Enable the per-share recycle bin so deletes move to #recycle instead of being permanent.
       --encrypt-data                    Require SMB3 encryption for this share
@@ -3966,6 +3966,7 @@ Flags:
       --local-store-size string         Per-share disk cache size override (e.g., 10GiB, 500MiB)
       --metadata string                 Metadata store name (required)
       --name string                     Share name/path (required)
+      --owner string                    Username that owns the share's root directory (defaults to root). The owner can write at the share root; other principals are governed by POSIX mode plus their share permission grant.
       --quota-bytes string              Per-share byte quota (e.g., '10GiB', '500MiB'). 0 = unlimited (default)
       --read-buffer-size string         Per-share read buffer size override (e.g., 2GiB, 256MiB)
       --read-only                       Make share read-only
@@ -6076,7 +6077,7 @@ Flags:
       --encryption-kmip-key-uid string    KMIP managed symmetric key UID (kind=kmip)
       --endpoint string                   Custom S3 endpoint (for S3-compatible stores)
       --name string                       Store name (required)
-      --parallel-uploads int              Max parallel chunk uploads to this remote (0 = auto, scales with CPU count)
+      --parallel-uploads int              Max parallel chunk uploads to this remote (0 = adaptive: auto-tune to saturate the uplink)
       --prefix string                     Key prefix within the bucket (for s3)
       --region string                     AWS region (for s3) (default "us-east-1")
       --secret-key string                 AWS secret access key (for s3)
@@ -6130,7 +6131,7 @@ Flags:
       --bucket string          S3 bucket name (for s3)
       --config string          Store configuration as JSON
       --endpoint string        Custom S3 endpoint
-      --parallel-uploads int   Max parallel chunk uploads to this remote (0 = auto, scales with CPU count)
+      --parallel-uploads int   Max parallel chunk uploads to this remote (0 = adaptive: auto-tune to saturate the uplink)
       --region string          AWS region (for s3)
       --secret-key string      AWS secret access key (for s3)
       --type string            Store type: s3, memory

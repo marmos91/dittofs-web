@@ -13,6 +13,48 @@ DittoFS implements a unified ACL model that works across both NFSv4 and SMB prot
 
 For a full glossary of terms (ACL, ACE, DACL, SID, security descriptor, etc.) see [./glossary.md](/docs/operations/glossary).
 
+## Two permission layers
+
+Access to a file is decided by **two independent layers**, both of which must allow the operation. This mirrors how enterprise NAS appliances (Windows Server, TrueNAS, Synology) separate *share permissions* from *filesystem permissions*.
+
+1. **Share permissions (the export gate).** A coarse, per-share grant that decides *whether a principal may touch the export at all*, and at what ceiling (`none` / `read` / `read-write` / `admin`). This is the `--default-permission` on the share plus per-user/group grants:
+
+   ```bash
+   # Default for principals with no explicit grant (secure default: none)
+   dfsctl share create --name /data --metadata default --local default --default-permission none
+
+   # Grant alice read-write access to the export
+   dfsctl share permission grant /data --user alice --level read-write
+   ```
+
+   A grant **only opens the gate**. It does not modify any file's owner, mode, or ACL.
+
+2. **Filesystem permissions (POSIX mode + ACL).** Once past the gate, the file's own POSIX mode bits and ACL decide the actual operation — exactly as described in the rest of this page. A share-level grant never overrides these; a user granted `read-write` on the export still cannot write a file whose mode/ACL denies them.
+
+**Effective access = share gate AND filesystem permission.** Both must allow.
+
+### Share owner
+
+A new share's **root directory** is created with a secure mode (`0755`) owned by `root`. Because the two layers are independent, granting a user `read-write` does **not**, by itself, let them create files *at the share root* — POSIX still applies, and only the owner (or root) can write a `0755` directory.
+
+To make a share writable by a specific principal, set the **share owner** at creation:
+
+```bash
+# alice owns /home-alice: she can create files at its root.
+# (Grant her export access too — the two layers are separate.)
+dfsctl user create --username alice --uid 1000 --gid 1000 --password ...
+dfsctl share create --name /home-alice --metadata default --local default --owner alice
+dfsctl share permission grant /home-alice --user alice --level read-write
+```
+
+- `--owner` sets the UID/GID that owns the share's **root directory**. It defaults to `root` (UID/GID 0) when omitted.
+- The owner can write at the root via normal POSIX rules. Other principals are governed by the root's mode/ACL plus their share grant.
+
+> **Heads-up — this surprises people.** `share permission grant alice read-write` lets alice *into* the share but does **not** let her create files at the root unless she owns it (or it is group-/world-writable, or an ACL grants her). This is deliberate POSIX layering, not a bug. Common patterns:
+> - make alice the **owner** (`--owner alice`) for a single-owner share;
+> - have the owner/admin create **subdirectories** with appropriate modes for other users to work in;
+> - set an explicit **ACL** on the root (see below) granting the desired principals.
+
 ## How it works
 
 DittoFS stores one canonical ACL per file, derived from the NFSv4 ACL model (RFC 7530 §6), and translates on the wire for each protocol:
@@ -169,7 +211,7 @@ The identity mapping package (`pkg/identity/`) resolves NFS principals to Unix c
 
 2. **Hash-based SID generation**: Named principals without numeric UIDs (e.g., `alice@EXAMPLE.COM`) produce a hash-based RID when converted to SID. This is deterministic but could theoretically collide.
 
-3. **No SACL support**: System ACLs for Windows auditing are always NULL in Security Descriptors. AUDIT/ALARM ACE types can be stored but are not exposed to SMB clients as a SACL.
+3. **SACL round-trips but audit events are not generated**: System ACLs (audit/alarm ACEs) are parsed, stored, and surfaced to SMB clients in the Security Descriptor's SACL section — Windows Explorer's "Auditing" tab reads back what was set, and the `ACCESS_SYSTEM_SECURITY` gate is enforced. What is not implemented is *acting* on them: the server emits no audit log when an operation matches a SUCCESSFUL/FAILED audit ACE, and ALARM ACEs raise no alarm. See [SMB ACL fidelity § SACL](/docs/connect/smb-acl-fidelity#sacl-audit).
 
 4. **Owner/Group not in ACL**: Windows Security Descriptors bundle owner, group, and DACL together. DittoFS stores owner (UID) and group (GID) separately in file attributes. This is transparent to clients but means owner/group changes don't trigger ACL-related events.
 
