@@ -183,6 +183,10 @@ controlplane:
   read_timeout: 10s          # Max time to read request
   write_timeout: 10s         # Max time to write response
   idle_timeout: 60s          # Max idle time for keep-alive
+  drain_stall_timeout: 5m    # Abort POST /system/drain-uploads only if no
+                             # upload completes within this window (inactivity
+                             # timeout, NOT a total cap — a large flush may run
+                             # for as long as it keeps making progress)
 
   # Force the bootstrap "admin" user to set a new password on first login.
   # Default true (secure by default). Set to false for automated/test
@@ -228,6 +232,7 @@ controlplane:
 | `read_timeout` | `10s` | Maximum duration to read request |
 | `write_timeout` | `10s` | Maximum duration to write response |
 | `idle_timeout` | `60s` | Maximum idle time for keep-alive |
+| `drain_stall_timeout` | `5m` | Inactivity bound for `POST /system/drain-uploads`. The drain has **no total time cap** — a multi-GiB flush runs as long as it keeps making progress — and is aborted (504) only if no upload completes within this window (the remote stalled). Mirrors rclone's `--timeout` |
 | `require_initial_password_change` | `true` | Force the bootstrap `admin` user to change its password on first login. Set to `false` to opt out (automated/test deployments). Also skipped when `DITTOFS_ADMIN_INITIAL_PASSWORD` is set |
 | `pprof` | `false` | Expose Go `/debug/pprof/*` profiling endpoints |
 | `pprof_mutex_rate` | `100` (when `pprof: true`; else `0`) | Mutex contention sampling, 1 per N events. Applied only when `pprof: true`; unset/`0` then falls back to `100`. Without it `/debug/pprof/mutex` is header-only. Disable profiling via `pprof: false`, not by zeroing this |
@@ -298,8 +303,8 @@ Per-share block storage is configured via `dfsctl store` / `dfsctl share` comman
 The local filesystem store writes through per-file append-only logs that are
 compacted into content-addressed chunks (`blocks/{hh}/{hh}/{hex}`) and
 garbage-collected by the mark-sweep GC. This is the only local write path —
-older servers' `{payloadID}/block-{idx}` layout must be converted with
-`dfs migrate-to-cas` before a v0.16+ server will start.
+pre-v0.16 `{payloadID}/block-{idx}` layouts must be converted with
+dittofs ≤ v0.21 (`dfs migrate-to-cas`) before the server will start.
 
 These keys live inside the per-share `local` block store's `config` JSON
 (passed via `dfsctl store block local add --config '{...}'` or the REST API).
@@ -437,11 +442,42 @@ the way to observe the async mirror backlog under the default policy.
 #### GC knobs
 
 The CAS write path uses an async syncer and a fail-closed mark-sweep
-garbage collector. The syncer's sizing (upload concurrency, claim timeout,
-etc.) is **not** an operator-facing config section — it is auto-deduced from
-system resources at startup and constructed in code; there is no `syncer:`
-config block (a stale `syncer:` section in a config file is tolerated but
-ignored, logged as an unknown key).
+garbage collector. The syncer's sizing (claim timeout, etc.) is **not** an
+operator-facing config section — it is auto-deduced from system resources at
+startup and constructed in code; there is no `syncer:` config block (a stale
+`syncer:` section in a config file is tolerated but ignored, logged as an
+unknown key). Upload concurrency is **adaptive by default** — see below.
+
+#### Adaptive upload concurrency
+
+When you mirror a share to a remote (S3 or filesystem remote), DittoFS uploads
+CAS chunks concurrently. Uploads are **network-latency bound**, not CPU bound:
+a single PUT to a remote region sustains only a few MiB/s, so throughput scales
+with the number of concurrent uploads until the uplink saturates. The right
+number depends on the link, not the host — a CPU-derived default throttled fast
+links and over-subscribed slow ones.
+
+By default DittoFS **discovers the right concurrency itself**. It starts
+conservative and ramps the number of in-flight uploads up while delivered
+throughput (goodput) keeps rising, settling at the point where opening more
+connections stops helping. It backs off only on upload errors or a real
+throughput collapse — never on the latency rise that healthy concurrency itself
+causes. No configuration is required to saturate the uplink.
+
+To **pin** a fixed concurrency instead (disabling auto-tuning), set
+`--parallel-uploads N` on the remote:
+
+```bash
+dfsctl store block remote add --name r1 --type s3 \
+  --bucket … --region … --endpoint … \
+  --parallel-uploads 32          # fixed window of 32; 0 (default) = adaptive
+```
+
+`dfsctl store block remote edit --name r1 --parallel-uploads 0` returns a remote
+to adaptive mode. Observe the live window via the Prometheus gauge
+`dittofs_datapath_upload_window` (target concurrency) alongside
+`dittofs_datapath_uploads_inflight` (actual in-flight uploads); see
+[Metrics](#metrics-prometheus).
 
 The mark-sweep GC is the one tunable surface, configured via the top-level
 `gc:` server-config section:
@@ -458,16 +494,34 @@ gc:
                               # the snapshot.
   dry_run_sample_size: 1000   # Maximum candidate keys reported in
                               # --dry-run mode. Default 1000.
+  compaction_live_ratio: 0    # Reclaim dead bytes from partially-dead
+                              # blocks. After each sweep, a block whose
+                              # live bytes / object size is below this
+                              # ratio is repacked (live chunks only) and
+                              # the old block deleted. Must be in [0, 1];
+                              # 0 (default) disables compaction. A value
+                              # like 0.5 compacts a block once it is more
+                              # than half dead.
+  auto_enabled: true          # Run background GC automatically so you
+                              # don't have to invoke the CLI. Default
+                              # true. Set false to require manual
+                              # `dfsctl store block gc`.
+  auto_interval: 15m          # Period between background GC runs.
+                              # Default 15m. Values in (0, 1m) are
+                              # REJECTED. Ignored when auto_enabled is
+                              # false.
 ```
 
 **Tuning guidance:**
 
-- v0.15.0 ships only on-demand GC. Run via
-  `dfsctl store block gc <share> --dry-run` (capped by
-  `gc.dry_run_sample_size`) until you have measured the
-  hashes_marked / objects_swept ratio for your workload, then schedule
-  the real run via cron at the cadence that matches your delete rate.
-  No periodic-GC scheduler ships today; trigger GC on demand or via cron.
+- Background GC is **on by default** (`auto_enabled: true`, every
+  `auto_interval`) and reclaims orphaned blocks on **both** the local
+  and remote tiers. Disable it (`auto_enabled: false`) only if you want
+  to drive GC entirely on demand or via external scheduling.
+- You can still run GC on demand at any time:
+  `dfsctl store block gc <share>` (add `--dry-run` to preview, capped by
+  `gc.dry_run_sample_size`; add `--reconcile` to also reap rows leaked by
+  older versions).
 - `gc.grace_period` MUST be longer than your worst-case
   metadata-commit latency after a successful PUT. The default 1h is
   comfortable for any commit path that completes in seconds.
@@ -475,7 +529,9 @@ gc:
 Env-var mapping (dot-path convention; the top-level `gc` block binds
 directly):
 `DITTOFS_GC_GRACE_PERIOD`,
-`DITTOFS_GC_DRY_RUN_SAMPLE_SIZE`.
+`DITTOFS_GC_DRY_RUN_SAMPLE_SIZE`,
+`DITTOFS_GC_AUTO_ENABLED`,
+`DITTOFS_GC_AUTO_INTERVAL`.
 
 See [ARCHITECTURE.md](/docs/contributing/architecture#garbage-collection-mark-sweep)
 for the full mark-sweep design and [CLI.md](/docs/getting-started/cli) for the on-demand
@@ -530,7 +586,6 @@ blockstore:
                                              # Defaults to 10 GiB if unset.
     backpressure_max_wait: 60s               # Max time a write stalls for the
                                              # syncer to drain before disk-full.
-    dedup_lru_size: 4096                      # In-memory dedup LRU slot count.
     max_log_bytes: 2147483648                # Global append-log pressure budget
                                              # (see above). 0/unset = deduced.
 ```
@@ -922,7 +977,7 @@ Shares are managed at runtime via `dfsctl` and persisted in the control plane da
 ./dfsctl share permission list /cloud
 
 # Delete a share
-./dfsctl share delete /fast
+./dfsctl share remove /fast
 ```
 
 **Configuration Patterns:**
@@ -966,7 +1021,7 @@ DittoFS supports two complementary quota layers, both enforced by NFS *and* SMB:
 
 # Inspect and remove.
 ./dfsctl quota list /cloud
-./dfsctl quota rm /cloud --scope user --id 1000
+./dfsctl quota remove /cloud --scope user --id 1000
 ```
 
 Per-identity quota usage is tracked incrementally by every metadata backend
@@ -1159,7 +1214,7 @@ dfsctl user create --username bob --email bob@example.com --groups editors,viewe
 dfsctl user list
 dfsctl user get alice
 dfsctl user update alice --email alice@example.com
-dfsctl user delete alice
+dfsctl user remove alice
 
 # Passwords
 dfsctl user change-password           # change your own
@@ -1174,7 +1229,7 @@ dfsctl group list
 dfsctl group get editors
 dfsctl group add-user editors alice
 dfsctl group remove-user editors alice
-dfsctl group delete editors
+dfsctl group remove editors
 ```
 
 **Share Permissions:**
@@ -1753,136 +1808,34 @@ stored secret. Equivalent CLI: `dfsctl identity-provider {list,get,set,test}`
 
 ## Migration
 
-### Required when upgrading from v0.15.x or earlier
+### Standalone CAS (v0.16 - v0.21) → packed blocks: automatic
 
-v0.16.0 replaces the legacy `<share>/<file>/<idx>.blk` block layout with a
-content-addressed store (CAS). Pre-v0.16 storage directories must be migrated
-before `dfs start` will succeed. The migration is **irreversible**: once a
-share has been flipped to the CAS layout there is no supported path back to
-the legacy `.blk` layout — keep an out-of-band backup if your operational
-posture requires rollback.
+Current servers store remote data as packed `blocks/<id>` containers. Shares
+that still hold standalone-CAS state (per-chunk `cas/` objects and locators
+from v0.16-v0.21 servers) are converted automatically at startup, per share,
+**before the share serves** — no command, flag, or sentinel involved. The
+conversion is idempotent and resumable; a killed run converges on the next
+start. See [the migration guide](/docs/operations/block-store-migration).
 
-### Boot-guard behavior
+If a share's remote is unreachable while standalone chunks remain, that
+share fails to start (its data would be unreadable anyway); restore
+connectivity and start again.
 
-On startup, `dfs start` opens each share's block store directory and checks
-for a `.cas-migrated-v1` sentinel file at the FSStore base directory
-(`<storage_dir>/shares/<name>/blocks/.cas-migrated-v1`). If the sentinel is
-missing AND legacy `.blk` files are present under the same directory, the
-server refuses to start (per-share fail-fast):
+### Pre-v0.16 `.blk` layouts: migrate with dittofs ≤ v0.21 first
+
+The offline `dfs migrate-to-cas` tool was removed after v0.21. On startup,
+`dfs start` still probes each share for the legacy `.blk` layout (a
+`.cas-migrated-v1` sentinel from an old migration short-circuits the probe)
+and refuses to start un-migrated shares:
 
 - Exits with code **78** (`EX_CONFIG` per sysexits(3)).
-- Prints the following directive to stderr (showing the offending share
-  path):
-  ```
-  Detected legacy .blk layout: share "<name>": share <path>: blockstore: legacy .blk layout detected (run `dfs migrate-to-cas`)
-  v0.16+ requires CAS migration. Run:
-      dfs migrate-to-cas --share <name>
-  or, to migrate every share at once:
-      dfs migrate-to-cas
-  See docs/CONFIGURATION.md §migration.
-  ```
-- Halts on the FIRST share that surfaces the legacy layout. Healthy
-  already-migrated shares are not started in the same boot; fix the
-  offending share and retry.
+- Prints a directive to stderr naming the offending share and pointing at
+  dittofs ≤ v0.21 for the `.blk` migration.
+- Halts on the FIRST share that surfaces the legacy layout.
 
-### Running the migration
-
-The migration is an offline operation — stop the server first. The
-`dfs migrate-to-cas` command refuses to run while a live `dfs` PID lockfile
-exists:
-
-```bash
-dfs stop
-dfs migrate-to-cas
-```
-
-Flags:
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--storage-dir <path>` | **required** | Storage root. The command discovers shares under `<storage-dir>/shares/`. There is no config-derived default; pass the storage root explicitly. |
-| `--share <name>` | (all shares) | Scope migration to one share. Default migrates every share found under `<storage-dir>/shares/`. |
-| `--dry-run` | `false` | Walk the legacy `.blk` tree and report file count, total bytes, estimated dedup ratio, and ETA. Writes nothing — does not touch the journal, does not write the sentinel. |
-| `--json` | `false` | Emit one JSON object per line of progress on stdout for machine parsing. |
-| `--config <path>` | (default) | Override config file location. Inherited from the root `dfs` command. |
-
-Progress is reported to stdout approximately once per second. With `--json`,
-each line has the shape:
-
-```json
-{"ts":"<RFC3339>","share":"<name>","files_done":N,"bytes_done":N,"files_per_sec":F,"mib_per_sec":F,"dedup_hits":N,"eta_seconds":F}
-```
-
-Plain text progress reads `[<share>] N files, X.X MiB/s, dedup_hits=K`.
-
-### Crash safety
-
-The migration is idempotent. A per-share journal at
-`<storage_dir>/shares/<share>/.dittofs-migrate-to-cas.state` records the
-last-completed file path and byte offset. If interrupted (Ctrl-C, kill -9,
-power loss, panic, OOM), rerunning `dfs migrate-to-cas` resumes from the
-journaled position. The journal is removed on best-effort cleanup only AFTER
-the per-share sentinel write succeeds — a failed sentinel write preserves the
-journal so a rerun can pick up exactly where the prior left off.
-
-The CAS Put surface is idempotent on hash collision, so re-processing an
-in-flight file at the resume point is safe (chunks already uploaded are
-treated as dedup hits on the second pass).
-
-### Verifying completion
-
-Success is recorded by a per-share sentinel file at
-`<storage_dir>/shares/<share>/blocks/.cas-migrated-v1` (one per share — `--share <name>` migrations
-produce just that share's sentinel; un-scoped migrations produce one sentinel
-per share at each share's completion, so partial-success states are
-operationally well-defined). Contents:
-
-```json
-{
-  "Version":     "v1",
-  "CompletedAt": "2026-05-20T14:30:00Z",
-  "ToolVersion": "v1.0.0",
-  "ShareDir":    "/path/to/share"
-}
-```
-
-The sentinel is written via atomic rename (`.cas-migrated-v1.tmp` → fsync →
-close → rename → syncDir) only after every chunk for the share has been
-committed and verified — partial migrations cannot leave a sentinel behind.
-**Do not hand-create or hand-edit this file.** It is intended as a one-way
-irreversibility marker; modifying it bypasses the boot guard but cannot fix
-a half-migrated store and will surface I/O errors on the first legacy
-FileBlock access.
-
-To confirm a share is fully migrated, inspect the sentinel directly:
-
-```bash
-cat <storage_dir>/shares/<name>/.cas-migrated-v1
-```
-
-A successful `dfs start` against the share is the final verification: the
-boot guard exits 78 on any share whose sentinel is missing.
-
-### Recovery from a failed migration
-
-1. Inspect stderr (or the JSON progress stream) for the file path + offset
-   at which the migration halted.
-2. Inspect the journal at
-   `<storage_dir>/<share>/.dittofs-migrate-to-cas.state` to confirm the
-   resume point.
-3. Rerun `dfs migrate-to-cas` (optionally with `--share <name>` to scope to
-   the affected share). Already-migrated shares are skipped on rerun (their
-   sentinels short-circuit the boot guard at the fs-layer constructor).
-4. If a chunk verification mismatch occurred (post-Put BLAKE3 disagreement —
-   `ErrChunkPutMismatch`), this indicates storage corruption between Put and
-   re-Get. Investigate the destination block store (disk health, S3
-   eventual-consistency on overwrite, filesystem corruption) before
-   retrying; the journal preserves the resume point for forensics.
-
-### See also
-
-- [docs/CLI.md — `dfs migrate-to-cas`](/docs/getting-started/cli#dfs-migrate-to-cas) for the
-  full command-line reference (synopsis, flag table, exit codes, examples).
+Run `dfs migrate-to-cas` on v0.21, verify the per-share `.cas-migrated-v1`
+sentinel exists, then upgrade — the automatic conversion above finishes the
+job.
 
 ## Metrics (Prometheus)
 
@@ -2121,7 +2074,7 @@ On the **first** start (when no `admin` user exists yet) the initial admin passw
 
 1. **`DITTOFS_ADMIN_INITIAL_PASSWORD`** (env, plaintext) — sets a known password and also derives the NT hash, so the admin can authenticate over **SMB** as well as the REST/control-plane API.
 2. **`admin.password_hash`** (config, bcrypt `$2a$`/`$2b$`/`$2y$`) — sets a known credential without writing a plaintext secret to disk. No NT hash is derivable from a bcrypt hash, so an admin bootstrapped this way works for the **control-plane/REST API only, not SMB** (use option 1 for SMB). A value that is not a valid bcrypt hash is rejected at startup.
-3. **Auto-generated** — a random password is generated and printed once to the terminal (and, in daemon mode, a warning notes it is not logged; reset it with `dfsctl user passwd admin`).
+3. **Auto-generated** — a random password is generated. It is printed once **only when `dfs start` runs with stdout attached to an interactive terminal** (i.e. `dfs start --foreground` in a real TTY). In background/daemon mode, and under Docker/systemd/CI where stdout is a pipe, the password is **not written to the log and cannot be recovered** — the log only records that an admin user was created. Recovery via `dfsctl user password admin` is not possible in this state (it requires an authenticated admin session). Options 1 and 2 are consulted **only while bootstrapping a new admin**, so once this first start has created the admin user, setting them and restarting will **not** change the password — you must remove the admin user (reset the control-plane database) and re-bootstrap with option 1 or 2 set. For any non-interactive deployment, set option 1 or 2 before the very first start.
 
 Options 1 and 2 also skip the forced first-login password change (the operator already chose the password). All three apply only on first start; later starts never change an existing admin's password.
 

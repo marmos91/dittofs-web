@@ -201,7 +201,7 @@ DittoFS computes ObjectID **lazily — at file quiesce**, when every
 chunk has finished uploading to remote storage. Mid-write the
 ObjectID is the all-zero sentinel meaning "not yet quiesced". The
 post-Flush coordinator hook
-(`Syncer.persistFileBlocksAfterFlush`) writes it in the same metadata
+(`Syncer.persistFileChunksAfterFlush`) writes it in the same metadata
 transaction that updates `FileAttr.Blocks`/`Size`/`Mtime`. Partial
 flushes (some blocks still `Pending`) leave it at zero so the
 short-circuit lookup never returns a half-quiesced file.
@@ -209,7 +209,7 @@ short-circuit lookup never returns a half-quiesced file.
 A non-zero ObjectID always reflects a fully-`Remote` consistent
 state. Empty files dedup to one canonical constant
 `BLAKE3("dittofs:objectid:v1\x00")`; files written before ObjectID existed
-keep the all-zero sentinel until `dfs migrate-to-cas` backfills them.
+keep the all-zero sentinel until their next full flush recomputes it.
 
 See
 [ARCHITECTURE.md — File-Level Dedup](/docs/contributing/architecture#file-level-dedup-objectid--merkle-root)
@@ -239,12 +239,16 @@ AND no prior ObjectID" — explicitly excludes the running-VM hot path.
 The block-store GC is a fail-closed mark-sweep over the union of every live
 block's `ContentHash`:
 
-1. **Mark.** Stream every `FileBlock`'s `ContentHash` via the
-   `MetadataStore.EnumerateFileBlocks(ctx, fn)` cursor across **every
+1. **Mark.** Stream every `FileChunk`'s `ContentHash` via the
+   `MetadataStore.EnumerateFileChunks(ctx, fn)` cursor across **every
    share that targets the same remote** (cross-share aggregation by
    `bucket+endpoint+prefix`, not share name). The live set is built on
    disk under `<localStore>/gc-state/<runID>/db/` (memory-bounded
-   regardless of metadata size).
+   regardless of metadata size). Hold providers then add hashes the
+   namespace no longer references but that must survive: snapshot
+   manifests, and files unlinked while still held open (NFSv4 open
+   stateids, SMB open handles) — POSIX unlink-while-open data stays
+   readable until the last close, beyond the grace period.
 2. **Sweep.** A single `RemoteStore.Walk` enumerates every CAS object
    cluster-wide (the backend paginates internally). An object is kept
    iff its hash is in the live set OR its `LastModified` is newer than
@@ -276,7 +280,7 @@ other files via cross-file dedup — stay warm.
 
 If you are seeing whole-file cold misses after a write, that is a bug.
 File a report with the `dfsctl store block audit-refcounts <share>`
-output (see below) — refcount drift between `FileBlock.RefCount` and
+output (see below) — refcount drift between `FileChunk.RefCount` and
 `FileAttr.Blocks` is the most common root cause.
 
 The mechanism: `engine.WriteAt` returns the new `[]BlockRef`, the
@@ -288,9 +292,9 @@ referenced by other files via dedup remain in the cache.
 
 ### How do I run the refcount audit?
 
-The audit checks the invariant `∑ FileBlock.RefCount == ∑ len(FileAttr.Blocks)`
+The audit checks the invariant `∑ FileChunk.RefCount == ∑ len(FileAttr.Blocks)`
 — every block reference in `FileAttr.Blocks` across all files MUST be
-matched by a refcount on the corresponding `FileBlock`:
+matched by a refcount on the corresponding `FileChunk`:
 
 ```bash
 # Aggregate counts to stdout (text by default)
@@ -346,29 +350,17 @@ for the full design and
 [IMPLEMENTING_STORES.md](/docs/contributing/implementing-stores) for storage-encoding
 requirements.
 
-### How do I migrate an older `.blk` store to the CAS layout?
+### How do I migrate an older store layout?
 
-Run `dfs migrate-to-cas` against the **stopped** server's storage root.
-v0.16+ servers require the CAS layout, and the server's boot guard
-refuses to start a store still on the older `.blk` layout.
+Upgrades from the v0.16–v0.21 standalone-CAS layout are automatic: each
+share converts its leftover per-chunk objects into packed blocks on the
+first start after the upgrade, blocking until done (idempotent and
+resumable — a killed migration converges on the next start).
 
-```bash
-sudo systemctl stop dfs
-# --storage-dir and --metadata-dir are both required
-dfs migrate-to-cas --storage-dir /var/lib/dittofs/storage \
-  --metadata-dir /var/lib/dittofs/metadata                          # all shares
-dfs migrate-to-cas --storage-dir /var/lib/dittofs/storage \
-  --metadata-dir /var/lib/dittofs/metadata --share myshare
-sudo systemctl start dfs
-```
-
-The migration is resumable (a per-share journal at
-`<storage-dir>/shares/<name>/.dittofs-migrate-to-cas.state` lets a run
-resume after a crash without re-uploading already-migrated chunks) and
-has a non-destructive preview (`--dry-run` reports file count, estimated
-dedup ratio, and bytes-per-second without writing anything). On success
-it writes the `.cas-migrated-v1` sentinel per share. See
-[BLOCKSTORE_MIGRATION.md](/docs/operations/block-store-migration) for the full runbook.
+Stores still on the pre-v0.16 `.blk` layout must first be migrated with
+dittofs v0.21 or earlier (`dfs migrate-to-cas`, removed in later
+releases); the boot guard refuses `.blk` layouts with exit code 78. See
+[the migration guide](/docs/operations/block-store-migration) for the full runbook.
 
 ## Usage Questions
 

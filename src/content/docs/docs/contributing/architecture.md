@@ -188,7 +188,7 @@ Each share in DittoFS gets its own `*engine.BlockStore` instance, providing comp
 
 - **Data Isolation**: Each share's local blocks are stored in separate directories
 - **Cache Independence**: The unified `Cache` is per-share (eviction in one share does not affect others). Inside a share, the cache is keyed by `ContentHash`, so two files referencing the same chunk via dedup share one cache entry.
-- **Remote Sharing**: Multiple shares can reference the same remote store (e.g., same S3 bucket). The remote keyspace is content-addressed (`cas/{hh}/{hh}/{hex}`), so identical chunks dedup across every share that targets the same bucket+prefix. For isolation, give shares different buckets or prefixes
+- **Remote Sharing**: Multiple shares can reference the same remote store (e.g., same S3 bucket). Chunk bytes are packed into `blocks/<id>` container objects; identical chunks dedup by content hash across every share that targets the same bucket+prefix. For isolation, give shares different buckets or prefixes
 - **Lifecycle Independence**: Block stores are created/closed with share lifecycle
 
 ## Storage Tiers
@@ -230,35 +230,55 @@ DittoFS uses a three-tier storage model for block data:
 └─────────────────────────────────────┘
 ```
 
-**Read Path**: Engine.ReadAt receives `[]BlockRef` from caller, locates the
-covering blocks via `findBlocksForRange` (binary search), serves bytes
-from local CAS (mmap on linux/darwin, ReadFile on windows)
-or remote CAS (BLAKE3-verified end-to-end), calls `Cache.OnRead`
-to update the per-payload sequential tracker for prefetch hints.
+**Read Path**: Engine.ReadAt receives `[]ChunkRef` from caller, locates the
+covering chunks via `findChunksForRange` (binary search), serves bytes
+from the local log-blob tier or, on a miss, resolves the chunk's remote
+locator and issues a ranged read into its enclosing `blocks/<id>` object,
+decoding and BLAKE3-verifying end-to-end (fail-closed). `Cache.OnRead`
+updates the per-payload sequential tracker for prefetch hints.
 
-**Write Path**: Engine.WriteAt receives `(currentBlocks []BlockRef, data,
-offset)`, FastCDC-rechunks the affected range, returns `newBlocks
-[]BlockRef` to the caller; caller persists newBlocks alongside the
-metadata transaction (Mtime, Size, etc.). Syncer asynchronously uploads
-Pending FileBlocks to remote CAS.
+**Write Path**: Engine.WriteAt receives `(currentChunks []ChunkRef, data,
+offset)`, FastCDC-rechunks the affected range, returns `newChunks
+[]ChunkRef` to the caller; caller persists newChunks alongside the
+metadata transaction (Mtime, Size, etc.). The syncer's carver packs
+synced-pending chunks into ~16 MiB blocks and uploads each with one PUT,
+committing the block record and per-chunk locators in a single metadata
+transaction.
 
 **Eviction**:
 - Cache: LRU eviction when budget reached. No data loss (local CAS has the data). Cache is per-share but cross-file inside a share — the same hash referenced by two files shares one entry.
-- Local store: Manual eviction via `dfsctl store block evict`. Only blocks already synced to remote can be evicted (safety check prevents data loss).
+- Local store: whole-blob eviction reclaims log-blob bytes once every chunk in a sealed blob is synced to remote; manual eviction via `dfsctl store block evict`. Only synced data is evictable (safety check prevents data loss).
 
 ## Block Store -- Local Append-Log Tier
 
 The local filesystem store (`pkg/block/local/fs/`) writes through an
 append-only log per file. A rollup pool chunks the log via FastCDC, hashes
-each chunk with BLAKE3, and persists the chunks under a content-addressable
-`blocks/{hh}/{hh}/{hex}` directory. The syncer then uploads those chunks to
-the remote content-addressable keyspace (`cas/{hh}/{hh}/{hex}`), and a
-mark-sweep GC reclaims the remote `cas/` prefix.
+each chunk with BLAKE3, and appends the chunk bytes to the local **log-blob**
+tier (`blobs/<id>.blob`), recording each chunk's position in the
+`LocalChunkIndex`. The log-blob substrate is mandatory: every local store is
+constructed with a `LocalChunkIndex`, and rolled-up chunks live only in the
+append-only blob tier. (Pre-flip per-chunk `blocks/{hh}/{hh}/{hex}` files, if
+any survive an upgrade, are imported into the blob tier by the one-shot
+migration at startup — see [Migration](#migration--block-layout-routing) — and
+never read on the live path.) See [Log-Blob Local Tier](#log-blob-local-tier)
+below.
 
-This is the only local write path. Servers from v0.16 on require the CAS
-layout; a store directory still holding the older `.blk` layout is detected
-on open and the operator is told to run `dfs migrate-to-cas` (see
-[Migration & Block-Layout Routing](#migration--block-layout-routing)).
+**New writes are packed into remote blocks.** On every share, the syncer's
+carver batches locally-rolled chunks and uploads them as packed **block
+objects** under the remote `blocks/<id>` prefix — one PUT per block of
+roughly 16 MiB of chunks (`BlockCarveBytes`), or sooner when the writer goes
+idle. It does **not** write one `cas/<hash>` object per chunk. Per-chunk
+deduplication and refcounting are preserved: a
+`ChunkLocator{BlockID, WireOffset, WireLength}` records where each chunk's
+bytes live inside its enclosing block, so identical chunks are still stored
+once and reclaimed by refcount. The remote store exposes only the block-keyed
+surface (`blocks/<id>`); there is no per-chunk `cas/<hash>` remote object on
+the live read or write path.
+
+This is the only write path. A store still holding standalone-CAS state from a
+v0.16-v0.21 server is converted to packed blocks automatically at startup, and
+a pre-v0.16 `.blk` layout is refused with a directive to migrate with an
+earlier release (see [Migration](#migration--block-layout-routing)).
 
 See [Block Lifecycle (three-state)](#block-lifecycle-three-state) and
 [Garbage Collection (mark-sweep)](#garbage-collection-mark-sweep) below.
@@ -279,8 +299,8 @@ See [Block Lifecycle (three-state)](#block-lifecycle-three-state) and
                                                               |
                                                               v
                                                        StoreChunk
-                                                       blocks/{hh}/{hh}/{hex}
-                                                       (.tmp + rename + fsync)
+                                                       blobs/<id>.blob (append)
+                                                       + LocalChunkIndex entry
                                                               |
                                         CommitChunks atomic:  |
                                          1. metadata.SetRollupOffset (source of truth)
@@ -296,7 +316,8 @@ See [Block Lifecycle (three-state)](#block-lifecycle-three-state) and
 
 ```
 <baseDir>/logs/<payloadID>.log        per-file append-only log
-<baseDir>/blocks/<hh>/<hh>/<hex>      content-addressed chunks (CAS)
+<baseDir>/blobs/<id>.blob             log-blob tier (rolled-up chunk bytes)
+<baseDir>/blocks/<hh>/<hh>/<hex>      pre-flip per-chunk files (imported + removed by startup migration)
 ```
 
 Log header (64 bytes): magic `DFLG` | version | `rollup_offset` | flags |
@@ -317,9 +338,9 @@ payload.
 
 Recovery (`pkg/block/local/fs/recovery.go`) scans logs from
 `rollup_offset`, truncates at first bad CRC, and rebuilds per-file interval
-trees. Orphan logs (no metadata referrer, no live FileBlock, mtime older
-than `orphan_log_min_age_seconds`) are swept. Orphan chunks under
-`blocks/{hh}/{hh}/{hex}` are reclaimed by the mark-sweep GC.
+trees. Orphan logs (no metadata referrer, no live FileChunk, mtime older
+than `orphan_log_min_age_seconds`) are swept. Log-blob bytes are reclaimed by
+whole-blob eviction (see [Log-Blob Local Tier](#log-blob-local-tier)).
 
 ### Per-`FSStore` surface
 
@@ -332,9 +353,128 @@ shares.
 See `docs/CONFIGURATION.md` (`max_log_bytes`, `rollup_workers`,
 `stabilization_ms`, `orphan_log_min_age_seconds`) for the tunables.
 
+## Log-Blob Local Tier
+
+`pkg/block/local/logblob` is a raw append-only file manager that holds the
+local durable copy of freshly-written chunks. **This substrate is live.**
+Locally-rolled chunks are appended to log-blobs, and the engine carver reads
+them back by position (`LocalChunkLocation{LogBlobID, RawOffset, RawLength}`)
+to pack them into the remote block objects described in
+[Block Store — Local Append-Log Tier](#block-store----local-append-log-tier).
+Reads resolve through the local chunk index first — a positioned `pread(2)`
+against the log-blob — and fall back to the remote block only on a local
+miss (see [Block Reads](#block-reads-verified)).
+
+### Layout
+
+A `Manager` owns a directory of flat binary files called log-blobs (`*.blob`):
+
+```
+<dir>/0000000000000000.blob    ← active blob (accepts appends)
+<dir>/0000000000000001.blob    ← sealed (read-only, eligible for eviction)
+...
+```
+
+Blob IDs are zero-padded 16-digit decimals, giving lexicographic sort order
+matching creation order. Chunks are stored raw — no per-record framing, no
+checksum inside the blob — so the single read primitive is a positioned
+`pread(2)` against a `LocalChunkLocation{LogBlobID, RawOffset, RawLength}`.
+Durability is caller-controlled: call `Sync` at commit boundaries.
+
+### API
+
+```go
+// Open opens (or creates) a Manager rooted at dir.
+// On a fresh directory it creates the first blob. On reopen the
+// highest-numbered blob becomes active and appends resume at its tail.
+func Open(dir string, opts Options) (*Manager, error)
+
+// Append writes p to the tail of the active blob and returns the chunk's
+// position. Rotates automatically when the active blob would exceed SizeCap
+// (default 1 GiB). Empty payloads are rejected.
+func (m *Manager) Append(ctx context.Context, p []byte) (block.LocalChunkLocation, error)
+
+// ReadAt reads loc.RawLength bytes from blob loc.LogBlobID at loc.RawOffset
+// into dst (len(dst) >= loc.RawLength). Safe to call concurrently with Append.
+func (m *Manager) ReadAt(ctx context.Context, loc block.LocalChunkLocation, dst []byte) (int, error)
+
+// Rotate seals the active blob and opens a fresh one. Callers can rotate
+// at application-defined boundaries without waiting for SizeCap.
+func (m *Manager) Rotate() error
+
+// Sync fsyncs the active blob to durable storage.
+func (m *Manager) Sync() error
+
+// ListBlobs returns metadata for every blob, sorted by creation order.
+// Includes the active blob.
+func (m *Manager) ListBlobs() ([]BlobInfo, error)
+
+// EvictBlob removes a sealed blob from disk and the in-memory fd cache.
+// The caller supplies a synced func that reports whether the blob's bytes
+// are durable elsewhere; eviction is refused with ErrUnsyncedBytes if not.
+// Idempotent: a second call on an already-evicted blob returns nil.
+// After eviction, ReadAt on that blob returns ErrEvicted.
+func (m *Manager) EvictBlob(ctx context.Context, logBlobID string, synced func(string) bool) error
+
+// Recover truncates logBlobID to validUpToOffset, discarding torn tail bytes.
+// For the active blob it also updates the in-memory tail pointer.
+// Rejects offset > current blob size to prevent POSIX ftruncate from
+// zero-filling. Callers must quiesce concurrent I/O before calling Recover.
+func (m *Manager) Recover(ctx context.Context, logBlobID string, validUpToOffset int64) error
+```
+
+### Concurrency
+
+`Append` and `Rotate` are mutex-serialized. `ReadAt` acquires the mutex
+briefly to snapshot the active blob's identity and file descriptor, then
+releases it before the `pread(2)` call. Reads and appends on non-overlapping
+byte ranges therefore proceed concurrently. The race detector is clean.
+
+### Sentinel errors
+
+| Error | Condition |
+|---|---|
+| `logblob.ErrClosed` | Operation attempted after `Close` |
+| `logblob.ErrBlobNotFound` | `ReadAt` targets a non-existent blob ID |
+| `logblob.ErrEvicted` | `ReadAt` or `Recover` targets an evicted blob |
+| `logblob.ErrActiveBlob` | `EvictBlob` called on the current active blob |
+| `logblob.ErrUnsyncedBytes` | `EvictBlob` refused because the caller's `synced` func returned false |
+
+### Data flow (once wired in)
+
+```
+Chunk bytes
+    │
+    ▼ logblob.Manager.Append
+LocalChunkLocation{LogBlobID, RawOffset, RawLength}
+    │
+    ├─▶ metadata.LocalChunkIndex.PutLocalLocation  ─┐
+    └─▶ metadata.BlockRecordStore.PutBlockRecord   ─┴─ single transaction
+            via metadata.DefaultCommitBlock            (one fsync per block —
+                                                        the local durable commit)
+            then, after that transaction commits:
+    └─▶ metadata.SyncedHashStore.MarkSynced (per chunk, remote locator)
+            runs as a separate idempotent post-commit phase — SyncedHashStore is
+            on Store but not Transaction, so remote locators are written outside
+            the block transaction and re-driven safely on retry.
+
+Read path:
+    ContentHash
+    │
+    ▼ metadata.LocalChunkIndex.GetLocalLocation
+    LocalChunkLocation
+    │
+    ▼ logblob.Manager.ReadAt
+    chunk bytes
+```
+
+The `metadata.LocalChunkIndex` and `metadata.BlockRecordStore` contracts
+that feed this flow are described in
+[Block Record and Local Chunk Index](/docs/contributing/implementing-stores#block-record-and-local-chunk-index).
+
 ## Block Lifecycle (three-state)
 
-The block lifecycle has three persisted states held on `FileBlock.State`
+The block lifecycle has three persisted states held on `FileChunk.State`
 indexed by `ContentHash`. There is no parallel state in memory, in fd
 pools, or anywhere else: the metadata store is the single source of truth,
 and `engine.Syncer` is the sole owner of state transitions.
@@ -352,7 +492,7 @@ and `engine.Syncer` is the sole owner of state transitions.
 - **Pending**: `RefCount ≥ 1`; bytes are local; not yet uploaded.
 - **Syncing**: a syncer goroutine has claimed the block; the upload is in
   flight.
-- **Remote**: PUT to the remote CAS keyspace returned 200 AND the
+- **Remote**: PUT of the packed block object returned 200 AND the
   metadata transaction setting `State=Remote` committed (no orphan flag
   without metadata-txn success).
 
@@ -361,6 +501,15 @@ requeues any `Syncing` row whose `last_sync_attempt_at` is older than
 `syncer.claim_timeout` (default 10m) back to `Pending`. CAS keys are
 content-defined so a duplicate re-upload writes the same bytes to the
 same key — idempotent by construction.
+
+**Known limitation — restart seeding.** Chunks that were appended to the
+local log-blob but not yet carved into a remote block when the process
+crashed are durable on local disk, but they are **not** re-seeded into the
+pending-carve set on restart. They stay local-only — fully readable — until
+the file they belong to is written to again, which re-queues them for
+carving. No data is lost; the only effect is that such chunks are not
+uploaded to the remote until touched again. Re-seeding the carve set from the
+local index on boot is a follow-up item.
 
 **Why a metadata write for every claim?** The Pending → Syncing
 transition is the serialization point against duplicate uploads across
@@ -371,24 +520,93 @@ blocks (`State=Syncing AND last_sync_attempt_at < now − 1h`).
 ## Garbage Collection (mark-sweep)
 
 The block-store GC is a fail-closed mark-sweep over the union of every live
-`FileBlock.ContentHash` across all shares pointing at the same remote.
+`FileChunk.ContentHash` across all shares pointing at the same remote.
 
 ### Algorithm
 
-1. **Mark phase.** Stream every `FileBlock`'s `ContentHash` via the
-   `MetadataStore.EnumerateFileBlocks(ctx, fn)` cursor. The cursor
+1. **Mark phase.** Stream every `FileChunk`'s `ContentHash` via the
+   `MetadataStore.EnumerateFileChunks(ctx, fn)` cursor. The cursor
    is implemented natively per backend (memory, Badger, Postgres) and
    never loads the full set into application memory. Hashes are appended
    to an on-disk live set under `<localStore>/gc-state/<runID>/db/`
    (a Badger temp store). Snapshot time `T` is captured at the start of
    the run. Cross-share aggregation keys on **remote-store identity**
    (`bucket+endpoint+prefix`), not share name, so an object reachable from
-   any share that targets the same remote is considered live.
+   any share that targets the same remote is considered live. Hold
+   providers then inject hashes the namespace no longer references but
+   that must survive the sweep: snapshot manifests
+   (`SnapshotHoldProvider`) and open-but-unlinked files
+   (`openHandleHoldProvider`, #1448) — a file unlinked while still held
+   open via NFSv4 open stateids or SMB open handles keeps its blocks
+   until the last close, restoring POSIX unlink-while-open semantics
+   beyond the grace period. NFSv3 is stateless (kernel clients
+   silly-rename), so no server-side hold applies there.
 2. **Sweep phase.** A single `RemoteStore.Walk` enumerates every CAS
    object cluster-wide; the backend (e.g. S3) paginates internally. For
    each key, the engine keeps the object iff the hash is present in the
    live set OR the object's `LastModified` is newer than
    `T − gc.grace_period` (default 1h). Otherwise the engine issues a DELETE.
+
+### Packed-block reclamation
+
+Because new data lives in packed `blocks/<id>` objects rather than one object
+per chunk, the sweep cannot DELETE one remote object per dead hash. Instead
+each dead chunk is reclaimed by refcount:
+
+1. A dead `ContentHash` — present in the store's synced-hash index but absent
+   from the live set — is resolved to its enclosing block, and
+   `DecrLiveChunkCount(blockID, 1)` is applied.
+2. When a block's live-chunk count reaches **zero**, the block is fully
+   reclaimed: its local blob is evicted, `RemoteBlockStore.DeleteBlock`
+   removes the remote object, and the block record is deleted.
+
+A block that still has *any* live chunk is retained by the refcount pass —
+packing never deletes a referenced chunk along with its block-mates. Runs are
+**serialized per remote** (keyed on remote-store config identity), so the
+`LiveChunkCount` that several shares targeting the same remote share is only
+ever mutated by one run at a time.
+
+### Compaction of partially-dead blocks
+
+Refcount reclamation alone frees a block only when its *last* live chunk dies,
+so a block that keeps a few live chunks but has shed many dead ones pins the
+dead bytes forever. Compaction (`engine.CompactBlocks`, #1487) closes that gap.
+It runs as an optional final phase of each per-remote sweep, under the same
+per-remote lock and immediately **after** the sweep — by which point the sweep
+has already cleared the synced marker of every past-grace dead chunk. So a
+chunk resident in a block is "still live here" iff its synced locator still
+points at that block; a chunk that lost its marker (swept dead) or whose
+locator has moved is dropped. This reuses the sweep's own keep/delete decision,
+so compaction never reclaims a chunk the sweep would have spared, and needs no
+second live-set scan.
+
+- **Candidate selection** is byte-based: the sum of the `WireLength` of every
+  live locator pointing at a block, over the block's object `Length`. Below the
+  operator's `gc.compaction_live_ratio` (0 disables; a value like `0.5` compacts
+  a block once it is more than half dead) the block is a candidate. Computed
+  from the block record + locators alone — no per-block download to decide, and
+  no extra stored field.
+- **Repack** downloads the candidate block once, verifies it against its
+  record's whole-block BLAKE3 hash, copies the still-live chunks' wire bodies
+  verbatim into a fresh block (the per-chunk encryption already lives in the
+  body), `PutBlock`s it, then `DefaultCommitBlock` writes the new record and
+  rewrites the moved chunks' locators (last-wins) in one transaction, and
+  finally deletes the old block object + record.
+- **Crash safety** is identical to the live carver / cas→blocks migration and
+  every crash window lands on an existing reconcile class: a crash after
+  `PutBlock` before the commit leaves an orphan object (reconcile class 3); a
+  crash after the commit before the old block is deleted leaves the old block as
+  a leaked record (class 2). A re-run converges — the moved chunks' locators no
+  longer point at the old block, so compaction finds nothing to move and just
+  deletes the husk.
+
+Because compaction rewrites a live chunk's locator to a new block before
+deleting the old one, a reader that resolved the old locator *before* the
+rewrite and issues its `GetBlock` *after* the delete sees a miss. This is safe
+only because the read path (`dispatchRemoteFetch`, the chokepoint both the
+client demand read and background prefetch share) re-resolves the locator once
+on `ErrChunkNotFound` and retries against the moved chunk's new block — without
+that guard the delete would surface a spurious `EIO` for a perfectly live chunk.
 
 ### Fail-closed posture
 
@@ -581,18 +799,42 @@ call only (`WithRestoreTimeout`).
 For the full operator runbook see
 [SNAPSHOTS.md](/docs/operations/snapshots).
 
-## Block Reads (content-addressable)
+## Block Reads (verified)
 
-The engine resolves every block read from the content-addressable keyspace:
-read from `cas/{hh}/{hh}/{hex}`, BLAKE3-verified end-to-end (a header
-pre-check on `x-amz-meta-content-hash` plus a streaming verifier over the
-body). Resolution is by metadata key — one DB lookup per block — not by
-remote trial-and-error, so there is no doubled GET cost.
+Every block read resolves by metadata key — one DB lookup per chunk, not
+remote trial-and-error, so there is no doubled GET cost — and takes one of
+two paths:
 
-The older non-CAS layout (`{payloadID}/block-{N}`) is no longer read at
-runtime. A store directory still on that layout is detected on open and the
-operator is directed to run `dfs migrate-to-cas`, which re-chunks all data
-into the CAS keyspace. See
+1. **Local log-blob hit.** If the chunk is still on local disk, its bytes are
+   served straight from the log-blob via a positioned `pread(2)` at its
+   `LocalChunkLocation`. This is the steady-state path for recently-written
+   and recently-read data.
+2. **Remote packed block.** On a local miss, the engine resolves the chunk's
+   `ChunkLocator` (`BlockID` + `[WireOffset, WireOffset+WireLength)`) and
+   issues a ranged GET against the packed remote object `blocks/<BlockID>`,
+   decodes the wire frame, and recomputes BLAKE3 over the chunk bytes. A
+   verified chunk is re-staged into the local tier so subsequent reads take
+   path 1.
+
+A synced chunk whose locator is empty (standalone) or missing is
+**post-migration drift** — the startup migration rewrites every standalone
+locator to a block locator before the share serves — so such a locator is
+refused fail-closed rather than read.
+
+**Fail-closed integrity.** Every remote fetch is BLAKE3-verified before the
+bytes reach the caller. A mismatch is never surfaced as data: the read returns
+an error and increments a corruption metric.
+
+**Self-heal.** The two tiers are treated asymmetrically on a verification
+failure. A *local* mismatch (a bit-rotted log-blob) is self-healing — the
+engine discards the bad local pointer, re-fetches the chunk from its remote
+block, verifies it, and re-stages it locally. A *remote* mismatch cannot be
+recovered locally, so it fails closed: the read errors and the corruption is
+recorded rather than papered over.
+
+The pre-v0.16 non-CAS layout (`{payloadID}/block-{N}`) is no longer read at
+runtime. A store directory still on that layout is refused on open, directing
+the operator to migrate with dittofs ≤ v0.21. See
 [Migration & Block-Layout Routing](#migration--block-layout-routing).
 
 ## Adapter Pattern
@@ -756,7 +998,7 @@ newBlocks, err := blockStore.WriteAt(ctx, string(attr.PayloadID), currentBlocks,
 
 // 4. Persist newBlocks in the same metadata txn that updates Size/Mtime.
 //    The engine never opens the metadata txn itself.
-err = metadataStore.SetFileBlocks(handle, newBlocks, authCtx)
+err = metadataStore.SetFileChunks(handle, newBlocks, authCtx)
 
 // 5. Post-txn surgical cache invalidation: drop only the hashes that
 //    disappeared, preserving warm dedup entries.
@@ -841,8 +1083,8 @@ dittofs/
 │   │
 │   ├── blockstore/               # Per-share block storage
 │   │   ├── doc.go                # Package documentation
-│   │   ├── store.go              # FileBlockStore interface
-│   │   ├── types.go              # FileBlock, BlockState types
+│   │   ├── store.go              # FileChunkStore interface
+│   │   ├── types.go              # FileChunk, BlockState types
 │   │   ├── errors.go             # BlockStore error types
 │   │   ├── chunker/              # FastCDC content-defined chunker
 │   │   │                         # min=1 MiB / avg=4 MiB / max=16 MiB, lvl 2;
@@ -1108,7 +1350,7 @@ documented behavior, not a bug. Past `FileAttr.Size` returns short-read or
 EOF.
 
 `CopyPayload` is **O(1)** — a single metadata transaction increments
-`FileBlock.RefCount` for every distinct hash in `srcBlocks` and inserts
+`FileChunk.RefCount` for every distinct hash in `srcBlocks` and inserts
 the dst rows. No data copy. This is the file-level dedup primitive the
 ObjectID layer (below) builds on.
 
@@ -1162,7 +1404,7 @@ threading, so changes to the read/write path stay confined to the helpers.
 ### Operator surfaces
 
 - `dfsctl blockstore audit-refcounts <share>` runs the refcount
-  reconciliation audit (`∑ FileBlock.RefCount == ∑ len(FileAttr.Blocks)`),
+  reconciliation audit (`∑ FileChunk.RefCount == ∑ len(FileAttr.Blocks)`),
   emits aggregate counts as structured slog INFO, and persists the
   last-run summary at `<localStore>/audit-state/last-inv02.json`. See
   `docs/CLI.md` for the full reference and `docs/FAQ.md` for operator
@@ -1193,7 +1435,7 @@ room for future input-shape changes via `v2`/`v3`).
 - **Cleared (zeroed)** on first dirty write that mutates `FileAttr.Blocks`,
   in the same metadata transaction.
 - **Recomputed and persisted** at the post-Flush coordinator hook
-  (`Syncer.persistFileBlocksAfterFlush` → `MetadataCoordinator.PersistFileBlocks`),
+  (`Syncer.persistFileChunksAfterFlush` → `MetadataCoordinator.PersistFileChunks`),
   in the same metadata transaction that updates `FileAttr.Blocks`/`Size`/`Mtime`.
 - **Persisted ONLY on full quiesce** — every block in `Remote` state.
   Partial flushes leave `ObjectID` at zero.
@@ -1238,14 +1480,14 @@ Production call chain (per-write, on quiesce):
     → engine.BlockStore.Flush
     → engine.Syncer.Flush
         ├─[file-level dedup short-circuit]
-        │   ├─ snapshotPendingBlockRefs(payloadID)         // ListFileBlocks projection
+        │   ├─ snapshotPendingBlockRefs(payloadID)         // ListFileChunks projection
         │   ├─ coordinator.GetFileObjectID(payloadID)      // trigger-condition check
         │   ├─ TrySpeculativeFileLevelDedup
         │   │   ├─ ComputeObjectID(specBlocks)
         │   │   ├─ coordinator.FindByObjectID
         │   │   └─ applyFileLevelDedupHit (one metadata txn):
         │   │       ├─ IncrementRefCount on each target hash
-        │   │       ├─ coordinator.PersistFileBlocks(target.Blocks, provisionalObjectID)
+        │   │       ├─ coordinator.PersistFileChunks(target.Blocks, provisionalObjectID)
         │   │       ├─ DecrementRefCount on speculative-only hashes
         │   │       ├─ Cache.InvalidateFile(removedHashes)
         │   │       └─ local.DeleteAppendLog(payloadID)
@@ -1254,9 +1496,9 @@ Production call chain (per-write, on quiesce):
         └─[post-Flush hook (on miss OR no trigger)]
             ├─ drainPayloadToRemote (uploadOne per Pending block)
             ├─ snapshotBlockRefs (every block now Remote)
-            └─ persistFileBlocksAfterFlush
+            └─ persistFileChunksAfterFlush
                 └─ ComputeObjectID(blocks)
-                └─ coordinator.PersistFileBlocks(blocks, objectID)
+                └─ coordinator.PersistFileChunks(blocks, objectID)
                     └─ runtime coordinator: WithTransaction(GetFileByPayloadID + PutFile)
                         // FileAttr.Blocks AND FileAttr.ObjectID
                         // written in one metadata txn
@@ -1275,9 +1517,9 @@ Source-of-truth file:line anchors:
   `snapshotBlockRefs` (post-Flush input) helpers.
 - `pkg/block/engine/dedup.go::TrySpeculativeFileLevelDedup` and
   `applyFileLevelDedupHit` — the metadata-side swap.
-- `pkg/block/engine/dedup.go::persistFileBlocksAfterFlush` — the
+- `pkg/block/engine/dedup.go::persistFileChunksAfterFlush` — the
   post-Flush coordinator hook.
-- `pkg/controlplane/runtime/shares/coordinator.go::PersistFileBlocks` /
+- `pkg/controlplane/runtime/shares/coordinator.go::PersistFileChunks` /
   `GetFileObjectID` — runtime forwarders.
 
 ### Concurrent quiesce: first-committer-wins
@@ -1329,113 +1571,49 @@ Both fire off the random-write hot path.
 
 ## Migration & Block-Layout Routing
 
-`dfs migrate-to-cas` is the offline tool that converts a share's block
-layout from the older path-indexed keys (`{payloadID}/block-{idx}`) to the
-content-addressable layout (`cas/{hh}/{hh}/{hex}`). Two pieces support it:
-a per-share **`block_layout`** flag, and an engine-level gate that fails
-loud on legacy reads once a share is marked CAS-only.
+DittoFS has had three block layouts (see the migration guide's table). Two
+transitions are handled at startup, per share, before the share serves.
 
-### Per-share `block_layout` flag
+### Standalone CAS (v0.16-v0.21) → packed blocks: automatic
 
-A field `block_layout` on `metadata.ShareOptions` carries the share's
-authoritative layout state:
+The current layout packs chunks into `blocks/<id>` container objects. A share
+carrying leftover standalone-CAS state — pre-flip per-chunk local files, remote
+`cas/` objects, or chunk locators that still point at standalone objects — is
+converted at `engine.Store.Start`, blocking until done, by
+`engine.Store.migrateLegacyCAS` (`pkg/block/engine/legacy_migration.go`):
 
-```go
-// pkg/metadata/types.go
-type BlockLayout uint8
+1. **Phase L** imports pre-flip per-chunk local files into the log-blob tier
+   (BLAKE3-verified, deduplicated) and deletes them
+   (`fs.FSStore.MigrateLegacyChunkFiles`).
+2. **Phase R** re-packs every chunk whose synced marker still carries a
+   standalone locator into `blocks/<id>` objects. Each block's record and all
+   its chunk-locator rewrites commit in **one metadata transaction**
+   (`metadata.DefaultCommitBlock`, last-wins locator overwrite), so a crash can
+   never leave a block record pointing at only some of its chunks.
+3. **Phase P** purges the now-unreferenced `cas/` namespace.
 
-const (
-    BlockLayoutLegacy   BlockLayout = iota   // pre-migration on-disk layout
-    BlockLayoutCASOnly                       // CAS-only: legacy reads fail loud
-)
+The migration is idempotent and resumable: a killed run converges on the next
+start (a crash between PutBlock and the commit leaves at most one orphan block
+object — the same class the live carver produces, reclaimed by the reconcile
+sweep — never a leaked record). Detection is state-free: an `EnumerateSynced`
+scan for standalone locators plus one remote LIST page. The legacy standalone
+layout is understood ONLY by this routine and the `remote.LegacyCASStore`
+accessors it drives; the live read path refuses a standalone locator as
+post-migration drift. If a share's remote is unreachable while standalone
+chunks remain, that share fails to start (its data would be unreadable anyway).
 
-type ShareOptions struct {
-    // ... pre-existing fields ...
-    BlockLayout BlockLayout
-}
-```
+### Pre-v0.16 `.blk` → CAS: migrate with dittofs ≤ v0.21
 
-Storage:
+The offline `.blk`→CAS tool (`dfs migrate-to-cas`) shipped through v0.21 and
+has been removed. `newFSStore` still probes each share for the legacy `.blk`
+layout on open (a `.cas-migrated-v1` sentinel from an old run short-circuits
+the probe) and returns `block.ErrLegacyLayoutDetected`; the boot guard in
+`cmd/dfs/commands/start.go` unwraps it, prints a directive to migrate with an
+earlier release, and exits 78 (`EX_CONFIG`). After that migration + upgrade,
+the automatic cas→blocks conversion above finishes the job.
 
-| Backend  | Layout                                                               |
-|----------|----------------------------------------------------------------------|
-| Postgres | Dedicated `block_layout TEXT NOT NULL DEFAULT 'legacy'` column on `shares` (reversible migration). Authoritative over the options JSON blob. |
-| Badger   | Inline-encoded inside the existing `ShareOptions` blob (gob; `omitempty` on the field for forward-compat with older rows). |
-| Memory   | Direct field on the in-process struct.                               |
-
-`ParseBlockLayout("")` coerces empty / missing values to
-`BlockLayoutLegacy` so older metadata rows decode cleanly. Unknown values
-surface `metadata.ErrInvalidBlockLayout` rather than silently coercing.
-
-The flag is read **once** by `shares.Service.createBlockStoreForShare`
-when the share's per-share `*engine.BlockStore` is constructed, then
-threaded into `engine.SyncerConfig.BlockLayout`. The engine never
-re-reads it during normal operation; the migration tool's cutover
-runs while the daemon is offline so a stale in-memory copy is
-impossible.
-
-### The CAS-only gate
-
-A share marked `block_layout=cas-only` must never read from the older
-key space. The gate that enforces this sits in
-`engine.Syncer.dispatchRemoteFetch`:
-
-```text
-        ┌───────────────────────────────────────────┐
-        │ engine.Syncer.dispatchRemoteFetch(block)  │
-        └────────────────────┬──────────────────────┘
-                             │
-                             ▼
-              block.Hash != ZeroContentHash ?
-                ┌────────────┴────────────┐
-              yes (CAS shape)            no (legacy shape)
-                │                          │
-                ▼                          ▼
-       remote.ReadBlockVerified     [BlockLayout gate]
-                │                          │
-                │                ┌─────────┴─────────┐
-                │             legacy              cas-only
-                │                │                  │
-                ▼                ▼                  ▼
-          (CAS path)     remote.ReadBlock    ErrLegacyReadOnCASOnly
-                                             (fail loud, slog Error)
-```
-
-On a `cas-only` share, a legacy-shaped FileBlock surfaces
-`engine.ErrLegacyReadOnCASOnly`: the function logs at Error with
-`block_id` + `store_key` and returns the wrapped sentinel rather than
-silently falling through to `ReadBlock`. This guards against a
-freshly-migrated share encountering a forgotten legacy FileBlock — the
-engine fails loud rather than reading from a key the migration already
-deleted.
-
-The gate is defense-in-depth: the migration's atomic per-file `PutFile`
-already updates every legacy FileBlock to the CAS shape before flipping
-`block_layout`. A legacy-shaped block post-cutover indicates a migration
-bug, metadata corruption, or a hand-edited row — all of which demand
-operator attention rather than a silent legacy read.
-
-### The migration tool
-
-`dfs migrate-to-cas` is intentionally **offline-only** and runs against the
-stopped server's storage root:
-
-- It requires `--storage-dir <root>`, expected to contain a
-  `shares/<name>/blocks/` subtree per share.
-- It refuses to run while a daemon is serving the target share.
-- It is idempotent: a per-share journal at
-  `<storage-dir>/shares/<name>/.dittofs-migrate-to-cas.state` lets a run
-  resume after a crash without re-uploading already-migrated chunks.
-- The pipeline is: walk → FastCDC re-chunk → `GetByHash` dedup probe →
-  upload (or `IncrementRefCount`) → `PutFile` Blocks + ObjectID → journal
-  append → integrity HEAD-per-ref → cutover (`block_layout` flip) → legacy
-  delete sweep.
-- On success it writes `<storage-dir>/shares/<name>/.cas-migrated-v1` via
-  atomic rename; the server's boot guard refuses to start until that
-  sentinel exists.
-
-See [BLOCKSTORE_MIGRATION.md](/docs/operations/block-store-migration) for the full
-operator runbook.
+See [the migration guide](/docs/operations/block-store-migration) for the operator
+runbook.
 
 ## Performance Characteristics
 

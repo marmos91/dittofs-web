@@ -17,10 +17,11 @@ This guide provides comprehensive instructions for implementing custom metadata 
 4. [Implementing Metadata Stores](#implementing-metadata-stores)
 5. [Implementing a Local Store](#implementing-a-local-store)
 6. [Implementing a Remote Store](#implementing-a-remote-store)
-7. [Best Practices](#best-practices)
-8. [Testing Your Implementation](#testing-your-implementation)
-9. [Common Pitfalls](#common-pitfalls)
-10. [Integration with DittoFS](#integration-with-dittofs)
+7. [Implementing a Remote Block Store (block-keyed)](#implementing-a-remote-block-store-block-keyed)
+8. [Best Practices](#best-practices)
+9. [Testing Your Implementation](#testing-your-implementation)
+10. [Common Pitfalls](#common-pitfalls)
+11. [Integration with DittoFS](#integration-with-dittofs)
 
 ## Overview
 
@@ -117,41 +118,41 @@ The metadata store interface and implementation guide remains the same as before
 
 Conformance tests: `pkg/metadata/storetest/`
 
-### MetadataStore.EnumerateFileBlocks
+### MetadataStore.EnumerateFileChunks
 
 `MetadataStore` carries a mandatory cursor method that the mark-sweep
 garbage collector uses to enumerate every live block hash without loading
 the full file/block set into application memory.
 
-> **Note:** `EnumerateFileBlocks` lives on `MetadataStore`, not
-> `FileBlockStore`. Conceptually it iterates across files for the GC mark
+> **Note:** `EnumerateFileChunks` lives on `MetadataStore`, not
+> `FileChunkStore`. Conceptually it iterates across files for the GC mark
 > phase — a metadata-store-wide concern — so it sits above the narrow
-> `FileBlockStore` surface (see [FileBlockStore narrowing](#fileblockstore-narrowing)
+> `FileChunkStore` surface (see [FileChunkStore narrowing](#filechunkstore-narrowing)
 > below).
 
 ```go
-// EnumerateFileBlocks streams every FileBlock's ContentHash to fn.
+// EnumerateFileChunks streams every FileChunk's ContentHash to fn.
 // Implementations MUST:
 //   - Iterate using a backend-native cursor (Badger prefix iterator,
 //     Postgres server-side cursor with batched fetch, in-memory map
 //     iteration) -- no full-set load.
 //   - Honor ctx.Done(): return ctx.Err() promptly when the context is
 //     cancelled.
-//   - Emit zero-hash FileBlocks the same way as non-zero-hash blocks;
+//   - Emit zero-hash FileChunks the same way as non-zero-hash blocks;
 //     the GC live-set ignores zero hashes.
 //   - Abort iteration and return the fn error verbatim if fn returns
 //     non-nil; do NOT swallow it.
 //   - Be safe under concurrent writes: it is acceptable for the cursor
-//     to miss FileBlocks created mid-iteration; the next mark cycle
+//     to miss FileChunks created mid-iteration; the next mark cycle
 //     will pick them up.
-EnumerateFileBlocks(ctx context.Context, fn func(ContentHash) error) error
+EnumerateFileChunks(ctx context.Context, fn func(ContentHash) error) error
 ```
 
 Conformance scenarios live in `pkg/metadata/storetest/` and every
 backend MUST pass them:
 
 1. **Empty store**: `fn` is never invoked; returns `nil`.
-2. **Single file**: `fn` is invoked once per FileBlock for the file.
+2. **Single file**: `fn` is invoked once per FileChunk for the file.
 3. **Large fanout** (`N` files × `M` blocks): `fn` is invoked exactly
    `N*M` times in any order; no duplicates, no omissions.
 4. **fn-error mid-iteration**: returning a non-nil error from `fn`
@@ -160,30 +161,30 @@ backend MUST pass them:
    the call to return `ctx.Err()` within the polling interval.
 
 Memory-store reference: direct `range` over the in-memory map.
-Badger-store reference: `txn.NewIterator` over the FileBlock prefix.
+Badger-store reference: `txn.NewIterator` over the FileChunk prefix.
 Postgres-store reference: server-side cursor (`DECLARE` + `FETCH`)
 with batches of 1000 rows.
 
-### FileBlockStore narrowing
+### FileChunkStore narrowing
 
-`pkg/block.FileBlockStore` is the narrow public FileBlock surface.
+`pkg/block.FileChunkStore` is the narrow public FileChunk surface.
 Backend implementations are simpler than the engine-internal helpers, which
 live on a separate wider interface.
 
 ```go
 // pkg/block/fileblock.go
-type FileBlockStore interface {
-    // GetByHash returns any FileBlock with the given content hash, or
+type FileChunkStore interface {
+    // GetByHash returns any FileChunk with the given content hash, or
     // (nil, nil) when absent (multiple rows may share a hash; best-effort).
-    GetByHash(ctx context.Context, hash ContentHash) (*FileBlock, error)
+    GetByHash(ctx context.Context, hash ContentHash) (*FileChunk, error)
 
-    // Put creates or replaces a FileBlock by ID (upsert by ID, not hash).
-    Put(ctx context.Context, block *FileBlock) error
+    // Put creates or replaces a FileChunk by ID (upsert by ID, not hash).
+    Put(ctx context.Context, block *FileChunk) error
 
-    // Delete removes a FileBlock by ID. Returns ErrFileBlockNotFound if absent.
+    // Delete removes a FileChunk by ID. Returns ErrFileChunkNotFound if absent.
     Delete(ctx context.Context, id string) error
 
-    // IncrementRefCount atomically bumps RefCount for the given FileBlock id.
+    // IncrementRefCount atomically bumps RefCount for the given FileChunk id.
     IncrementRefCount(ctx context.Context, id string) error
 
     // DecrementRefCount atomically decrements; returns the new count.
@@ -196,19 +197,15 @@ type FileBlockStore interface {
     // AddRef atomically increments RefCount on the row indexed by hash
     // (the dedup LRU hit path). Returns ErrUnknownHash if no row exists.
     AddRef(ctx context.Context, hash ContentHash, payloadID string, blockRef BlockRef) error
-
-    // ListPending returns up to `limit` Pending FileBlocks older than
-    // `olderThan`, for the syncer claim path.
-    ListPending(ctx context.Context, olderThan time.Duration, limit int) ([]*FileBlock, error)
 }
 ```
 
-**Engine-internal companion interface:** `pkg/block.EngineFileBlockStore`
-extends `FileBlockStore` with `GetFileBlock(ctx, id)` and
-`ListFileBlocks(ctx, payloadID)` for the engine's hot paths. All three built-in
+**Engine-internal companion interface:** `pkg/block.EngineFileChunkStore`
+extends `FileChunkStore` with `GetFileChunk(ctx, id)` and
+`ListFileChunks(ctx, payloadID)` for the engine's hot paths. All three built-in
 backends (memory, badger, postgres) satisfy it without changes — the
 narrow public surface is a documentation concern, not a runtime
-restriction. Custom backends implementing `FileBlockStore` SHOULD also
+restriction. Custom backends implementing `FileChunkStore` SHOULD also
 implement the engine-internal helpers if they intend to slot into the
 `*engine.BlockStore`.
 
@@ -239,7 +236,7 @@ Encoding requirements per backend:
   empty `Blocks` slice.
 
 A new metadata-store method persists the list; in the built-in
-backends this is `MetadataStore.SetFileBlocks(ctx, handle, []BlockRef,
+backends this is `MetadataStore.SetFileChunks(ctx, handle, []BlockRef,
 authCtx) error`. Custom metadata backends MUST persist atomically
 with the same transaction that updates `Size`/`Mtime`/`Ctime` — the
 engine relies on caller-side metadata-txn isolation rather than a
@@ -249,13 +246,13 @@ per-chunk metadata roundtrip.
 
 The `pkg/metadata/storetest/` suite includes:
 
-1. **BlockRef round-trip**: `SetFileBlocks` followed by `GetFileAttr`
+1. **BlockRef round-trip**: `SetFileChunks` followed by `GetFileAttr`
    returns the same offset-sorted slice, byte-for-byte.
 2. **Empty / legacy compat**: `FileAttr` blobs without a `Blocks`
    field decode to an empty slice without errors.
 3. **FK cascade (Postgres-only)**: deleting a file removes all
    matching `file_block_refs` rows.
-4. **Refcount reconcile**: `∑ FileBlock.RefCount` over the FileBlockStore
+4. **Refcount reconcile**: `∑ FileChunk.RefCount` over the FileChunkStore
    equals `∑ len(FileAttr.Blocks)` over the MetadataStore at every
    quiescent point.
 5. **Refcount concurrent fuzz** (`pkg/metadata/storetest/inv02_fuzz_test.go`):
@@ -313,79 +310,148 @@ without per-backend `t.Skip` (the `ObjectIDIndexAccessor` capability is
 the only legitimate type-assertion-skip; backends without that accessor
 are still required to pass the functional scenarios).
 
-### Block layout flag
+### Block Record and Local Chunk Index
 
-Metadata backends MUST persist a `block_layout` field on the share
-record. The field is a `metadata.BlockLayout` enum (string-shaped on
-the wire) with values `legacy` or `cas-only`.
+Two additional metadata interfaces persist the bookkeeping needed by the
+blocks-only storage path. All four backends (memory, badger, sqlite, postgres)
+implement both and pass the corresponding conformance groups.
+
+#### BlockRecordStore
+
+Tracks each log-blob block object: its content hash, byte length, live chunk
+count, and sync state. The syncer uses this to decide which blocks are safe to
+upload; the GC uses it to decide which may be deleted.
 
 ```go
-// pkg/metadata/types.go
-type BlockLayout uint8
-
-const (
-    BlockLayoutLegacy   BlockLayout = iota   // pre-migration on-disk layout
-    BlockLayoutCASOnly                       // CAS-only: legacy reads fail loud
-)
-
-type ShareOptions struct {
-    // ... pre-existing fields ...
-    BlockLayout BlockLayout
+// pkg/block/block_record.go
+type BlockRecord struct {
+    BlockID        string
+    BlockHash      block.ContentHash
+    Length         int64
+    LiveChunkCount uint32
+    SyncState      block.BlockState // block.BlockStatePending = 0 while uploading
 }
 ```
 
-**Forward-compat rule:** Empty / missing values MUST coerce to
-`BlockLayoutLegacy` on read so pre-Phase-14 metadata rows decode
-cleanly. Use the `metadata.ParseBlockLayout("")` helper, which
-returns `BlockLayoutLegacy`. Unknown values (anything other than
-`legacy` / `cas-only`) MUST surface `metadata.ErrInvalidBlockLayout`
-rather than coercing — silent coercion would mask bugs in upstream
-backends.
-
-**Round-trip invariant:** `UpdateShareOptions(BlockLayout=cas-only)`
-followed by `GetShare(name)` MUST observe `cas-only`. The migration
-tool's cutover (D-A7) depends on this txn being durable AND visible
-to the engine's next share-open.
-
-The conformance suite scenario `RunBlockLayoutSuite` exercises
-round-trip and update semantics. New backends MUST invoke it from
-their per-backend test file:
-
 ```go
-import "github.com/marmos91/dittofs/pkg/metadata/storetest"
+// pkg/metadata/block_record_store.go
+type BlockRecordStore interface {
+    // PutBlockRecord writes or overwrites the record for rec.BlockID.
+    PutBlockRecord(ctx context.Context, rec block.BlockRecord) error
 
-func TestBlockLayoutConformance(t *testing.T) {
-    storetest.RunBlockLayoutSuite(t, factoryFunc)
+    // GetBlockRecord retrieves the record for blockID.
+    // Returns (_, false, nil) when no record exists — absence is not an error.
+    GetBlockRecord(ctx context.Context, blockID string) (block.BlockRecord, bool, error)
+
+    // DeleteBlockRecord removes the record for blockID. Idempotent.
+    DeleteBlockRecord(ctx context.Context, blockID string) error
+
+    // WalkBlockRecords calls fn for every stored block record.
+    // Returns the first non-nil error from fn or from the store iterator.
+    WalkBlockRecords(ctx context.Context, fn func(block.BlockRecord) error) error
+
+    // DecrLiveChunkCount atomically decrements LiveChunkCount for blockID
+    // by delta, flooring at 0. Returns the remaining count.
+    // Returns an error if blockID does not exist.
+    DecrLiveChunkCount(ctx context.Context, blockID string, delta uint32) (remaining uint32, err error)
 }
 ```
 
-The suite asserts:
+Conformance: `storetest` group **BlockRecordOps** covers put/get round-trip,
+missing-key (returns `false`, not an error), delete idempotency, walk, and
+`DecrLiveChunkCount` with floor clamping.
 
-1. **Default is `legacy`** for newly created shares (pre-existing
-   shares upgraded into v0.15+ default to `legacy`).
-2. **Round-trip** of `UpdateShareOptions(BlockLayout=cas-only)` →
-   `GetShare()` returns `cas-only`.
-3. **Empty-string coercion** at the parsing boundary
-   (`ParseBlockLayout("") == BlockLayoutLegacy`).
-4. **Unknown-value rejection** via `ErrInvalidBlockLayout`.
-5. **Atomic update** semantics — concurrent updates of the same
-   share's `BlockLayout` serialize through the backend's existing
-   share-update path (D-A7 piggybacks on this).
+#### LocalChunkIndex
 
-**Recommended persistence shape per backend:**
+Maps a chunk's content hash to its position in a local log-blob file. It is
+the local-tier analog of `SyncedHashStore`: both are keyed by `ContentHash`,
+both carry a physical locator, and both follow the same idempotent-put /
+safe-miss-on-get / idempotent-delete contract.
 
-| Backend  | Recommended layout                                                   |
-|----------|----------------------------------------------------------------------|
-| Postgres | Dedicated `block_layout TEXT NOT NULL DEFAULT 'legacy'` column on `shares`. Authoritative over the options JSON blob. |
-| Badger   | Inline-encoded inside the existing `ShareOptions` blob (gob; `omitempty` on the field for forward-compat with older rows). |
-| Memory   | Direct field on the in-process struct; no persistence layer.         |
+| Interface         | Key           | Value                        | Tier   |
+|-------------------|---------------|------------------------------|--------|
+| `SyncedHashStore` | `ContentHash` | `block.ChunkLocator`         | Remote |
+| `LocalChunkIndex` | `ContentHash` | `block.LocalChunkLocation`   | Local  |
 
-Cross-references:
+```go
+// pkg/block/block_record.go
+type LocalChunkLocation struct {
+    LogBlobID string // blob filename stem, e.g. "0000000000000001"
+    RawOffset int64  // byte offset within that blob
+    RawLength int64  // byte length of the raw chunk
+}
+```
 
-- [ARCHITECTURE.md — Migration & Block-Layout Routing](/docs/contributing/architecture#migration--block-layout-routing)
-  for how the engine consumes the flag.
-- [BLOCKSTORE_MIGRATION.md](/docs/operations/block-store-migration)
-  for the operator-facing migration story.
+```go
+// pkg/metadata/block_record_store.go
+type LocalChunkIndex interface {
+    // PutLocalLocation records or overwrites the local position for hash.
+    PutLocalLocation(ctx context.Context, hash block.ContentHash, loc block.LocalChunkLocation) error
+
+    // GetLocalLocation returns the local position for hash.
+    // Returns (_, false, nil) when no entry exists.
+    GetLocalLocation(ctx context.Context, hash block.ContentHash) (block.LocalChunkLocation, bool, error)
+
+    // DeleteLocalLocation removes the local position for hash. Idempotent.
+    DeleteLocalLocation(ctx context.Context, hash block.ContentHash) error
+}
+```
+
+Conformance: group **LocalIndexOps** covers put/get round-trip, upsert
+overwrites (second write wins), missing-key, and delete idempotency.
+
+#### DefaultCommitBlock — one fsync per block
+
+`metadata.DefaultCommitBlock` atomically commits an entire block's metadata
+in a single transaction — one fsync per block, not one per chunk:
+
+```go
+// pkg/metadata/block_record_store.go
+func DefaultCommitBlock(
+    ctx context.Context,
+    s interface {
+        Transactor
+        SyncedHashStore
+    },
+    rec block.BlockRecord,
+    chunks []block.BlockChunkCommit,
+) error
+```
+
+`BlockChunkCommit` bundles the per-chunk commit data:
+
+```go
+// pkg/block/block_record.go
+type BlockChunkCommit struct {
+    Hash   block.ContentHash
+    Remote block.ChunkLocator      // remote locator passed to MarkSynced
+    Local  block.LocalChunkLocation // local locator stored in LocalChunkIndex
+}
+```
+
+Inside `WithTransaction`, `DefaultCommitBlock`:
+
+1. Calls `GetBlockRecord` — if the block record already exists the whole
+   function is a no-op (idempotent restart path; no double-counting).
+2. Calls `PutBlockRecord` with `rec`.
+3. Calls `PutLocalLocation` for every chunk in `chunks`.
+
+After the transaction commits, it calls `MarkSynced` on `SyncedHashStore`
+for every chunk, recording the remote locator. `MarkSynced` runs outside
+the transaction and is itself idempotent, so a crash between the committed
+transaction and the last `MarkSynced` call is safe: the next retry skips the
+transaction (block record already exists) and re-runs only the `MarkSynced`
+loop.
+
+Backends expose `CommitBlock` on the `Store` interface and SHOULD delegate to
+`DefaultCommitBlock`:
+
+```go
+CommitBlock(ctx context.Context, rec block.BlockRecord, chunks []block.BlockChunkCommit) error
+```
+
+Conformance: group **CommitBlockOps** covers full commit with multiple chunks,
+idempotent re-commit, and `MarkSynced` retry after a simulated mid-commit crash.
 
 ### Engine API surface
 
@@ -706,6 +772,111 @@ The dedicated `ReadBlockVerified` path on `RemoteStore` (round-trip succeeds;
 body-mismatch returns `block.ErrCASContentMismatch`; corrupt bytes never
 surface upstream) is exercised separately — see `pkg/block/remote/s3` for the
 verification tests.
+
+## Implementing a Remote Block Store (block-keyed)
+
+The `pkg/block/remote.RemoteBlockStore` interface is the **block-keyed** (non-CAS) remote store surface used by the live write path. Every new write is packed into block objects under the `blocks/` prefix, separate from the legacy CAS `cas/` namespace — the two namespaces never collide. New remote backends should implement `RemoteBlockStore`.
+
+> **Legacy CAS reads:** The per-chunk CAS object path (`cas/<hash>`, hash-keyed `Get`/`GetRange` on `RemoteStore`) is **read-only** and exists purely for backward compatibility with data written before the blocks-only flip. No new `cas/` objects are ever written; a later migration re-packs the remaining ones, after which the legacy `RemoteStore` CAS surface is removed. A backend that only ever serves fresh DittoFS deployments does not need it.
+
+### The RemoteBlockStore Interface
+
+```go
+type RemoteBlockStore interface {
+    PutBlock(ctx context.Context, blockID string, r io.Reader) error
+    GetBlock(ctx context.Context, blockID string) ([]byte, error)
+    GetBlockRange(ctx context.Context, blockID string, offset, length int64) ([]byte, error)
+    DeleteBlock(ctx context.Context, blockID string) error
+    WalkBlocks(ctx context.Context, fn func(blockID string, meta block.Meta) error) error
+}
+```
+
+See `pkg/block/remote/remote.go` for the authoritative definition and per-method docstrings. Current implementations: `pkg/block/remote/s3/` and `pkg/block/remote/memory/`.
+
+#### Key shape
+
+Objects are keyed by an opaque `blockID` string. The on-disk/on-wire key is `block.FormatBlockKey(blockID)` = `"blocks/<blockID>"`. Backends derive this key internally; callers and the engine never construct raw S3/object-store keys.
+
+#### PutBlock
+
+Writes the content of `r` under `blocks/<blockID>`. Implementations **must** stream `r` without buffering the full body — callers may supply an unbounded reader (e.g., an in-progress packing file). The call is idempotent: a second `PutBlock` for the same `blockID` overwrites silently.
+
+#### GetBlock
+
+Returns the full bytes of the named block object. Returns `block.ErrChunkNotFound` when the block is absent. The returned slice must be freshly allocated and must not alias internal storage.
+
+#### GetBlockRange
+
+Returns `[offset, offset+length)` bytes of the block object. Bounds validation:
+
+- **Negative offset** — must return `block.ErrInvalidOffset` (client-validated before any network call).
+- **Past-EOF offset** — a past-EOF offset cannot be detected here without a `HEAD`, so backends surface a native error (S3: HTTP 416) rather than `ErrInvalidOffset`. The contract only requires _some_ error for `offset >= EOF`.
+- **Non-positive length** — must return `block.ErrInvalidSize`.
+- **Past-EOF length** — clamped to the object's remaining bytes on backends that support partial-content (S3 `Range` header); no error.
+- **Absent blockID** — must return `block.ErrChunkNotFound`.
+
+#### DeleteBlock
+
+Removes the block object. Idempotent: deleting an absent `blockID` must return `nil`.
+
+#### WalkBlocks
+
+Enumerates every block object under the `blocks/` prefix. The callback receives the `blockID` (with the `blocks/` prefix stripped) and a `block.Meta` (size, last-modified timestamp). Ordering is unspecified.
+
+- Returning `block.ErrStopWalk` from the callback is a clean early exit — `WalkBlocks` returns `nil`.
+- Any other callback error halts enumeration and is returned wrapped as `"walk halted at <blockID>: %w"`.
+- Context cancellation aborts immediately.
+
+### Block codec wire format
+
+Block objects are written by `pkg/block/blockcodec`. A single block packs one or more chunk records into a continuous byte stream:
+
+```
+Block = [ preamble ][ record_0 ][ record_1 ] … [ record_{N-1} ]
+
+preamble:
+  magic      [4]byte = {'D','F','B','1'}   // "DFB1" — identifies a DittoFS block object
+  flags      uint8                          // bit0 = 1 → record headers are AEAD-sealed
+  blockID    uvarint(len) + len bytes (UTF-8)
+
+record (plaintext, flags bit0 = 0):
+  hash       [32]byte                       // chunk BLAKE3 content hash
+  wireLen    uvarint
+  wire       [wireLen]byte                  // enc(comp(chunk)) — already-transformed body
+
+record (sealed, flags bit0 = 1):
+  sealedHdrLen  uvarint
+  sealedHdr     [sealedHdrLen]byte          // AEAD seal of {hash[32], wireLen uvarint}
+                                            // AAD = blockID || recordIndex(uvarint)
+  wire          [wireLen]byte               // wireLen recovered by opening sealedHdr
+```
+
+**Sealed-header framing** is used on encrypted shares. The AEAD tag covers `hash + wireLen` with `blockID||recordIndex` as additional authenticated data, while the `wire` body is already the encrypted chunk body (the encryption decorator applies its transform before `Builder.Add` is called). The chunk metadata is therefore authenticated even though the wire body is opaque.
+
+**Locators.** Each call to `Builder.Add(hash, wire)` returns a `block.ChunkLocator{BlockID, WireOffset, WireLength}` — the byte range of the wire body within the block object. `WireOffset` and `WireLength` are over wire bytes (after the per-record header), not plaintext bytes. The engine stores these locators in the metadata store and recovers an individual chunk via `GetBlockRange(blockID, WireOffset, WireLength)` (surfaced through the optional `ChunkReader.ReadChunk` extension on the same backend).
+
+### Conformance suite
+
+Every new `RemoteBlockStore` backend must pass `blockstoretest.RemoteBlockStoreConformance`:
+
+```go
+package myremote_test
+
+import (
+    "testing"
+    "github.com/marmos91/dittofs/pkg/block/blockstoretest"
+)
+
+func TestMyRemoteBlockStore(t *testing.T) {
+    factory := func(t *testing.T) (blockstoretest.RemoteBlockStore, func()) {
+        store, cleanup := createTestStore(t)
+        return store, cleanup
+    }
+    blockstoretest.RemoteBlockStoreConformance(t, factory)
+}
+```
+
+The suite covers: `PutBlock`/`GetBlock` round-trip, no-aliasing, `GetBlockRange` mid-range/past-EOF-clamped/invalid-offset/invalid-size/absent, `DeleteBlock` durability and idempotency, `WalkBlocks` enumeration and `ErrStopWalk`, idempotent `PutBlock`, zero-byte blocks, and concurrent same-ID `PutBlock`.
 
 ## Best Practices
 
