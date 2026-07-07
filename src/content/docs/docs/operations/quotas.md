@@ -38,7 +38,7 @@ unlimited.
 
 ```bash
 dfsctl quota list /export
-dfsctl quota rm /export --scope user --id 1000
+dfsctl quota remove /export --scope user --id 1000
 ```
 
 ## How enforcement works

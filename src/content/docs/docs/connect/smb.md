@@ -40,10 +40,33 @@ DittoFS negotiates the highest mutually-supported dialect with each client.
 | SMB 2.0.2 | 0x0202 | Basic file operations, credits, HMAC-SHA256 signing |
 | SMB 3.0   | 0x0300 | AES-128-CCM encryption, AES-128-CMAC signing, secure dialect negotiation |
 | SMB 3.0.2 | 0x0302 | VALIDATE_NEGOTIATE_INFO downgrade protection |
-| SMB 3.1.1 | 0x0311 | Preauth integrity (SHA-512), AES-128-GCM encryption, GMAC signing, negotiate contexts |
+| SMB 3.1.1 | 0x0311 | Preauth integrity (SHA-512), AES-256/128-GCM & -CCM encryption (AES-256-GCM preferred), GMAC signing, negotiate contexts |
 
 SMB 3.1.1 is preferred; it provides the strongest security and best cipher performance on
 AES-NI-capable hardware.
+
+### Selecting a dialect (the SMB "version")
+
+Unlike NFS — where the client states an exact version with `vers=` — SMB
+**auto-negotiates**: the client and server agree on the highest dialect both
+support, and DittoFS always offers up to 3.1.1. So most clients need no version
+flag at all.
+
+You only pin a dialect when troubleshooting or forcing weaker/stronger crypto:
+
+| Client | How to pin a dialect | Default behaviour |
+|--------|----------------------|-------------------|
+| **Linux** (`mount.cifs`) | `-o vers=3.1.1` (also `2.0`, `2.1`, `3.0`) | Modern `cifs-utils` negotiates ≥ 2.1 automatically. |
+| **macOS** (`mount_smbfs`) | No per-mount dialect flag — always negotiates the best. | Negotiates up to 3.1.1. |
+| **Windows** (`net use` / Explorer) | No per-mount flag (tune via the SMB client service). | Negotiates up to 3.1.1. |
+| **`dfsctl share mount --protocol smb`** | No flag; requests `vers=2.1` on Linux, lets macOS negotiate. | Wrapper picks safe defaults — see [Mounting](#mounting-smb-shares). |
+
+`seal` (on Linux `mount.cifs`) forces SMB3 encryption and therefore a 3.x
+dialect; pair it with `vers=3.1.1` to negotiate the strongest AEAD cipher the
+client offers — DittoFS prefers AES-256-GCM, then AES-256-CCM, then the AES-128
+variants.
+The matching `dfsctl` convenience wrapper is shown under
+[Mounting SMB Shares](#mounting-smb-shares).
 
 ### Protocol Implementation Status
 
@@ -110,7 +133,7 @@ AES-NI-capable hardware.
 | Persistent Handles | Cluster-aware handles (requires shared state) |
 | RDMA | Remote Direct Memory Access transport |
 | QUIC | UDP-based transport (SMB over QUIC) |
-| SACL / auditing | Audit ACEs are not enforced (owner/group/DACL **are** supported — see [Access Control](/docs/connect/access-control)) |
+| SACL / auditing | Audit ACEs round-trip (read/write/Auditing tab) but are not *enforced* — no audit events are emitted (owner/group/DACL **are** supported — see [Access Control](/docs/connect/access-control)) |
 | DFS | Distributed File System referrals |
 
 ---
@@ -118,7 +141,8 @@ AES-NI-capable hardware.
 ## Mounting SMB Shares
 
 DittoFS listens on **port 12445** by default (port 445 requires root). All examples below use
-that port.
+that port. To serve the standard SMB port 445 in production (so clients connect with no port
+suffix), see [Running on standard ports (production)](/docs/getting-started/install#running-on-standard-ports-production).
 
 ### Using dfsctl (Recommended)
 
@@ -636,7 +660,7 @@ See [Troubleshooting › Cross-Protocol Issues](/docs/operations/troubleshooting
 4. **No persistent handles**: Cluster-aware handles require shared state infrastructure
 5. **No RDMA transport**: Remote Direct Memory Access not supported
 6. **No QUIC transport**: SMB over QUIC (UDP) not supported
-7. **No SACL / audit ACEs**: Owner, group, and DACL security descriptors **are** supported (see [Access Control](/docs/connect/access-control)); only audit ACEs (SACL) are not enforced
+7. **SACL audit events not generated**: Owner, group, and DACL security descriptors **are** supported (see [Access Control](/docs/connect/access-control)); audit ACEs (SACL) round-trip through read/write and the Windows Auditing tab but are not *enforced* — no audit log is emitted on a matching access
 8. **No DFS referrals**: Distributed File System not supported
 
 ### Operational Limitations
