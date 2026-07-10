@@ -439,6 +439,45 @@ the added latency.
 data-at-risk gauge (local CAS bytes not yet mirrored to the remote) — which is
 the way to observe the async mirror backlog under the default policy.
 
+#### Chunk size — random-access shares (`chunk_size`)
+
+DittoFS splits file data into content-defined (FastCDC) chunks. A chunk is the
+unit of dedup, of the local cache, and — critically — of a **read fetch**: a
+small random read pulls the whole chunk covering its offset. The default chunk
+floor is ~1 MiB, so a 4 KiB random read into a large file amplifies to ~1 MiB
+(~256×). That is fine for sequential and archival workloads but poor for random
+I/O (VM images, databases).
+
+`chunk_size` (bytes) lowers the FastCDC minimum for a share, shrinking the read
+unit. Effective average chunk size ≈ `chunk_size`; a hard ceiling is derived
+(8× `chunk_size`) unless you set `chunk_max` explicitly.
+
+```sh
+# Random-access share: ~128 KiB chunks (≈8× less read amplification)
+dfsctl store block local edit <share> --config '{"chunk_size": 131072}'
+```
+
+| Setting | Effective avg | 4 KiB random-read amplification | Trade-off |
+|---------|---------------|---------------------------------|-----------|
+| default (unset) | ~1 MiB | ~256× | best dedup, fewest manifest rows |
+| `65536` (64 KiB) | ~94 KiB | ~16× | ~16× more `FileChunk` rows; ~0 extra dedup loss on VM/DB |
+| `131072` (128 KiB) | ~159 KiB | ~32× | ~8× more manifest rows |
+| `262144` (256 KiB) | ~287 KiB | ~64× | ~4× more manifest rows |
+
+Notes:
+
+- **S3 object count is unchanged.** Chunks are packed into ~16 MiB block objects
+  regardless of `chunk_size`, so smaller chunks do **not** create more/smaller
+  S3 objects — only more `FileChunk` manifest rows. Writes/uploads keep their
+  full throughput.
+- **Write-time only.** Reads never re-chunk — the manifest records each chunk's
+  boundaries — so changing `chunk_size` affects only newly written data, and old
+  data stays readable. Dedup is not restored across a change (different
+  boundaries → different hashes), but on VM/DB images dedup is already ~0.
+- Invalid or below-floor (< 4 KiB) values are ignored with a startup warning and
+  the default stands. Applies to `fs` local stores; `memory` local stores ignore
+  it (in-RAM reads have no amplification).
+
 #### GC knobs
 
 The CAS write path uses an async syncer and a fail-closed mark-sweep
@@ -551,7 +590,15 @@ filling the host volume, the local cache is bounded and writes apply
   `blockstore.local.default_remote_cache_size` (default **10 GiB**). An
   explicit `--local-store-size` always wins. **Local-only shares are
   unaffected** — they keep their existing system-deduced local size and never
-  apply remote-cache backpressure.
+  apply remote-cache backpressure. The cap is enforced **lazily, on the
+  write/rollup path** (it evicts synced blocks to make room for new writes); it
+  is **not** a background reaper, so on an idle or read-only workload the
+  resident local tier is not shrunk toward the cap. To reclaim local disk — or
+  to force cold, remote-served reads for read-path benchmarking — evict on
+  demand with `dfsctl store block evict` (drops the read buffer and drains
+  resident synced blocks; never drops not-yet-uploaded data). Remote read-miss
+  volume (the read-amplification signal) is observable via the
+  `dittofs_datapath_block_range_read_bytes_total` metric.
 - **Backpressure stall.** When the cache is full and every cached chunk is
   still unsynced, a write **stalls** waiting for the syncer to drain to the
   remote and free space, rather than failing. The stall is bounded by
@@ -1592,6 +1639,68 @@ export DITTOFS_ADAPTERS_SMB_CROSS_PROTOCOL_DELEGATION_RECALL_TIMEOUT=90s
 export DITTOFS_ADAPTERS_SMB_CROSS_PROTOCOL_ANTI_STORM_TTL=30s
 ```
 
+#### Network discovery (mDNS / WS-Discovery)
+
+DittoFS can advertise itself on the LAN so it appears in **macOS Finder →
+Network**, Linux file managers (via Avahi), and the **Windows Explorer →
+Network** view — the same job the external `avahi-daemon` and `wsdd`/`wsdd2`
+daemons do for Samba, but built in-process. Discovery is **off by default** and
+managed through the live adapter settings (`dfsctl` / REST), so it applies
+immediately without an adapter restart:
+
+```bash
+# mDNS / DNS-SD — macOS Finder + Linux Avahi
+dfsctl adapter settings nfs update --mdns-enabled          # advertises _nfs._tcp (port 12049)
+dfsctl adapter settings smb update --mdns-enabled          # advertises _smb._tcp + _device-info._tcp
+
+# WS-Discovery — Windows Explorer Network (SMB only; Windows does not browse NFS)
+dfsctl adapter settings smb update --wsdiscovery-enabled
+```
+
+This opens additional listeners: mDNS on UDP `5353`, and — for WS-Discovery —
+UDP `3702` plus an HTTP metadata endpoint on TCP `5357`. NFS advertises the
+first export's path in a `path=` TXT record so Finder mounts the right share.
+
+**Advertised name.** All advertisers share one instance-wide name, so a server
+shows up consistently across Finder and Explorer. It defaults to
+`DittoFS-<hostname>` (e.g. `DittoFS-VM2`) — distinct per host so several DittoFS
+servers on one LAN stay distinguishable — and is overridable:
+
+```bash
+dfsctl settings set discovery.name "Marketing Files"   # custom instance name
+dfsctl settings set discovery.name ""                  # revert to DittoFS-<hostname>
+```
+
+Each adapter formats the name for its own protocol: mDNS uses it verbatim, while
+WS-Discovery folds it to a NetBIOS-legal computer name (upper-cased, illegal
+characters replaced with `-`, capped at 15 characters) since Explorer renders it
+as a Windows computer name. A name change takes effect the next time an
+advertiser (re)starts — toggle discovery off/on, or restart the adapter.
+
+> **Note:** discovery is multicast-based and LAN-local. It works on a host
+> network (bare metal, VM, or a `hostNetwork` pod) but does **not** traverse
+> standard Kubernetes / overlay networks — Explorer and Finder will only see the
+> server on the same L2 segment. Mounting by name/IP always works regardless.
+> WS-Discovery makes the machine *appear* in Explorer; Windows still connects to
+> SMB on port `445`, so the SMB adapter must be reachable there.
+
+> **Windows host firewall:** when DittoFS runs *on* a Windows host, the built-in
+> "Network Discovery" firewall rules only cover Windows' own services (they are
+> scoped to `System` / `svchost`), so inbound traffic to `dfs.exe` is dropped by
+> default. Explorer then discovers the server over multicast but silently fails
+> the follow-up metadata fetch (a TCP `5357` connection that never completes),
+> and the machine never renders. Add inbound allow rules for the `dfs.exe`
+> program on TCP `5357` and UDP `3702`/`5353`:
+>
+> ```powershell
+> New-NetFirewallRule -DisplayName "DittoFS Discovery (WSD meta)"  -Direction Inbound -Action Allow -Protocol TCP -LocalPort 5357 -Program "C:\path\to\dfs.exe" -Profile Any
+> New-NetFirewallRule -DisplayName "DittoFS Discovery (WSD probe)" -Direction Inbound -Action Allow -Protocol UDP -LocalPort 3702 -Program "C:\path\to\dfs.exe" -Profile Any
+> New-NetFirewallRule -DisplayName "DittoFS Discovery (mDNS)"      -Direction Inbound -Action Allow -Protocol UDP -LocalPort 5353 -Program "C:\path\to\dfs.exe" -Profile Any
+> ```
+>
+> This is a Windows-host concern only; a Linux DittoFS host needs no equivalent
+> (any host firewall there just needs the same ports open).
+
 ### 11. NFSv4 Configuration
 
 ```yaml
@@ -1657,9 +1766,76 @@ samba-tool domain exportkeytab /etc/dittofs/dittofs.keytab \
 
 Point `kerberos.keytab_path` at the combined keytab. The SMB handler selects
 the `cifs/` principal (deriving it from the NFS `service_principal`, or via an
-explicit override); NFS RPCSEC_GSS uses the `nfs/` principal. Online
-`net ads join` + machine-password rotation is out of scope (deferred — see
-#1231).
+explicit override); NFS RPCSEC_GSS uses the `nfs/` principal.
+
+#### NTLM pass-through for AD domain users (NETLOGON machine account)
+
+The keytab above authenticates AD users over **Kerberos** (mounting by the SPN
+FQDN, e.g. `\\server.example.com\share`). But when a client connects by a name
+that has **no Kerberos SPN** — an IP address, or the LAN-discovery name a user
+gets by **double-clicking the server in Explorer → Network** (§10) — Windows
+falls back to **NTLM**, which the KDC never sees. To let AD domain users
+authenticate on that path, DittoFS validates their NTLM response against a
+Domain Controller via **NETLOGON pass-through** (MS-NRPC `NetrLogonSamLogon`).
+
+This is **opt-in** and requires a dedicated **machine (computer) account** —
+distinct from the `cifs/` service account in the keytab, because NETLOGON needs
+a *workstation-trust* secure channel that only a machine account can establish.
+The secure channel rides a Kerberos-authenticated SMB session to the DC's
+`\PIPE\netlogon` (reusing the same `krb5_conf` / realm as above). On success the
+DC returns the user's SID **and group SIDs**, which resolve to a UID/GID through
+the directory idmap (§13 / the LDAP identity provider, or `idmap_rid`) and are
+matched against share grants — the **same SID-based authorization** as the
+Kerberos/PAC path, so a domain user or **group** (e.g. `Domain Admins`) granted
+on a share is authorized identically over NTLM.
+
+```yaml
+kerberos:
+  # ... realm / netbios_domain / keytab_path as above ...
+
+  machine_account:
+    enabled: true                 # opt-in; false (default) => no NTLM pass-through
+    account_name: "DITTOFS$"      # the machine account sAMAccountName (trailing '$')
+    dc_address:                   # optional; empty => discover the DC via DNS SRV
+      - "10.0.0.10"
+
+    # Provisioning — pick ONE:
+
+    # (A) OFFLINE: you pre-create the computer account and give DittoFS its
+    #     password. Nothing is written to AD at runtime.
+    secret: "the-machine-account-password"
+
+    # (B) ONLINE JOIN: DittoFS creates the computer object itself over LDAPS on
+    #     first domain logon, owns the password, and rotates it. Requires a
+    #     privileged bind account that can create computer objects. Omit
+    #     `secret` when using this. LDAPS (or ldap:// + start_tls) is mandatory —
+    #     AD refuses a machine-password write over an unencrypted connection.
+    online_join:
+      enabled: true
+      ldap_url: "ldaps://dc.example.com"
+      bind_dn: "CN=Administrator,CN=Users,DC=example,DC=com"
+      bind_password: "..."
+      base_dn: "DC=example,DC=com"
+      # ou: "OU=Servers,DC=example,DC=com"   # default: CN=Computers,<base_dn>
+      rotation_interval: 168h                 # 0 disables rotation (AD max age ~30d)
+      # ca_cert_file: /etc/dittofs/dc-ca.pem  # pin the DC cert (recommended)
+      # insecure_skip_verify: false           # lab only; exposes the password to MITM
+```
+
+| Key | Env var | Default |
+|---|---|---|
+| `kerberos.machine_account.enabled` | `DITTOFS_KERBEROS_MACHINE_ACCOUNT_ENABLED` | `false` |
+| `kerberos.machine_account.account_name` | `DITTOFS_KERBEROS_MACHINE_ACCOUNT_ACCOUNT_NAME` | (empty) |
+| `kerberos.machine_account.secret` | `DITTOFS_KERBEROS_MACHINE_ACCOUNT_SECRET` | (empty; offline path) |
+| `kerberos.machine_account.dc_address` | `DITTOFS_KERBEROS_MACHINE_ACCOUNT_DC_ADDRESS` | (empty → DNS SRV discovery) |
+| `kerberos.machine_account.online_join.enabled` | `DITTOFS_KERBEROS_MACHINE_ACCOUNT_ONLINE_JOIN_ENABLED` | `false` |
+| `kerberos.machine_account.online_join.ldap_url` | `DITTOFS_KERBEROS_MACHINE_ACCOUNT_ONLINE_JOIN_LDAP_URL` | (empty) |
+
+`realm` and `netbios_domain` are **required** for pass-through (the secure
+channel and NTLM `TargetInfo` both need them). The `secret` / `bind_password`
+are redacted in `dfs config show`. For a full walkthrough — pre-creating the
+`DITTOFS$` account and testing the Explorer double-click — see
+[docs/guide/windows-ad-setup.md](https://github.com/marmos91/dittofs/blob/develop/docs/guide/windows-ad-setup.md).
 
 ### 13. Identity Mapping Configuration
 

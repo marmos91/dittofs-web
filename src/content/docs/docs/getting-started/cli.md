@@ -26,6 +26,8 @@ This page is generated from the command definitions (`go run ./cmd/gendocs`). Do
   - [`dfs init`](#dfs-init) — Initialize a sample configuration file
   - [`dfs logs`](#dfs-logs) — Tail server logs
   - [`dfs migrate`](#dfs-migrate) — Run database migrations
+  - [`dfs netlogon`](#dfs-netlogon) — Inspect and test NETLOGON machine-account (NTLM pass-through) setup
+    - [`dfs netlogon test`](#dfs-netlogon-test) — Probe the NETLOGON secure channel to the domain controller
   - [`dfs start`](#dfs-start) — Start the DittoFS server
   - [`dfs status`](#dfs-status) — Show server status
   - [`dfs stop`](#dfs-stop) — Stop the DittoFS server
@@ -372,6 +374,63 @@ Global flags:
       --config string   config file (default: $XDG_CONFIG_HOME/dittofs/config.yaml)
 ```
 
+### `dfs netlogon`
+
+Inspect and test NETLOGON machine-account (NTLM pass-through) setup
+
+NETLOGON machine-account tooling for SMB NTLM pass-through of AD domain users.
+
+When a client connects by a name with no Kerberos SPN (an IP, or the Explorer →
+Network discovery name), Windows falls back to NTLM. DittoFS validates that NTLM
+response against a domain controller over a NETLOGON secure channel, using a
+machine (computer) account configured under 'kerberos.machine_account'. Use these
+subcommands to verify that setup.
+
+Global flags:
+
+```
+      --config string   config file (default: $XDG_CONFIG_HOME/dittofs/config.yaml)
+```
+
+### `dfs netlogon test`
+
+Probe the NETLOGON secure channel to the domain controller
+
+Validate that the configured machine account can establish a NETLOGON secure
+channel to a domain controller — the channel NTLM pass-through for AD domain users
+rides.
+
+It authenticates the machine account and brings up the sealed secure channel (the
+same handshake a real domain-user NTLM logon triggers), then tears it down. No user
+logon (NetrLogonSamLogon) is performed. Use it to verify machine-account
+credentials, DC reachability, and Kerberos configuration before relying on Explorer
+double-click / NTLM logons.
+
+This probes the OFFLINE machine-account channel (kerberos.machine_account with an
+account_name + secret). Online join provisions the computer object lazily on the
+first domain logon against the running server — start the server and check its log
+for the join result instead.
+
+```
+dfs netlogon test
+```
+
+**Examples:**
+
+```bash
+# Probe using the default config location
+dfs netlogon test
+
+# Probe using an explicit config file
+dfs netlogon test --config /etc/dittofs/config.yaml
+```
+
+Global flags:
+
+```
+      --config string   config file (default: $XDG_CONFIG_HOME/dittofs/config.yaml)
+```
+
 ### `dfs start`
 
 Start the DittoFS server
@@ -557,10 +616,6 @@ Global flags:
         - [`dfsctl adapter settings smb reset`](#dfsctl-adapter-settings-smb-reset) — Reset adapter settings to defaults
         - [`dfsctl adapter settings smb show`](#dfsctl-adapter-settings-smb-show) — Show current adapter settings
         - [`dfsctl adapter settings smb update`](#dfsctl-adapter-settings-smb-update) — Update adapter settings
-  - [`dfsctl bench`](#dfsctl-bench) — Run filesystem benchmarks
-    - [`dfsctl bench compare`](#dfsctl-bench-compare) — Compare benchmark results from multiple systems
-    - [`dfsctl bench run`](#dfsctl-bench-run) — Run filesystem benchmarks
-    - [`dfsctl bench storage-tiers`](#dfsctl-bench-storage-tiers) — Benchmark storage tier performance (cold/warm/local-only)
   - [`dfsctl client`](#dfsctl-client) — Manage connected clients
     - [`dfsctl client disconnect`](#dfsctl-client-disconnect) — Disconnect a client
     - [`dfsctl client list`](#dfsctl-client-list) — List connected clients
@@ -607,6 +662,9 @@ Global flags:
     - [`dfsctl netgroup remove`](#dfsctl-netgroup-remove) — Remove a netgroup
     - [`dfsctl netgroup remove-member`](#dfsctl-netgroup-remove-member) — Remove a member from a netgroup
     - [`dfsctl netgroup show`](#dfsctl-netgroup-show) — Show netgroup details
+  - [`dfsctl netlogon`](#dfsctl-netlogon) — Inspect and control the NETLOGON machine account (SMB NTLM pass-through)
+    - [`dfsctl netlogon rotate`](#dfsctl-netlogon-rotate) — Force a machine-account password rotation now
+    - [`dfsctl netlogon status`](#dfsctl-netlogon-status) — Show live NETLOGON machine-account and secure-channel state
   - [`dfsctl quota`](#dfsctl-quota) — Per-identity quota management
     - [`dfsctl quota list`](#dfsctl-quota-list) — List all quotas on a share
     - [`dfsctl quota remove`](#dfsctl-quota-remove) — Remove a per-identity quota
@@ -1136,6 +1194,7 @@ Flags:
       --max-read-size int                    Maximum read size in bytes
       --max-version string                   Maximum NFS version (e.g., 4.1)
       --max-write-size int                   Maximum write size in bytes
+      --mdns-enabled                         Advertise the NFS export over mDNS/DNS-SD (_nfs._tcp) for macOS Finder / Linux Avahi (applied immediately)
       --min-version string                   Minimum NFS version (e.g., 3)
       --portmapper-enabled                   Enable embedded portmapper
       --portmapper-port int                  Portmapper listen port
@@ -1320,196 +1379,12 @@ Flags:
       --max-connections int         Maximum concurrent connections
       --max-dialect string          Maximum SMB dialect
       --max-sessions int            Maximum concurrent SMB sessions
+      --mdns-enabled                Advertise the SMB service over mDNS/DNS-SD (_smb._tcp) for macOS Finder / Linux Avahi (applied immediately)
       --min-dialect string          Minimum SMB dialect
       --oplock-break-timeout int    Oplock break timeout in seconds
       --session-timeout int         SMB session timeout in seconds
       --signing string              SMB message signing mode: disabled|enabled|required
-```
-
-Global flags:
-
-```
-      --cacert string        Path to a PEM CA bundle trusted for the server certificate (overrides stored)
-      --client-cert string   Path to a PEM client certificate for mutual TLS (overrides stored)
-      --client-key string    Path to the PEM client private key for mutual TLS (overrides stored)
-      --no-color             Disable colored output
-  -o, --output string        Output format (table|json|yaml) (default "table")
-      --server string        Server URL (overrides stored credential)
-      --tls-skip-verify      Disable TLS certificate verification (insecure; overrides stored)
-      --token string         Bearer token (overrides stored credential)
-  -v, --verbose              Enable verbose output
-```
-
-### `dfsctl bench`
-
-Run filesystem benchmarks
-
-Run I/O and metadata benchmarks against any mounted filesystem path.
-
-The benchmark suite operates directly on the filesystem; no API authentication is needed for basic workloads. Use 'bench run' to collect results and save them as JSON, then 'bench compare' to render a side-by-side comparison across systems. The 'bench storage-tiers' subcommand requires admin authentication to evict cache layers between reads.
-
-**Examples:**
-
-```bash
-# Run all benchmark workloads on a mounted NFS share
-dfsctl bench run /mnt/bench
-
-# Run with 8 threads and 512 MiB files
-dfsctl bench run /mnt/bench --threads 8 --file-size 512MiB --duration 30s
-
-# Run and save results for later comparison
-dfsctl bench run /mnt/bench --system dittofs --save results/dittofs.json
-
-# Compare saved results from two systems
-dfsctl bench compare results/dittofs.json results/kernel-nfs.json
-```
-
-Global flags:
-
-```
-      --cacert string        Path to a PEM CA bundle trusted for the server certificate (overrides stored)
-      --client-cert string   Path to a PEM client certificate for mutual TLS (overrides stored)
-      --client-key string    Path to the PEM client private key for mutual TLS (overrides stored)
-      --no-color             Disable colored output
-  -o, --output string        Output format (table|json|yaml) (default "table")
-      --server string        Server URL (overrides stored credential)
-      --tls-skip-verify      Disable TLS certificate verification (insecure; overrides stored)
-      --token string         Bearer token (overrides stored credential)
-  -v, --verbose              Enable verbose output
-```
-
-### `dfsctl bench compare`
-
-Compare benchmark results from multiple systems
-
-Load two or more JSON result files produced by 'bench run' and render a side-by-side comparison table.
-
-Each column in the output represents one system. Workloads and metrics are aligned across rows so you can directly compare throughput and IOPS between implementations. Pass -o json to get the raw comparison data for scripting.
-
-```
-dfsctl bench compare FILE [FILE...]
-```
-
-**Examples:**
-
-```bash
-# Compare DittoFS against kernel NFS
-dfsctl bench compare results/dittofs.json results/kernel-nfs.json
-
-# Compare all result files in a directory
-dfsctl bench compare results/*.json
-```
-
-Global flags:
-
-```
-      --cacert string        Path to a PEM CA bundle trusted for the server certificate (overrides stored)
-      --client-cert string   Path to a PEM client certificate for mutual TLS (overrides stored)
-      --client-key string    Path to the PEM client private key for mutual TLS (overrides stored)
-      --no-color             Disable colored output
-  -o, --output string        Output format (table|json|yaml) (default "table")
-      --server string        Server URL (overrides stored credential)
-      --tls-skip-verify      Disable TLS certificate verification (insecure; overrides stored)
-      --token string         Bearer token (overrides stored credential)
-  -v, --verbose              Enable verbose output
-```
-
-### `dfsctl bench run`
-
-Run filesystem benchmarks
-
-Run I/O and metadata benchmarks against the given directory path.
-
-The runner creates test files under the target directory and measures throughput, IOPS, and latency for each workload. When no --workload is specified every available workload runs. Results are printed as a table by default; use --save to persist the JSON for later comparison with 'bench compare'.
-
-```
-dfsctl bench run PATH [flags]
-```
-
-**Examples:**
-
-```bash
-# Run all workloads with default parameters
-dfsctl bench run /mnt/bench
-
-# Run only sequential-read and sequential-write with 8 threads
-dfsctl bench run /mnt/bench --workload seq-write,seq-read --threads 8
-
-# Run with larger files and a longer duration
-dfsctl bench run /mnt/bench --file-size 4GiB --duration 120s
-
-# Save results and label this system for comparison
-dfsctl bench run /mnt/bench --system dittofs --save results/dittofs.json --clean
-```
-
-Flags:
-
-```
-      --block-size string      I/O block size for random workloads (default "4KiB")
-      --clean                  Remove test files after benchmark (default: keep for cold read reruns)
-      --duration string        Time limit for duration-based workloads (default "60s")
-      --file-size string       Size of each test file (default "1GiB")
-      --meta-files int         Number of files for metadata workload (default 1000)
-      --save string            Save results to JSON file
-      --small-file-count int   Number of files for small-files workload (default 10000)
-      --system string          Label identifying the system under test
-      --threads int            Number of concurrent I/O workers (default 4)
-      --workload string        Comma-separated workloads (default: all)
-```
-
-Global flags:
-
-```
-      --cacert string        Path to a PEM CA bundle trusted for the server certificate (overrides stored)
-      --client-cert string   Path to a PEM client certificate for mutual TLS (overrides stored)
-      --client-key string    Path to the PEM client private key for mutual TLS (overrides stored)
-      --no-color             Disable colored output
-  -o, --output string        Output format (table|json|yaml) (default "table")
-      --server string        Server URL (overrides stored credential)
-      --tls-skip-verify      Disable TLS certificate verification (insecure; overrides stored)
-      --token string         Bearer token (overrides stored credential)
-  -v, --verbose              Enable verbose output
-```
-
-### `dfsctl bench storage-tiers`
-
-Benchmark storage tier performance (cold/warm/local-only)
-
-Benchmark DittoFS storage tier performance by measuring read throughput at each caching layer.
-
-The workload writes a file through the NFS/SMB mount, then reads it back three times — evicting a different cache layer before each read — to isolate cold (remote store), warm (local + read buffer), and local-only performance. Admin authentication is required to call the eviction API between reads. The share must have a remote block store configured for cold-read testing.
-
-Steps executed per file size:
-
-```
-1. Write via mount
-2. Evict all (read buffer + local store)
-3. Cold read (data fetched from remote store)
-4. Warm read (data in read buffer + local store)
-5. Evict read buffer only
-6. Local-only read (data served from local FS store)
-```
-
-```
-dfsctl bench storage-tiers [flags]
-```
-
-**Examples:**
-
-```bash
-# Run with default file sizes (10MB, 100MB, 1GB)
-dfsctl bench storage-tiers --share myshare --mount /mnt/test
-
-# Run with custom file sizes
-dfsctl bench storage-tiers --share myshare --mount /mnt/test --sizes 1MB,10MB,50MB
-```
-
-Flags:
-
-```
-      --mount string   Mount point for file I/O (default "/mnt/test")
-      --share string   Share name for block store API operations (required)
-      --sizes string   Comma-separated file sizes (default: 10MB,100MB,1GB)
+      --wsdiscovery-enabled         Advertise the host over WS-Discovery so it appears in the Windows Explorer Network view (applied immediately)
 ```
 
 Global flags:
@@ -3463,6 +3338,120 @@ dfsctl netgroup show office-network -o json
 
 # Output as YAML
 dfsctl netgroup show office-network -o yaml
+```
+
+Global flags:
+
+```
+      --cacert string        Path to a PEM CA bundle trusted for the server certificate (overrides stored)
+      --client-cert string   Path to a PEM client certificate for mutual TLS (overrides stored)
+      --client-key string    Path to the PEM client private key for mutual TLS (overrides stored)
+      --no-color             Disable colored output
+  -o, --output string        Output format (table|json|yaml) (default "table")
+      --server string        Server URL (overrides stored credential)
+      --tls-skip-verify      Disable TLS certificate verification (insecure; overrides stored)
+      --token string         Bearer token (overrides stored credential)
+  -v, --verbose              Enable verbose output
+```
+
+### `dfsctl netlogon`
+
+Inspect and control the NETLOGON machine account (SMB NTLM pass-through)
+
+Inspect and control the NETLOGON machine account used for SMB NTLM pass-through
+of Active Directory domain users on the running DittoFS server.
+
+When a client connects by a name with no Kerberos SPN (an IP, or the Explorer →
+Network discovery name), Windows falls back to NTLM; DittoFS validates that NTLM
+response against a domain controller over a NETLOGON secure channel using a
+machine account. These commands report the live machine-account / secure-channel
+state and force a machine-password rotation.
+
+Unlike 'dfs netlogon test' (a self-contained probe run from the config file),
+these talk to the RUNNING server over the API and require admin credentials.
+
+**Examples:**
+
+```bash
+# Show live machine-account and secure-channel state
+dfsctl netlogon status
+
+# Force a machine-password rotation now (online-join only)
+dfsctl netlogon rotate
+```
+
+Global flags:
+
+```
+      --cacert string        Path to a PEM CA bundle trusted for the server certificate (overrides stored)
+      --client-cert string   Path to a PEM client certificate for mutual TLS (overrides stored)
+      --client-key string    Path to the PEM client private key for mutual TLS (overrides stored)
+      --no-color             Disable colored output
+  -o, --output string        Output format (table|json|yaml) (default "table")
+      --server string        Server URL (overrides stored credential)
+      --tls-skip-verify      Disable TLS certificate verification (insecure; overrides stored)
+      --token string         Bearer token (overrides stored credential)
+  -v, --verbose              Enable verbose output
+```
+
+### `dfsctl netlogon rotate`
+
+Force a machine-account password rotation now
+
+Force an immediate rotation of the machine-account password on the running server.
+
+Rotation applies only to the online-join provider, which owns the machine-password
+lifecycle: the new password is set on the domain controller (NetrServerPasswordSet2),
+switched in memory, and persisted — keeping the stored secret in sync with the DC.
+The offline/static provider owns no password lifecycle, so this command returns an
+error there; rotate that secret by updating the machine-account configuration.
+
+```
+dfsctl netlogon rotate
+```
+
+**Examples:**
+
+```bash
+# Rotate the machine password now
+dfsctl netlogon rotate
+```
+
+Global flags:
+
+```
+      --cacert string        Path to a PEM CA bundle trusted for the server certificate (overrides stored)
+      --client-cert string   Path to a PEM client certificate for mutual TLS (overrides stored)
+      --client-key string    Path to the PEM client private key for mutual TLS (overrides stored)
+      --no-color             Disable colored output
+  -o, --output string        Output format (table|json|yaml) (default "table")
+      --server string        Server URL (overrides stored credential)
+      --tls-skip-verify      Disable TLS certificate verification (insecure; overrides stored)
+      --token string         Bearer token (overrides stored credential)
+  -v, --verbose              Enable verbose output
+```
+
+### `dfsctl netlogon status`
+
+Show live NETLOGON machine-account and secure-channel state
+
+Report the live state of the NETLOGON machine account on the running server:
+the active provider (offline or online-join), the machine-account name, the
+realm / NetBIOS domain / DC binding, whether the account is joined, whether the
+secure channel is currently established, and the automatic-rotation schedule.
+
+```
+dfsctl netlogon status
+```
+
+**Examples:**
+
+```bash
+# Show status as a table
+dfsctl netlogon status
+
+# Show status as JSON
+dfsctl netlogon status -o json
 ```
 
 Global flags:
@@ -5517,15 +5506,26 @@ Global flags:
 
 Evict block store data
 
-Evict block store data from local storage.
+Evict block store data from local storage, forcing subsequent reads
+to fetch from the remote tier.
 
-By default, evicts both read buffer and local disk data for all shares.
+By default, evicts both the in-memory read buffer and the resident local
+disk blocks for all shares. Local eviction drains every locally-resident
+block whose bytes are already synced to the remote — including the sealed
+log blobs that hold the bulk of resident data after a rollup, which the
+lazy --local-store-size cap only reclaims on the write path. Blocks not yet
+uploaded to the remote are never dropped.
+
 Use --read-buffer-only to evict only the read buffer (in-memory).
 Use --local-only to evict only local disk data (preserves read buffer).
 Use --share to evict a specific share only.
 
-Safety: Eviction of local blocks is refused if no remote store is
+Safety: eviction of local blocks is refused if no remote store is
 configured for a share, since that would cause data loss.
+
+Uses: reclaim local disk on demand, or force cold (remote-served) reads for
+read-path benchmarking — the local tier is otherwise sticky, so a benchmark
+would measure locally-served reads.
 
 ```
 dfsctl store block evict [flags]
@@ -5534,7 +5534,7 @@ dfsctl store block evict [flags]
 **Examples:**
 
 ```bash
-# Evict all storage tiers for all shares
+# Evict all storage tiers for all shares (drops resident local blocks)
 dfsctl store block evict
 
 # Evict only read buffer
