@@ -3897,6 +3897,9 @@ dfsctl share create --name /bigdata --metadata default --local fs-cache --local-
 
 # Create with per-share quota
 dfsctl share create --name /limited --metadata default --local fs-cache --quota-bytes 10GiB
+
+# Create an export that does not squash root (e.g. for root-mounted/benchmark clients)
+dfsctl share create --name /export --metadata default --local fs-cache --squash none
 ```
 
 Flags:
@@ -3922,6 +3925,7 @@ Flags:
       --remote string                   Remote block store name (optional)
       --retention string                Retention policy (pin|ttl|lru)
       --retention-ttl string            Retention TTL duration (e.g., 72h, 24h)
+      --squash string                   NFS export squash mode (none|root_to_admin|root_to_guest|all_to_admin|all_to_guest). Default root_to_guest (root_squash); use none or root_to_admin so a root-mounted client is not squashed to guest.
       --streams-disabled                Reject SMB2 Alternate Data Stream opens with STATUS_OBJECT_NAME_INVALID on this share (mirrors Samba 'smbd:streams = no').
       --trash-exclude strings           Glob patterns whose deletions bypass the recycle bin (repeatable).
       --trash-max-size int              Max bytes the recycle bin may hold before the reaper evicts oldest items (0 = unbounded).
@@ -4250,8 +4254,8 @@ mkdir -p ~/mnt/dittofs && dfsctl share mount /export --protocol smb ~/mnt/dittof
 Flags:
 
 ```
-      --dir-mode string      Directory permissions for SMB mount (octal)
-      --file-mode string     File permissions (not applicable on Windows)
+      --dir-mode string      Directory permissions for SMB mount (octal) (default "0777")
+      --file-mode string     File permissions for SMB mount (octal, default 0777 on macOS since uid/gid not supported) (default "0777")
       --nfs-version string   NFS protocol version for NFS mounts (3, 4, 4.0, 4.1, 4.2). v4 carries locking in-protocol; v3 locking needs the server UDP transport + portmapper (default "3")
   -P, --password string      Password for SMB mount (will prompt if not provided)
   -p, --protocol string      Protocol to use (nfs or smb) (required)
@@ -6789,10 +6793,10 @@ Wait for all pending uploads to complete
 
 Wait for all in-flight block store uploads to complete across every share.
 
-The command blocks until the server confirms that no blocks are queued for remote upload, or until the server-side timeout (5 minutes) is reached. Use this before running benchmarks or taking snapshots to ensure a clean data boundary.
+The command blocks until the server confirms that no blocks are queued for remote upload, or until the client timeout (--timeout, default 6m) is reached. The server can also end the wait early with a 504 if upload progress stalls for controlplane.drain_stall_timeout (default 5m). Use this before running benchmarks or taking snapshots to ensure a clean data boundary.
 
 ```
-dfsctl system drain-uploads
+dfsctl system drain-uploads [flags]
 ```
 
 **Examples:**
@@ -6801,8 +6805,17 @@ dfsctl system drain-uploads
 # Block until all pending uploads are flushed
 dfsctl system drain-uploads
 
+# Allow a slow cold-evict drain up to 15 minutes
+dfsctl system drain-uploads --timeout 15m
+
 # Get drain result as JSON (includes duration)
 dfsctl system drain-uploads -o json
+```
+
+Flags:
+
+```
+      --timeout duration   client-side wait for the drain (0 or negative uses the built-in default, 6m)
 ```
 
 Global flags:
