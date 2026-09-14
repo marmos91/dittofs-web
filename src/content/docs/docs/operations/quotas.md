@@ -49,10 +49,29 @@ dfsctl quota remove /export --scope user --id 1000
   server restart.
 - **Most-specific wins.** A user is limited by its own quota if set, else its group's,
   else the default-user fallback.
-- **Usage is by owner.** Bytes and inode counts are keyed by file owner UID/GID and
-  rebuilt from file rows on startup. A `chown` moves a file's usage between identities.
+- **Usage is by owner, within one share.** Bytes and inode counts are keyed by share and
+  by file owner UID/GID, and rebuilt from file rows on startup. A `chown` moves a file's
+  usage between identities. Shares that name the same metadata store are served by one
+  store instance, but their usage is still counted separately: one share's bytes never
+  count against another share's quota, and `df` on a share reports only that share.
 - **Best-effort.** Under heavy concurrent writes an identity may briefly exceed a limit
   before usage catches up — normal for a userspace NFS/SMB server.
 
 Quota limits live in the control-plane database and are also reachable via the REST API
 at `/api/v1/shares/{name}/quotas`.
+
+## Repairing a drifted usage figure
+
+Usage counters are maintained transactionally as files are written and removed, so they
+are normally already correct. If a share reports more bytes than its files hold — most
+visibly, it refuses writes while `dfsctl share list` shows it far from full — rebuild them
+from the file rows:
+
+```bash
+dfsctl store metadata recompute-usage /export
+```
+
+The rebuild scans every file row in the metadata store, so it takes time in proportion to
+the store's size, and it repairs every share that store serves rather than only the one
+named. Nothing runs it automatically: a per-file walk on every server start would be a
+cost every share pays forever to correct a number that is almost always already right.

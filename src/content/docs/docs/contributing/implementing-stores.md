@@ -60,7 +60,7 @@ Implement a custom local store when you need:
 - **Custom eviction**: Access-pattern-aware eviction beyond simple LRU
 - **Encryption at rest**: Hardware-accelerated encryption for local blocks
 
-**Reference implementation**: `pkg/block/local/fs/` (filesystem-backed local store)
+**Reference implementation**: `pkg/block/journal/` (filesystem-backed local store)
 
 ### Remote Store Use Cases
 
@@ -114,7 +114,40 @@ The metadata store interface and implementation guide remains the same as before
 
 - `pkg/metadata/store/memory/`: In-memory (fast, ephemeral)
 - `pkg/metadata/store/badger/`: BadgerDB (persistent, embedded)
+- `pkg/metadata/store/sqlite/`: SQLite (persistent, embedded)
 - `pkg/metadata/store/postgres/`: PostgreSQL (persistent, distributed)
+
+The two SQL backends are one implementation over two dialects. Most
+operation bodies live once in `pkg/metadata/store/sql/`, embedded by both the
+store and its transaction so a method written there is reachable from either.
+The `sqlite/` and `postgres/` packages carry what genuinely differs —
+connection setup, driver error mapping, statement text (via the
+`sql.Dialect` interface), snapshot export, and the handful of bodies whose
+mechanism diverges, such as `ApplyDataWrite` (sqlite selects then updates
+under the single-writer lock; postgres folds both into one statement) —
+along with the store-level wrappers described next. Read
+`pkg/metadata/store/sql/` first when tracing a SQL backend; most of what a
+caller reaches is there, not in the dialect package.
+
+**Multi-statement work needs a transaction, and `Core` cannot supply one.**
+`Core` is embedded by the pool-backed store as well as by the transaction, so
+a `Core` method also runs on the pool, where each statement autocommits
+independently and a crash between two of them leaves torn state. There are
+two ways to keep that from happening, and both are in the tree:
+
+- Make it a package-level function taking `(ctx, x Executor, d Dialect, ...)`,
+  so it can only be called with an executor the caller has already chosen —
+  `PutFileChunkRefs`, `DecrementAndReapMany`, `PutSyncedLocators`.
+- Or write it as a `Core` method and **shadow it** in each dialect package with
+  a store-level wrapper that runs it inside `WithTransaction` —
+  `DeleteShare`, `CreateRootDirectory`, `DecrementRefCountAndReap`.
+
+The shadows are load-bearing and easy to delete by accident: removing one does
+not break the build, because the promoted `Core` method still satisfies the
+interface. The write simply starts going straight to the pool. If you add a
+multi-statement `Core` method, add its shadow to **both** dialect packages in
+the same change, or use the package-level form instead. Single-statement work
+is safe as a plain `Core` method.
 
 Conformance tests: `pkg/metadata/storetest/`
 
@@ -202,8 +235,8 @@ type FileChunkStore interface {
 
 **Engine-internal companion interface:** `pkg/block.EngineFileChunkStore`
 extends `FileChunkStore` with `GetFileChunk(ctx, id)` and
-`ListFileChunks(ctx, payloadID)` for the engine's hot paths. All three built-in
-backends (memory, badger, postgres) satisfy it without changes — the
+`ListFileChunks(ctx, payloadID)` for the engine's hot paths. All four built-in
+backends (memory, badger, sqlite, postgres) satisfy it without changes — the
 narrow public surface is a documentation concern, not a runtime
 restriction. Custom backends implementing `FileChunkStore` SHOULD also
 implement the engine-internal helpers if they intend to slot into the
@@ -258,7 +291,7 @@ The `pkg/metadata/storetest/` suite includes:
 5. **Refcount concurrent fuzz** (`pkg/metadata/storetest/inv02_fuzz_test.go`):
    100-iteration property-based fuzzer creating, deleting, and copying
    files concurrently; asserts the invariant after each operation
-   batch. Runs against all three built-in backends and any custom backend
+   batch. Runs against all four built-in backends and any custom backend
    wired into the conformance harness.
 
 ### FileAttr.ObjectID + FindByObjectID
@@ -449,7 +482,7 @@ and per-method contract; the representative methods are:
 type LocalStore interface {
     // --- Data plane (payloadID + offset keyed) ---
     WriteAt(ctx context.Context, payloadID string, offset int64, data []byte) error
-    ReadAt(ctx context.Context, payloadID string, offset int64, dst []byte) (n int, cold bool, err error)
+    ReadAt(ctx context.Context, payloadID string, offset int64, dst []byte) (n int, st journal.ReadState, err error)
     Hydrate(ctx context.Context, payloadID string, offset int64, data []byte) error // fill from remote on cold read
     Commit(ctx context.Context, payloadID string) error                             // fsync buffered writes
     FileSize(ctx context.Context, payloadID string) (int64, bool)
@@ -464,25 +497,24 @@ type LocalStore interface {
     UnsyncedBytes() int64
     Evict(ctx context.Context, targetBytes int64) (journal.EvictResult, error)
     SetEvictionEnabled(enabled bool)
-    // ... plus lifecycle (Start, Close), Stats, Healthcheck, and a
-    // no-op SetRetentionPolicy retained for admin-path compatibility.
+    // ... plus lifecycle (Start, Close), Stats, and Healthcheck.
 }
 ```
 
 A write buffers a dirty range and local-acks without fsync; `Commit` is the
-durability point. On a cold read `ReadAt` returns `cold=true` and the engine
-`Hydrate`s the range back from the remote store. `Carve` packs a file's dirty
-ranges into remote blocks via the injected `BlockSink` (see the carve pass in
-[the architecture doc](/docs/contributing/architecture#carve-local--remote)); `Evict` frees
-whole fully-synced segments under pressure.
+durability point. `ReadAt` reports both evicted (`ReadState.Cold`) and uncovered
+(`ReadState.Hole`) ranges; the engine reconciles either against the FileChunk
+manifest and `Hydrate`s whatever the manifest says is remote-resident. `Carve`
+packs a file's dirty ranges into remote blocks via the injected `BlockSink` (see
+the carve pass in [the architecture doc](/docs/contributing/architecture#carve-local--remote));
+`Evict` frees whole fully-synced segments under pressure.
 
 ### Reference Implementation
 
-The filesystem-backed store `*fs.FSStore` (`pkg/block/local/fs/`) is a thin
-adapter over `*journal.Store`: it bridges the `string`↔`journal.FileID`
-keyspace and forwards the data-plane calls; the journal owns segment layout,
-carve, eviction, and local GC. The in-memory store (`pkg/block/local/memory/`)
-is the other reference. There is no separate append-log or rollup tier and no
+The filesystem-backed store `*journal.Store` (`pkg/block/journal/`) IS the
+per-file byte cache the composition layer holds directly — no adapter. The
+in-memory store (`pkg/block/local/memory/`) is the other reference. There is
+no separate append-log or rollup tier and no
 `metadata.RollupStore` contract — those were removed when the journal replaced
 the two-tier local design.
 
@@ -490,7 +522,7 @@ the two-tier local design.
 
 The journal-native `LocalStore` surface is `(payloadID, offset)`-keyed, not the
 content-addressed `block.Store` surface, so the `blockstoretest` suites below
-(`BlockStoreConformance` / `BlockStoreAppendConformance`) do **not** apply to a
+(`BlockStoreConformance` / `RemoteBlockStoreConformance`) do **not** apply to a
 local store — they target the CAS `block.Store` surface that remote stores
 implement (see [Implementing a Remote Store](#implementing-a-remote-store)). The
 in-tree local stores are exercised by their own package tests under
@@ -874,7 +906,7 @@ func createLocalStore(config LocalStoreConfig) (local.LocalStore, error) {
 Users can then create your store via CLI:
 
 ```bash
-./dfsctl store block add --kind local --name my-store --type mylocal \
+./dfsctl store block local add --name my-store --type mylocal \
   --config '{"path":"/data/blocks"}'
 ```
 
@@ -882,9 +914,9 @@ Users can then create your store via CLI:
 
 - **Interface Definitions**: `pkg/block/local/local.go`, `pkg/block/remote/remote.go`
 - **Reference Implementations**:
-  - Local: `pkg/block/local/fs/`, `pkg/block/local/memory/`
+  - Local: `pkg/block/journal/`, `pkg/block/local/memory/`
   - Remote: `pkg/block/remote/s3/`, `pkg/block/remote/memory/`
-  - Metadata: `pkg/metadata/store/memory/`, `pkg/metadata/store/badger/`, `pkg/metadata/store/postgres/`
+  - Metadata: `pkg/metadata/store/memory/`, `pkg/metadata/store/badger/`, `pkg/metadata/store/sqlite/`, `pkg/metadata/store/postgres/` (the SQL pair share `pkg/metadata/store/sql/`)
 - **Conformance Tests**: `pkg/block/blockstoretest/` (block stores), `pkg/metadata/storetest/` (metadata stores)
 - **Architecture**: `docs/ARCHITECTURE.md`
 - **Configuration**: `docs/CONFIGURATION.md`

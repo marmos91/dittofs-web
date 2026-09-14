@@ -40,7 +40,9 @@ For the end-user guide to connecting a Windows client, see
 - [Conformance test suites](#conformance-test-suites)
   - [WPTS (Windows Protocol Test Suites)](#wpts-windows-protocol-test-suites)
   - [smbtorture (Samba Test Suite)](#smbtorture-samba-test-suite)
-  - [Running both suites](#running-both-suites)
+  - [Running both SMB suites](#running-both-smb-suites)
+  - [pynfs (NFSv4 protocol)](#pynfs-nfsv4-protocol)
+- [Device-loss crash testing (dm-flakey)](#device-loss-crash-testing-dm-flakey)
 
 ---
 
@@ -133,7 +135,7 @@ go build -o dfs cmd/dfs/main.go
 go build -o dfsctl cmd/dfsctl/main.go
 
 # 2. Initialize config (first time only)
-./dfs config init
+./dfs init
 
 # 3. Start DittoFS
 ./dfs start
@@ -395,7 +397,25 @@ lock, for the reason above) is `TestNLMSystemRpcbindRegistration` in `test/e2e/n
 
 ## Conformance test suites
 
-DittoFS is validated against two industry-standard conformance test suites.
+DittoFS is validated against industry-standard conformance suites for SMB and
+NFS. Every one of them runs through `test/conformance/run.sh` and is described
+in `test/conformance/suites.json`:
+
+<!-- conformance-suites:begin -->
+<!-- Generated from test/conformance/suites.json by test/conformance/check-docs.sh. Do not edit by hand. -->
+
+| Suite | Protocol | Profiles | Variants | Presubmit | Known failures |
+|---|---|---|---|---|---|
+| `wpts` | SMB | `memory`, `badger`, `badger-s3`, `postgres-s3` | — | `memory`, `postgres-s3` | [`test/smb-conformance/KNOWN_FAILURES.md`](https://github.com/marmos91/dittofs/blob/develop/test/smb-conformance/KNOWN_FAILURES.md) |
+| `smbtorture` | SMB | `memory`, `badger`, `sqlite`, `postgres` | — | `memory`, `badger` | [`test/smb-conformance/smbtorture/KNOWN_FAILURES.md`](https://github.com/marmos91/dittofs/blob/develop/test/smb-conformance/smbtorture/KNOWN_FAILURES.md) |
+| `pjdfstest` | NFS | `memory`, `badger`, `postgres`, `postgres-s3` | `3`, `4`, `4.1` | `memory`, `postgres-s3` | [`test/posix/KNOWN_FAILURES.md`](https://github.com/marmos91/dittofs/blob/develop/test/posix/KNOWN_FAILURES.md), [`test/posix/KNOWN_FAILURES_V4.md`](https://github.com/marmos91/dittofs/blob/develop/test/posix/KNOWN_FAILURES_V4.md) |
+| `nfs-kerberos` | NFS | `memory-kerberos` | — | `memory-kerberos` | — |
+| `pynfs` | NFS | `memory`, `badger`, `postgres`, `postgres-s3` | `4.0`, `4.1` | `memory`, `postgres-s3` | [`test/nfs-conformance/pynfs/KNOWN_FAILURES_V40.md`](https://github.com/marmos91/dittofs/blob/develop/test/nfs-conformance/pynfs/KNOWN_FAILURES_V40.md), [`test/nfs-conformance/pynfs/KNOWN_FAILURES_V41.md`](https://github.com/marmos91/dittofs/blob/develop/test/nfs-conformance/pynfs/KNOWN_FAILURES_V41.md) |
+
+Tiering, profiles and blacklists come from
+[`test/conformance/suites.json`](../../test/conformance/suites.json); every suite runs through
+[`test/conformance/run.sh`](../../test/conformance/run.sh).
+<!-- conformance-suites:end -->
 
 ### WPTS (Windows Protocol Test Suites)
 
@@ -422,15 +442,77 @@ DittoFS is validated against two industry-standard conformance test suites.
   make smbtorture-quick  # Quick run (memory profile only)
   ```
 
-### Running both suites
+### Running both SMB suites
 
 ```bash
 cd test/smb-conformance
 make test smbtorture     # Run WPTS + smbtorture in sequence
 ```
 
-Both test suites run in CI via `.github/workflows/smb-conformance.yml` on every PR touching
+Both SMB suites run in CI via `.github/workflows/conformance.yml` on every PR touching
 SMB-related code.
+
+### pynfs (NFSv4 protocol)
+
+The reference NFSv4 suite, and the only one that exercises the protocol rather than
+filesystem semantics: state, sessions, owners, locking and wire error codes. It is its own
+NFSv4 client, so it needs no kernel mount and no root — `test/posix/` and `test/e2e/` go
+through a kernel client, which only ever sends the subset of the protocol it needs.
+
+- **Suite:** pynfs NFSv4.0 (689 tests) and NFSv4.1 (269 tests)
+- **Known failures:** see
+  [`../../test/nfs-conformance/pynfs/KNOWN_FAILURES_V40.md`](https://github.com/marmos91/dittofs/blob/develop/test/nfs-conformance/pynfs/KNOWN_FAILURES_V40.md)
+  and [`KNOWN_FAILURES_V41.md`](https://github.com/marmos91/dittofs/blob/develop/test/nfs-conformance/pynfs/KNOWN_FAILURES_V41.md)
+- **Baseline:** [`baseline-knfsd.md`](https://github.com/marmos91/dittofs/blob/develop/test/nfs-conformance/pynfs/baseline-knfsd.md) —
+  the same suite against the Linux kernel server, which is what distinguishes an assertion
+  no server satisfies from one DittoFS fails alone
+- **Run locally:**
+  ```bash
+  cd test/nfs-conformance/pynfs
+  ./run-pynfs.sh --minor-version 4.0     # provisions and tears down a server
+  ./run-pynfs.sh --minor-version 4.1
+  ```
+
+Runs in CI via `.github/workflows/nfs-pynfs.yml` on every non-docs PR. See
+[`test/nfs-conformance/pynfs/README.md`](https://github.com/marmos91/dittofs/blob/develop/test/nfs-conformance/pynfs/README.md).
 
 > Do not run two instances of the e2e or conformance suites concurrently — they share a Docker
 > container name and will collide. Run them serially and `docker rm -f` between runs if needed.
+
+---
+
+## Device-loss crash testing (dm-flakey)
+
+`test/crash/device-loss.sh` answers one question: can an acknowledged write come back
+as the right size with zero content? Losing an uncommitted write in a crash is expected;
+returning plausible-looking zeros for it is not, because no reader can tell the difference.
+
+**`kill -9` does not test this.** The page cache outlives process death, so the data is
+still there when the server restarts. Only device-level loss exposes the asymmetry between
+metadata that reached stable storage and data that did not.
+
+The rig puts the metadata store and the local block store on an ext4 filesystem over
+`dm-flakey`, writes self-identifying 4096-byte records over SMB (`cache=none`, so every
+`write()` is answered by the server), then swaps the device table to `drop_writes` with
+`dmsetup suspend --noflush --nolockfs` — from that instant only bytes that genuinely
+reached the device survive. The writer is stopped before the swap, so every record in its
+ack log was answered while the device was healthy, and the ack log itself is fsynced to a
+different disk. After the swap the server is killed, the device is restored to what
+survived, and the file is read back.
+
+```bash
+sudo ./test/crash/device-loss.sh ./dfs ./dfsctl [write-seconds] [commit-every]
+```
+
+`commit-every` is how often the writer calls `fsync` (0 = never). The two modes test
+opposite directions:
+
+- **`0`** — nothing is ever committed, so nothing may be published. The file must come
+  back short (or empty), never full-size-and-zeroed.
+- **`64`** (default) — a durable prefix exists. Every fsynced record must read back
+  byte-exact; only records written since the last fsync may be missing.
+
+The verdict fails on any record that reads as zeros or garbage inside the file's own
+size, and on any fsynced record that is missing.
+
+Requires root, Linux with `dm-flakey`, `cifs-utils`, and `python3` — a VM, not a laptop.

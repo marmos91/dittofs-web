@@ -11,7 +11,7 @@ sidebar:
 
 ## Envelope encryption design
 
-Standard envelope encryption, matching AWS SSE-KMS, MinIO + KES, and HashiCorp Vault Transit:
+Standard envelope encryption, following the same shape as AWS SSE-KMS, MinIO + KES, and HashiCorp Vault Transit:
 
 1. A **master key** is held by a key provider (local file or KMIP-speaking HSM). The master key never directly encrypts a block.
 2. For each block, a fresh 32-byte **block key** is generated from `crypto/rand` and used with an AEAD to encrypt the payload.
@@ -56,7 +56,7 @@ master key  (held by key provider; local file or KMIP HSM)
                      └── AEAD-encrypts ──► block payload
 ```
 
-The master key identifier stored in each frame allows future multi-key `Unwrap` support (needed for key rotation) without changing the frame format.
+The master key identifier stored in each frame is what makes rotation possible without changing the frame format: `Wrap` always uses the current master key and records its id, while `Unwrap` resolves the recorded id against the current key plus a configured set of retired, decrypt-only keys. In NIST SP 800-57 terms that split is the key-wrapping key's originator-usage period (encrypt) versus its longer recipient-usage period (decrypt).
 
 ## KMIP provider behavior and HSM integration
 
@@ -64,7 +64,9 @@ The KMIP provider fetches the configured master key from the HSM at startup usin
 
 This is a real KMIP integration (mutual-TLS, KMIP 1.4 protocol via `github.com/gemalto/kmip-go`) but it is **not** HSM-resident envelope encryption — the master-key bytes do live in the daemon's address space while it runs. A future iteration can move wrap / unwrap into the HSM via KMIP `Encrypt` / `Decrypt` operations without changing the `KeyProvider` interface; the public surface stays the same.
 
-To rotate: write a new key to the HSM, update the `key_uid` in the remote config, and restart the share. Existing blocks remain decryptable because every frame carries the master-key identifier that wrapped its block key.
+Retired uids are fetched the same way at startup, one `Get` each, so the cost of keeping a key retired is one extra fetch per daemon start.
+
+To rotate: write a new key to the HSM, move the outgoing `key_uid` into `retired_key_uids`, set `key_uid` to the new key, and restart the share. Existing blocks stay decryptable because every frame carries the identifier of the master key that wrapped its block key, and that key is still configured. Dropping the uid from `retired_key_uids` instead — or deleting it from the HSM — makes those blocks unreadable, and no bulk re-wrap exists yet to move them off it.
 
 ### Validating against a KMIP server
 

@@ -161,7 +161,12 @@ DittoFS uses a **Runtime-centric architecture** where the Runtime is the single 
 - Implementations:
   - `pkg/metadata/store/memory/`: In-memory (fast, ephemeral, full hard link support)
   - `pkg/metadata/store/badger/`: BadgerDB (persistent, embedded, path-based handles)
+  - `pkg/metadata/store/sqlite/`: SQLite (persistent, embedded, UUID-based handles)
   - `pkg/metadata/store/postgres/`: PostgreSQL (persistent, distributed, UUID-based handles)
+- The two SQL backends share one schema and most of their operation bodies,
+  which live in `pkg/metadata/store/sql/`; their own packages carry connection
+  setup, error mapping, statement text, snapshot export, and the few bodies
+  whose mechanism diverges
 - File handles are opaque identifiers (implementation-specific format)
 
 ## Per-Share Block Store Isolation
@@ -268,14 +273,13 @@ in the remote store, so immediately evictable) while a client write is born
 *dirty* (must be carved before it can be evicted). The journal is keyed by
 `(payloadID, offset)`, not by content hash.
 
-`*fs.FSStore` (`pkg/block/local/fs/`) is now a **thin adapter** over
-`*journal.Store`: it bridges the `string`↔`journal.FileID` keyspace and the
-`local.LocalStore` admin surface, and forwards the data-plane calls. The
-journal owns its own segment layout, carve, eviction, and local garbage
-collection. Only `BackpressureMaxWait` and `ChunkParams` remain load-bearing
-knobs; the old rollup/append-log options (`max_log_bytes`, `rollup_workers`,
-`stabilization_ms`, `orphan_log_min_age_seconds`) are vestigial — the journal
-carves on its own age/size gate.
+`*journal.Store` (`pkg/block/journal/`) IS the live per-file byte cache — the
+composition layer holds it directly (no adapter between them). The journal
+owns its own segment layout, carve, eviction, and local garbage collection.
+Only `BackpressureMaxWait` (as `Config.EvictMaxWait`) and `ChunkParams` remain
+load-bearing knobs; the old rollup/append-log options (`max_log_bytes`,
+`rollup_workers`, `stabilization_ms`, `orphan_log_min_age_seconds`) are
+vestigial — the journal carves on its own age/size gate.
 
 ### Carve: local → remote
 
@@ -287,7 +291,7 @@ shard internally. Carving a file FastCDC-chunks its dirty ranges (min 1 MiB /
 avg 4 MiB / max 16 MiB by default), BLAKE3-hashes each chunk, and — via the
 engine-supplied `BlockSink` — dedups against remote-durable chunks, seals each
 chunk (compression/encryption), frames the survivors into a packed block
-(~16 MiB, `BlockCarveBytes`), uploads the block with one `PutBlock`, and
+(4 MiB by default, `journal.Config.CarveBlockSize`), uploads the block with one `PutBlock`, and
 commits the block record, per-chunk synced markers, and per-file FileChunk
 manifest rows in a single metadata transaction (`metadata.DefaultCommitBlock`).
 `PutBlock` runs before the commit, so a crash in between leaves an orphan block
@@ -317,11 +321,16 @@ dispatcher is suppressed and `Flush`/`SyncNow` are the sole carve drivers.
 
 `ReadAt` resolves by `(payloadID, offset)`. A range present in the journal is
 served straight from its segment. A range that was written but has since been
-evicted returns `cold=true`; the engine then resolves the chunk's remote
-locator from the FileChunk manifest, ranged-GETs its enclosing `blocks/<id>`
-object, decodes the wire frame, recomputes BLAKE3 over the chunk bytes, and —
-on success — hydrates the verified bytes back into the journal so subsequent
-reads are warm.
+evicted reports `ReadState.Cold`, and a range the journal has no interval for
+reports `ReadState.Hole`; the engine reconciles both against the FileChunk
+manifest, since the journal alone cannot tell a never-written range from one
+whose interval it lost. For each covering row it resolves the remote locator,
+ranged-GETs the enclosing `blocks/<id>` object, decodes the wire frame,
+recomputes BLAKE3 over the chunk bytes, and — on success — hydrates the verified
+bytes back into the journal so subsequent reads are warm. A range no row covers
+is a genuine sparse hole and stays zero-filled, unless the payload holds a row
+whose ID carries no offset: that range is unknown, so the read refuses with
+`ErrManifestInconsistent` rather than inventing zeros.
 
 Integrity is fail-closed: every remote fetch is BLAKE3-verified before the
 bytes reach the caller, and a mismatch is returned as an error (and counted),
@@ -336,8 +345,9 @@ Under disk pressure the journal evicts whole **fully-synced** segments
 approx-LRU; only ranges already carved to the remote qualify, so eviction
 never destroys the only copy of dirty bytes. Eviction is health-gated: while
 the remote is unhealthy, cold-marking a range would strand unrecoverable
-bytes, so eviction is paused. There is no pin/ttl/lru retention knob
-(`SetRetentionPolicy` is a no-op on the journal-native store).
+bytes, so eviction is paused. The journal-native store has no pin/ttl/lru
+retention knob; only the pin/non-pin distinction reaches it, as the switch that
+enables or disables eviction.
 
 The journal's own garbage collection (repack) only relocates live cache bytes
 between local segments to reclaim dead space — it **never** touches the remote
@@ -345,12 +355,12 @@ store. Reclaiming remote block objects by refcount stays with the engine's
 block-GC sweep (see [Garbage Collection](#garbage-collection-mark-sweep)),
 whose per-remote serialization is what makes a decrement safe.
 
-### Per-`FSStore` surface
+### Per-share `journal.Store` surface
 
 Per the per-share block-store invariants (in `CLAUDE.md`), all journal state —
 segments, interval index, carve/eviction machinery, disk budget — lives inside
-the per-share `*journal.Store` behind `*FSStore`. No global state is shared
-across shares; local storage directories are always isolated.
+the per-share `*journal.Store` the composition layer holds directly. No global
+state is shared across shares; local storage directories are always isolated.
 
 ## Block Lifecycle (three-state)
 
@@ -559,7 +569,7 @@ layout and the orchestration flows.
 ### Subsystem layout
 
 | Location | Role |
-|---|---|
+| --- | --- |
 | `pkg/snapshot/` | Verify gate, hash-manifest read/write, helper types. |
 | `pkg/controlplane/runtime/snapshot.go` | `Runtime.CreateSnapshot`, `WaitForSnapshot`, `RestoreSnapshot`, `GetSnapshot`, `ListSnapshots`, `DeleteSnapshot`. Composition over the metadata store, block store, and snapshot store. |
 | `pkg/controlplane/runtime/snapshot_hold.go` | `SnapshotHoldProvider` — per-share delete lock + manifest-on-disk hold surface for GC. |
@@ -656,7 +666,7 @@ Five REST endpoints under `/api/v1/shares/{name}/snapshots` (admin
 only, inherits the existing `RequireAdmin` middleware):
 
 | Method | Path | Result |
-|---|---|---|
+| --- | --- | --- |
 | `POST` | `/` | 202 Accepted + `Location` header |
 | `GET` | `/` | 200 OK + JSON array (empty: `[]`, not `null`) |
 | `GET` | `/{id}` | 200 OK + full record |
@@ -665,7 +675,7 @@ only, inherits the existing `RequireAdmin` middleware):
 
 The single `mapSnapshotError` helper handles the 14 typed sentinels
 that can cross the boundary (12 snapshot sentinels + share-not-found
-+ nil-guard). The mapping table lives in the handler file as the
+- nil-guard). The mapping table lives in the handler file as the
 sole source of truth; future sentinels add a single case.
 
 The Restore handler wraps `r.Context()` with
@@ -770,19 +780,80 @@ private copy of the same logic. The package exposes:
   edit points that feed resolved `[]BlockRef` into the engine. Handler code
   stays untouched; changes to the block-ref threading stay confined to
   `common/`.
-- **Metadata error translation**: a struct-per-code table (`errorMap` in
-  `common/errmap.go`) with NFS3/NFS4/SMB columns; `common.MapToNFS3`,
-  `common.MapToNFS4`, and `common.MapToSMB` are thin accessors. Lock-
-  operation context uses the parallel `lockErrorMap` (`common/lock_errmap.go`)
-  which overrides a handful of codes (e.g., `ErrLocked` →
+- **Metadata error translation**: per-package `StatusFor` switches in the
+  adapter types packages (`internal/adapter/nfs/types`,
+  `internal/adapter/nfs/v4/types`, `internal/adapter/smb/types`), each with
+  its enum-walk test; `StatusForErr` is the error-level wrapper. SMB lock-
+  operation context uses the parallel `StatusForLock`/`StatusForLockErr`
+  functions in the same package (e.g., `ErrLocked` →
   `STATUS_LOCK_NOT_GRANTED` in lock context vs. `STATUS_FILE_LOCK_CONFLICT`
-  in general I/O context). Adding a new `metadata.ErrorCode` is one edit
-  across all three protocols — the struct literal requires every column
-  to be populated, so you cannot ship a code that is missing an NFS or
-  SMB mapping.
+  in general I/O context). Adding a new `metadata.ErrorCode` means adding a
+  switch arm plus an expectation row in each relevant package — the
+  enum-walk test fails loudly if either is missing.
 
 See CONTRIBUTING.md "Adding a new metadata.ErrorCode" for the recipe and
 NFS.md / SMB.md "Error mapping" for protocol-specific notes.
+
+### Object ownership: a client-supplied identifier is not authorization
+
+Every protocol here lets a client name a server-side object by an identifier the
+server issued earlier — an SMB `TreeID` or `FileId`, an SMB `AsyncId`, an NFSv4
+stateid. **An operation must verify that the named object belongs to the
+requesting session or client before acting on it, and especially before adopting
+its identity.** Resolving the identifier proves the object exists; it says
+nothing about who is entitled to it.
+
+The checks live at choke points rather than in each handler, so an operation
+added later inherits them:
+
+- **SMB tree-scoped commands** — `prepareDispatch`'s `NeedsTree` branch
+  (`internal/adapter/smb/response.go`) rejects a request whose
+  `tree.SessionID` differs from the header's. It is the only dispatch gate,
+  so TREE_DISCONNECT, CREATE and every tree-scoped command are covered once.
+- **SMB file handles** — `primeAuthContextFromOpenFile`
+  (`internal/adapter/smb/handlers/auth_helper.go`) refuses with
+  `STATUS_FILE_CLOSED` unless `openFileBelongsToRequest` matches both the tree
+  and the session. This matters more than a plain existence check because the
+  function then *prefills the auth context from the located handle*: without
+  the guard, a request naming another session's `FileId` would execute as that
+  handle's user.
+- **SMB parked requests** — `pendingRegistry.unregisterByAsyncIDOn`
+  (`internal/adapter/smb/handlers/pending_registry.go`) scopes an `AsyncId`
+  lookup to the connection that parked it, as the `MessageID` lookups already
+  did, so a CANCEL cannot retire another connection's request.
+- **NFSv4 stateids** — `ValidateStateid` takes the caller's client ID and
+  compares it through `checkStateidOwner`
+  (`internal/adapter/nfs/v4/state/stateid.go`) for all three
+  stateid families, so the I/O operations are covered at one point. The
+  state-changing operations do not go through `ValidateStateid`, and reach the
+  same comparison two ways: `CloseFile`, `ConfirmOpen`, `ConfirmOpenV41`,
+  `DowngradeOpen`, `ReturnDelegation` and the three TEST_STATEID probes call
+  `checkStateidOwner` themselves, while the byte-range lock paths
+  (`LockNew`, `LockExisting`, `UnlockFile`) go through
+  `revalidateLockStateLocked`, which additionally compares the lock state and
+  lock owner **by pointer identity** — a stateid `other` can be reissued after
+  the original state is freed, so re-finding an entry under that key is not
+  proof it is the same entry.
+
+Two exceptions are deliberate, and the rule is not true without them:
+
+1. **NFSv4.0 carries no trusted client identity** on the operations above, so
+   the caller's client ID is zero there and `checkStateidOwner` skips the
+   comparison by design. The binding is real for v4.1 and later only; on v4.0
+   the unguessability of the stateid is all that stands behind it.
+2. **Per-handler `GetTree(ctx.TreeID)` lookups stay existence-only**, because
+   the dispatcher already bound that tree to the session before the handler
+   ran. A `ponytail:` comment at those sites names the ceiling.
+
+Unguessability is not the guarantee. A stateid's `other` and an SMB `FileId`
+each carry 64 bits from `crypto/rand`, which makes them infeasible to forge but
+does nothing once one has been observed — so these checks are defence in depth
+layered under the identifier's entropy, not a substitute for it.
+
+**Extending this:** an operation that resolves a client-supplied identifier
+routes through the existing choke point instead of adding a comparison of its
+own, and ships with a test that fails when the guard is removed. A guard that
+has never refused anything in a test is unverified.
 
 ## Control Plane Pattern
 
@@ -806,9 +877,9 @@ Stores, shares, and adapters are managed at runtime via `dfsctl` (persisted in t
   --config '{"path":"/data/metadata"}'
 
 # Create block stores (local per-share, remote shared across shares)
-./dfsctl store block add --kind local --name local-cache --type fs \
+./dfsctl store block local add --name local-cache --type fs \
   --config '{"path":"/data/cache"}'
-./dfsctl store block add --kind remote --name s3-remote --type s3 \
+./dfsctl store block remote add --name s3-remote --type s3 \
   --config '{"region":"us-east-1","bucket":"my-bucket"}'
 
 # Create shares referencing stores by name (each gets its own BlockStore)
@@ -889,8 +960,8 @@ No custom code required - configure via CLI:
 
 ```bash
 # Create stores
-./dfsctl store metadata add --name default-meta --type memory  # or badger, postgres
-./dfsctl store block add --kind local --name default-local --type fs \
+./dfsctl store metadata add --name default-meta --type memory  # or badger, sqlite, postgres
+./dfsctl store block local add --name default-local --type fs \
   --config '{"path":"/data/blocks"}'
 
 # Create share referencing stores
@@ -952,7 +1023,11 @@ dittofs/
 │   │   └── store/                # Store implementations
 │   │       ├── memory/           # In-memory (ephemeral)
 │   │       ├── badger/           # BadgerDB (persistent)
-│   │       └── postgres/         # PostgreSQL (distributed)
+│   │       ├── sql/              # Shared bodies for the two SQL backends
+│   │       ├── sqlite/           # SQLite dialect (persistent, embedded)
+│   │       ├── postgres/         # PostgreSQL dialect (distributed)
+│   │       ├── basestore/        # Helpers shared by every backend
+│   │       └── internal/         # Row codec, caches, retry
 │   │
 │   ├── blockstore/               # Per-share block storage
 │   │   ├── doc.go                # Package documentation
@@ -1011,9 +1086,8 @@ dittofs/
 │   │   │                         # ResolveForRead/Write
 │   │   ├── read_payload.go       # Pooled BlockReadResult + ReadFromBlockStore
 │   │   ├── write_payload.go      # WriteToBlockStore + CommitBlockStore seams
-│   │   ├── errmap.go             # Struct-per-code table (NFS3/NFS4/SMB columns)
-│   │   ├── content_errmap.go     # Block-store content error table
-│   │   └── lock_errmap.go        # Lock-context error table
+│   │   ├── normalize.go          # Block-store error → *merrs.StoreError normalization
+│   │   └── errclassify.go        # Raw block-store error → metadata code classifier
 │   ├── adapter/nfs/              # NFS protocol implementation
 │   │   ├── dispatch.go           # RPC procedure routing
 │   │   ├── rpc/                  # RPC layer (call/reply handling)
@@ -1276,7 +1350,7 @@ threading, so changes to the read/write path stay confined to the helpers.
 
 ### Operator surfaces
 
-- `dfsctl blockstore audit-refcounts <share>` runs the refcount
+- `dfsctl store block audit-refcounts <share>` runs the refcount
   reconciliation audit (`∑ FileChunk.RefCount == ∑ len(FileAttr.Blocks)`),
   emits aggregate counts as structured slog INFO, and persists the
   last-run summary at `<localStore>/audit-state/last-inv02.json`. See
@@ -1372,7 +1446,7 @@ Production call chain (per-write, on quiesce):
             └─ persistFileChunksAfterFlush
                 └─ ComputeObjectID(blocks)
                 └─ coordinator.PersistFileChunks(blocks, objectID)
-                    └─ runtime coordinator: WithTransaction(GetFileByPayloadID + PutFile)
+                    └─ runtime coordinator: WithTransaction(GetFileByPayloadID + SetManifest)
                         // FileAttr.Blocks AND FileAttr.ObjectID
                         // written in one metadata txn
 ```
@@ -1444,46 +1518,52 @@ Both fire off the random-write hot path.
 
 ## Migration & Block-Layout Routing
 
-DittoFS has had three block layouts (see the migration guide's table). Two
-transitions are handled at startup, per share, before the share serves.
+DittoFS has had three block layouts (see the migration guide's table). Neither
+transition into the current one is performed by this build any more: both
+conversions shipped, and both have been removed. A share still on an older
+layout must be staged through a release that still carries the conversion, or
+re-ingested.
 
-### Standalone CAS (v0.16-v0.21) → packed blocks: automatic
+### Standalone CAS (v0.16-v0.21) -> packed blocks: removed
 
 The current layout packs chunks into `blocks/<id>` container objects. A share
-carrying leftover standalone-CAS state — pre-flip per-chunk local files, remote
-`cas/` objects, or chunk locators that still point at standalone objects — is
-converted at `engine.Store.Start`, blocking until done, by
-`engine.Store.migrateLegacyCAS` (`pkg/block/engine/legacy_migration.go`):
+carrying leftover standalone-CAS state — remote `cas/` objects, or chunk
+locators that still point at standalone objects — is no longer converted. The
+conversion ran at `engine.Store.Start` through v0.31 and is gone; nothing
+replaces it, and there is no boot-time scan for the state it handled.
 
-1. **Phase L** imports pre-flip per-chunk local files into the local journal
-   (BLAKE3-verified, deduplicated) and deletes them
-   (`fs.FSStore.MigrateLegacyChunkFiles`).
-2. **Phase R** re-packs every chunk whose synced marker still carries a
-   standalone locator into `blocks/<id>` objects. Each block's record and all
-   its chunk-locator rewrites commit in **one metadata transaction**
-   (`metadata.DefaultCommitBlock`, last-wins locator overwrite), so a crash can
-   never leave a block record pointing at only some of its chunks.
-3. **Phase P** purges the now-unreferenced `cas/` namespace.
+The read path refuses that state rather than guessing, one chunk at a time:
 
-The migration is idempotent and resumable: a killed run converges on the next
-start (a crash between PutBlock and the commit leaves at most one orphan block
-object — the same class the live carver produces, reclaimed by the reconcile
-sweep — never a leaked record). Detection is state-free: an `EnumerateSynced`
-scan for standalone locators plus one remote LIST page. The legacy standalone
-layout is understood ONLY by this routine and the `remote.LegacyCASStore`
-accessors it drives; the live read path refuses a standalone locator as
-post-migration drift. If a share's remote is unreachable while standalone
-chunks remain, that share fails to start (its data would be unreadable anyway).
+- A synced locator with an empty `BlockID` fails closed with `ErrChunkNotFound`
+  (`engine.resolveAndReadChunk`), because an empty block id would otherwise
+  resolve to a bogus object key and could surface as zeros.
+- A `FileChunk` with a zero `Hash` predates content addressing entirely and is
+  refused for the same reason (`engine.dispatchRemoteFetch`).
 
-### Pre-v0.16 `.blk` → CAS: migrate with dittofs ≤ v0.21
+Both log what the operator has to do. **There is no boot signal**: such a share
+starts normally and fails reads as they arrive, which is why staging the upgrade
+matters more than it used to.
 
-The offline `.blk`→CAS tool (`dfs migrate-to-cas`) shipped through v0.21 and
-has been removed. `newFSStore` still probes each share for the legacy `.blk`
-layout on open (a `.cas-migrated-v1` sentinel from an old run short-circuits
-the probe) and returns `block.ErrLegacyLayoutDetected`; the boot guard in
-`cmd/dfs/commands/start.go` unwraps it, prints a directive to migrate with an
-earlier release, and exits 78 (`EX_CONFIG`). After that migration + upgrade,
-the automatic cas→blocks conversion above finishes the job.
+Two consequences worth knowing:
+
+- Pre-flip `cas/` objects are never purged. The GC sweep reclaims only what a
+  share resolves to a block locator, and fails toward leaking rather than
+  deleting an object it cannot attribute, so leftover `cas/` objects are billed
+  until removed by hand.
+- The hash-keyed CAS accessors (`Put`/`Get`/`GetRange`/`Has`/`Head`/`Delete`/
+  `Walk` + `ReadBlockVerified`) survive on the concrete backends and decorators,
+  reachable through `remote.CASInner`. They are not part of the block-keyed
+  production `RemoteStore` surface and have no production caller.
+
+### Pre-v0.16 `.blk` -> CAS: migrate with dittofs <= v0.21
+
+The offline `.blk`->CAS tool (`migrate-to-cas`) shipped through v0.21 and has
+been removed. The journal format stamp (`cmd/dfs/commands/start.go`'s
+`handleFormatMismatch`) refuses a directory a newer release wrote and exits 78
+(`EX_CONFIG`); the pre-journal blobs/+logs/ guard was deleted with
+`pkg/block/local/fs` — no production stores exist in field, so opening such a
+directory as an empty journal is accepted. Unlike the standalone-CAS case
+above, this one is a read-time answer, not a boot refusal.
 
 See [the migration guide](/docs/operations/block-store-migration) for the operator
 runbook.

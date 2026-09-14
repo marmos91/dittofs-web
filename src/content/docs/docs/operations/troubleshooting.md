@@ -295,7 +295,7 @@ ls: cannot access 'file.txt': Stale file handle
    ```bash
    ./dfsctl store metadata add --name persistent --type badger \
      --config '{"path":"/var/lib/dittofs/metadata"}'
-   ./dfsctl store block add --kind local --name default --type memory
+   ./dfsctl store block local add --name default --type memory
    ./dfsctl share create --name /export --metadata persistent --local default
    ```
 
@@ -436,6 +436,8 @@ SMB: STATUS_SHARING_VIOLATION or STATUS_LOCK_NOT_GRANTED
 ```
 
 **Cause:** An SMB client holds an exclusive lease (RWH) or byte-range lock on a file that an NFS client is trying to access, or vice versa.
+
+`NFS4ERR_SHARE_DENIED` and `NFS4ERR_LOCKED` also arise without SMB in the picture: an NFSv4 OPEN carrying a deny mode excludes later OPENs of the same file, including the same open-owner's, and excludes READ and WRITE issued under the anonymous stateid. If no SMB adapter is running, look for the NFSv4 OPEN that established the deny mode rather than for a cross-protocol break.
 
 **Diagnosis:**
 ```bash
