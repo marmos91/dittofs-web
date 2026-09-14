@@ -725,11 +725,13 @@ Global flags:
         - [`dfsctl store block remote list`](#dfsctl-store-block-remote-list) — List remote block stores
         - [`dfsctl store block remote remove`](#dfsctl-store-block-remote-remove) — Remove a remote block store
       - [`dfsctl store block stats`](#dfsctl-store-block-stats) — Show block store statistics
+    - [`dfsctl store check`](#dfsctl-store-check) — Scan manifests for ranges no chunk covers
     - [`dfsctl store metadata`](#dfsctl-store-metadata) — Manage metadata stores
       - [`dfsctl store metadata add`](#dfsctl-store-metadata-add) — Add a metadata store
       - [`dfsctl store metadata edit`](#dfsctl-store-metadata-edit) — Edit a metadata store
       - [`dfsctl store metadata health`](#dfsctl-store-metadata-health) — Check metadata store health
       - [`dfsctl store metadata list`](#dfsctl-store-metadata-list) — List metadata stores
+      - [`dfsctl store metadata recompute-usage`](#dfsctl-store-metadata-recompute-usage) — Rebuild a share's used-bytes counter from its files
       - [`dfsctl store metadata remove`](#dfsctl-store-metadata-remove) — Remove a metadata store
   - [`dfsctl switch-user`](#dfsctl-switch-user) — Switch to a different user on the current server
   - [`dfsctl system`](#dfsctl-system) — System operations
@@ -956,7 +958,7 @@ List protocol adapters
 
 List all protocol adapters configured on the DittoFS server.
 
-Each row shows the adapter type (nfs or smb), the port it listens on, and whether it is currently enabled. Use this command to quickly confirm which protocols are active before connecting clients.
+Each row shows the adapter type (nfs or smb), the port it listens on, whether it is enabled, and whether its listener is actually running. RUNNING is the one to check before connecting clients: an adapter can be enabled yet not running when its port could not be claimed.
 
 ```
 dfsctl adapter list
@@ -1407,7 +1409,7 @@ Manage connected clients
 
 Manage connected NFS and SMB clients on the DittoFS server.
 
-Use these commands to inspect which clients are currently connected, filter by protocol or share, and forcefully disconnect misbehaving sessions. All operations require admin privileges.
+Use these commands to inspect which clients are currently connected, filter by protocol, and forcefully disconnect misbehaving sessions. All operations require admin privileges.
 
 **Examples:**
 
@@ -1417,9 +1419,6 @@ dfsctl client list
 
 # Show only NFS clients
 dfsctl client list --protocol nfs
-
-# Show clients connected to a specific share
-dfsctl client list --share myshare
 
 # Disconnect a specific client by its ID
 dfsctl client disconnect nfs-42 --force
@@ -1487,7 +1486,7 @@ List connected clients
 
 List all clients currently connected to the DittoFS server.
 
-Each row shows the client ID, protocol (NFS or SMB), remote address, authenticated user, mounted shares, and how long the client has been connected. Use --protocol or --share to narrow the output.
+Each row shows the client ID, protocol (NFS or SMB), remote address, and how long the client has been connected. Use --protocol to narrow the output.
 
 ```
 dfsctl client list [flags]
@@ -1502,9 +1501,6 @@ dfsctl client list
 # Show only NFS clients
 dfsctl client list --protocol nfs
 
-# Show only clients connected to a specific share
-dfsctl client list --share myshare
-
 # Get the client list as JSON
 dfsctl client list -o json
 ```
@@ -1513,7 +1509,6 @@ Flags:
 
 ```
       --protocol string   Filter by protocol (nfs, smb)
-      --share string      Filter by share name
 ```
 
 Global flags:
@@ -3059,6 +3054,12 @@ is a named set of IP addresses, CIDR ranges, or hostnames that can be referenced
 from share security policies to allow or restrict which network endpoints can
 access a share. All subcommands require admin privileges.
 
+Netgroups are part of a share's NFS export policy: they are attached with
+"dfsctl share nfs-config set --netgroup" and are enforced on NFSv3 (at MOUNT)
+and on NFSv4 (on every operation that resolves the share). They do NOT apply to
+SMB — restrict SMB access with share permissions and user authentication
+instead.
+
 **Examples:**
 
 ```bash
@@ -4132,6 +4133,13 @@ storage quota and current usage, the default permission level, the block
 retention policy, and whether the share is currently enabled. Use this command
 to get a quick overview of all shares before running share-specific commands.
 
+USED is the share's logical size: the sum of its file sizes, the same figure
+'du --apparent-size' would report over the mounted share. It is what QUOTA is
+measured against. It is not a count of bytes on disk, and will not match one:
+blocks are deduplicated and compressed, and a share whose blocks have been
+evicted to its remote store occupies almost nothing locally while its USED is
+unchanged. For on-disk figures, use 'dfsctl store block stats'.
+
 ```
 dfsctl share list
 ```
@@ -4324,6 +4332,9 @@ Only the flags you supply are changed; omitted flags leave the existing values
 intact. Netgroup changes take effect immediately. Changes to squash mode and
 authentication flavors (--allow-auth-sys, --require-kerberos) apply on the
 next NFS adapter restart.
+
+The netgroup allowlist is NFS export policy: it is enforced on NFSv3 mounts and
+on NFSv4 operations, and has no effect on SMB access to the same share.
 
 ```
 dfsctl share nfs-config set <name> [flags]
@@ -5639,7 +5650,7 @@ Flags:
       --dry-run                 Run mark + sweep enumeration but skip deletes; print candidate keys
       --grace-period duration   Override the sweep grace for this run (e.g. 30m, 0 to reap immediately); bypasses the server's 5m floor. Unset = server default
       --no-wait                 Start the job and print its id without waiting for completion
-      --reconcile               Also reap stranded file_blocks rows leaked by older versions (server-wide), then sweep both tiers
+      --reconcile               Also reap stranded file_blocks rows leaked by older versions (server-wide), then sweep
 ```
 
 Global flags:
@@ -6056,7 +6067,7 @@ classified report. This is READ-ONLY: it deletes nothing, decrements nothing,
 and changes no markers. Use it to review what the later reclaim stages would
 act on before running them.
 
-Four orphan classes are reported:
+Three orphan classes are reported:
 
 ```
 Zero-ref records       Block records with no live locator and a zero live
@@ -6069,7 +6080,6 @@ Orphan remote objects  blocks/<id> objects with no backing record, older than
                        the grace window — the upload succeeded but the commit
                        failed. Objects within the grace window are preserved
                        (they may be freshly uploaded, commit pending).
-Stranded local chunks  Unsynced, local-durable chunks awaiting upload.
 ```
 
 Each class reports an exact count plus a bounded sample of IDs (truncated is
@@ -6416,6 +6426,98 @@ Global flags:
   -v, --verbose              Enable verbose output
 ```
 
+### `dfsctl store check`
+
+Scan manifests for ranges no chunk covers
+
+Scan the store for files whose manifest does not describe the whole file.
+
+Per payload the scan compares the byte ranges the manifest rows cover against
+the file's recorded size and reports three structural defects:
+
+```
+* ranges no manifest row covers
+* rows that exist but carry no parseable chunk offset, so no reader can place
+  them — a read of such a range refuses rather than serving bytes
+* rows whose content hash the synced-hash store has no record of
+```
+
+The scan is metadata-only. No block is fetched, no file data is read and no
+remote object is touched, so it costs a metadata walk regardless of how much
+data the store holds and incurs no egress. It answers "how many files are
+affected" without reading every file. It does NOT verify block contents —
+remote fetches are already hash-verified on the read path.
+
+An uncovered range is only reported as damage when the file's own block list
+claims data lives there. A range nothing claims cannot be told apart from a
+legitimate sparse hole or from bytes written but not yet rolled up into the
+manifest, so it is counted separately and never fails the command. Pass
+--include-holes to list those ranges too.
+
+The unknown-hash check is skipped on a share with no remote store: nothing is
+ever marked synced there, so every row would be reported.
+
+--repair adds a second half: for every finding, work out whether the store
+holds enough evidence to put the manifest back, list what that would take, and
+apply it once you confirm. Nothing is written before the prompt, so --repair on
+its own is a dry run; --yes answers the prompt for scripted use. Only two kinds
+of finding are repairable, and both restore a row the file already claims:
+
+```
+* a row with no parseable offset whose hash and length match exactly one
+  range the file claims and no row covers — the row is moved to that offset,
+  keeping everything else about it
+* a range the file claims that no row covers, whose hash the synced-hash
+  store resolves — a row is written for it, and the remote already holds the
+  bytes it names
+```
+
+A repair only ever adds coverage the file already asked for. It never drops a
+row, never widens or narrows a claim, and never marks a hash synced. Findings
+it cannot pair with that evidence — a row matching no claim, a claim whose hash
+nothing resolves, a hash the synced-hash store does not know — are reported and
+left alone: those need the bytes re-synced, not the metadata rewritten.
+
+With no argument every share is scanned. The command exits non-zero when
+damage is found, so it can be scripted (`dfsctl store check || alert`).
+
+```
+dfsctl store check [share] [flags]
+```
+
+**Examples:**
+
+```bash
+dfsctl store check
+dfsctl store check myshare
+dfsctl store check myshare --include-holes
+dfsctl store check myshare -o json
+dfsctl store check myshare --repair
+dfsctl store check myshare --repair --yes
+```
+
+Flags:
+
+```
+      --include-holes   list uncovered ranges that no file claims (legitimate for sparse files)
+      --repair          list the findings the store can put back, and apply them once confirmed
+      --yes             Skip confirmation prompt
+```
+
+Global flags:
+
+```
+      --cacert string        Path to a PEM CA bundle trusted for the server certificate (overrides stored)
+      --client-cert string   Path to a PEM client certificate for mutual TLS (overrides stored)
+      --client-key string    Path to the PEM client private key for mutual TLS (overrides stored)
+      --no-color             Disable colored output
+  -o, --output string        Output format (table|json|yaml) (default "table")
+      --server string        Server URL (overrides stored credential)
+      --tls-skip-verify      Disable TLS certificate verification (insecure; overrides stored)
+      --token string         Bearer token (overrides stored credential)
+  -v, --verbose              Enable verbose output
+```
+
 ### `dfsctl store metadata`
 
 Manage metadata stores
@@ -6423,7 +6525,7 @@ Manage metadata stores
 Manage metadata stores on the DittoFS server.
 
 Metadata stores hold file system structure, attributes, and permissions.
-Supported types: memory, badger, postgres
+Supported types: memory, badger, sqlite, postgres
 
 **Examples:**
 
@@ -6463,6 +6565,7 @@ Supported types:
 ```
 - memory: In-memory store (fast, ephemeral)
 - badger: BadgerDB store (persistent, embedded)
+- sqlite: SQLite store (persistent, embedded)
 - postgres: PostgreSQL store (persistent, distributed)
 ```
 
@@ -6471,6 +6574,9 @@ Type-specific options:
 ```
 badger:
   --db-path: Path to BadgerDB directory (or prompted interactively)
+
+sqlite:
+  --db-path: Path to the SQLite database file (or prompted interactively)
 
 postgres:
   --config: JSON with connection settings, or omit for interactive prompts
@@ -6492,6 +6598,9 @@ dfsctl store metadata add --name persistent-meta --type badger --db-path /data/m
 # Add a BadgerDB store interactively
 dfsctl store metadata add --name persistent-meta --type badger
 
+# Add a SQLite store with flags
+dfsctl store metadata add --name persistent-meta --type sqlite --db-path /data/meta.db
+
 # Add a PostgreSQL store with JSON config
 dfsctl store metadata add --name pg-meta --type postgres --config '{"host":"localhost","dbname":"dittofs"}'
 
@@ -6503,9 +6612,9 @@ Flags:
 
 ```
       --config string    Store configuration as JSON (for advanced config)
-      --db-path string   Database path (required for badger)
+      --db-path string   Database path (required for badger and sqlite)
       --name string      Store name (required)
-      --type string      Store type: memory, badger, postgres (required)
+      --type string      Store type: memory, badger, sqlite, postgres (required)
 ```
 
 Global flags:
@@ -6555,8 +6664,8 @@ Flags:
 
 ```
       --config string    Store configuration as JSON
-      --db-path string   Database path (for badger)
-      --type string      Store type: memory, badger, postgres
+      --db-path string   Database path (for badger and sqlite)
+      --type string      Store type: memory, badger, sqlite, postgres
 ```
 
 Global flags:
@@ -6643,6 +6752,49 @@ dfsctl store metadata list -o json
 
 # List as YAML
 dfsctl store metadata list -o yaml
+```
+
+Global flags:
+
+```
+      --cacert string        Path to a PEM CA bundle trusted for the server certificate (overrides stored)
+      --client-cert string   Path to a PEM client certificate for mutual TLS (overrides stored)
+      --client-key string    Path to the PEM client private key for mutual TLS (overrides stored)
+      --no-color             Disable colored output
+  -o, --output string        Output format (table|json|yaml) (default "table")
+      --server string        Server URL (overrides stored credential)
+      --tls-skip-verify      Disable TLS certificate verification (insecure; overrides stored)
+      --token string         Bearer token (overrides stored credential)
+  -v, --verbose              Enable verbose output
+```
+
+### `dfsctl store metadata recompute-usage`
+
+Rebuild a share's used-bytes counter from its files
+
+Rebuild the used-bytes counters of the metadata store backing the named share.
+
+The counters are maintained transactionally as files are written and removed, so
+they are normally already correct. This repairs a store where they are not: a
+share carrying bytes it no longer holds reports itself fuller than it is, and
+because that figure is what the share quota is checked against, it can refuse
+writes to a share that is actually empty.
+
+The rebuild scans every file row in the store, so it takes time in proportion to
+the store's size, and it repairs every share that store serves — not only the
+one named here. Nothing runs it automatically; a per-file walk on every server
+start is a cost every share would pay forever to fix a number that is almost
+always already right.
+
+```
+dfsctl store metadata recompute-usage <share>
+```
+
+**Examples:**
+
+```bash
+dfsctl store metadata recompute-usage myshare
+dfsctl store metadata recompute-usage myshare -o json
 ```
 
 Global flags:

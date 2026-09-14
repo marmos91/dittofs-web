@@ -183,10 +183,12 @@ controlplane:
   read_timeout: 10s          # Max time to read request
   write_timeout: 10s         # Max time to write response
   idle_timeout: 60s          # Max idle time for keep-alive
-  drain_stall_timeout: 5m    # Abort POST /system/drain-uploads only if no
-                             # upload completes within this window (inactivity
-                             # timeout, NOT a total cap — a large flush may run
-                             # for as long as it keeps making progress)
+  drain_stall_timeout: 5m    # Abort POST /api/v1/system/drain-uploads only if
+                             # no upload completes within this window WHILE
+                             # bytes are still unsynced (inactivity timeout,
+                             # NOT a total cap — a large flush may run for as
+                             # long as it keeps making progress, and a drain
+                             # with nothing left to upload is never aborted)
 
   # Force the bootstrap "admin" user to set a new password on first login.
   # Default true (secure by default). Set to false for automated/test
@@ -232,7 +234,7 @@ controlplane:
 | `read_timeout` | `10s` | Maximum duration to read request |
 | `write_timeout` | `10s` | Maximum duration to write response |
 | `idle_timeout` | `60s` | Maximum idle time for keep-alive |
-| `drain_stall_timeout` | `5m` | Inactivity bound for `POST /system/drain-uploads`. The drain has **no total time cap** — a multi-GiB flush runs as long as it keeps making progress — and is aborted (504) only if no upload completes within this window (the remote stalled). Mirrors rclone's `--timeout` |
+| `drain_stall_timeout` | `5m` | Inactivity bound for `POST /api/v1/system/drain-uploads`. The drain has **no total time cap** — a multi-GiB flush runs as long as it keeps making progress — and is aborted (504) only if no upload completes within this window while bytes are still unsynced (the remote stalled). A drain with nothing left to upload is never aborted: no attempt can conclude, so a flat counter says nothing about liveness. Mirrors rclone's `--timeout` |
 | `require_initial_password_change` | `true` | Force the bootstrap `admin` user to change its password on first login. Set to `false` to opt out (automated/test deployments). Also skipped when `DITTOFS_ADMIN_INITIAL_PASSWORD` is set |
 | `pprof` | `false` | Expose Go `/debug/pprof/*` profiling endpoints |
 | `pprof_mutex_rate` | `100` (when `pprof: true`; else `0`) | Mutex contention sampling, 1 per N events. Applied only when `pprof: true`; unset/`0` then falls back to `100`. Without it `/debug/pprof/mutex` is header-only. Disable profiling via `pprof: false`, not by zeroing this |
@@ -304,7 +306,7 @@ The local filesystem store (`fs`) is a thin adapter over the **journal** — an
 append-only, log-structured write-back cache (`pkg/block/journal/`). Writes
 append to the journal and local-ack; a background carve pass packs dirty ranges
 into packed remote blocks (`blocks/<id>`). Pre-v0.16 `{payloadID}/block-{idx}`
-layouts must be converted with dittofs ≤ v0.21 (`dfs migrate-to-cas`) before the
+layouts must be converted with dittofs ≤ v0.21 (its `migrate-to-cas` command) before the
 server will start.
 
 These keys live inside the per-share `local` block store's `config` JSON
@@ -478,6 +480,29 @@ Notes:
   the default stands. Applies to `fs` local stores; `memory` local stores ignore
   it (in-RAM reads have no amplification).
 
+#### Dirty-age fsync ceiling (`dirty_expire_seconds`)
+
+A client that writes and never issues an NFS `COMMIT`/`FILE_SYNC` or an SMB
+`FLUSH`/`CLOSE` never asks the server for durability. A background loop fsyncs
+each journal shard still holding uncommitted records once per interval, so those
+writes reach the device within roughly that window instead of waiting for the
+shard's next 256 MiB segment rotation.
+
+```sh
+# Default is 30s; tighten it, or set a negative value to disable the loop
+dfsctl store block local edit <share> --config '{"dirty_expire_seconds": 5}'
+```
+
+- Default **30 s**, on for every share; the loop costs an idle store nothing and
+  never runs on the ack path.
+- Negative disables it, leaving the client's own fsync and segment rotation as
+  the only durability points — the loss window is then unbounded in time.
+- Values below 1 s are clamped with a warning; non-numeric values are ignored.
+- This is a **ceiling on the loss window, not a durability guarantee**: only a
+  returned `COMMIT`/`FLUSH` says the bytes are on the device. See
+  [Durability & QoS tiers](https://github.com/marmos91/dittofs/blob/develop/docs/guide/durability.md#the-dirty-age-ceiling-dirty_expire_seconds).
+- Applies to `fs` local stores; `memory` local stores ignore it.
+
 #### GC knobs
 
 The CAS write path uses an async syncer and a fail-closed mark-sweep
@@ -512,7 +537,7 @@ dfsctl store block remote add --name r1 --type s3 \
   --parallel-uploads 32          # fixed window of 32; 0 (default) = adaptive
 ```
 
-`dfsctl store block remote edit --name r1 --parallel-uploads 0` returns a remote
+`dfsctl store block remote edit r1 --parallel-uploads 0` returns a remote
 to adaptive mode. Observe the live window via the Prometheus gauge
 `dittofs_datapath_upload_window` (target concurrency) alongside
 `dittofs_datapath_uploads_inflight` (actual in-flight uploads); see
@@ -575,6 +600,120 @@ directly):
 See [ARCHITECTURE.md](/docs/contributing/architecture#garbage-collection-mark-sweep)
 for the full mark-sweep design and [CLI.md](/docs/getting-started/cli) for the on-demand
 `dfsctl store block gc` command.
+
+#### Background integrity scan
+
+A share's manifest can end up disagreeing with its own files' block lists:
+a file claims bytes in a range that no manifest row covers. At read time
+that is indistinguishable from a legitimate sparse hole — absent rows are
+how sparse files are represented — so the read returns zeros and reports
+success. Nothing on the data path can report it. The background scan is
+what finds it.
+
+```yaml
+integrity:
+  auto_enabled: true          # Run the structural manifest scan
+                              # automatically. Default true. Set false to
+                              # require manual `dfsctl store check`.
+  auto_interval: 24h          # Period between scans. Default 24h. Values
+                              # in (0, 5m) are REJECTED — a scan is a full
+                              # metadata walk of every share. Ignored when
+                              # auto_enabled is false.
+```
+
+The scan is **metadata-only**: it fetches no block and touches no remote
+object, so it costs a metadata walk regardless of how much data a share
+holds and generates **no S3 egress**. It writes nothing — it neither plans
+nor applies repairs. Shares are scanned one at a time.
+
+Findings surface in three places:
+
+- `dfsctl share show <name>` reports when the share was last scanned and
+  what was found. A share with damaged payloads reads as `degraded` even
+  when every subsystem probe is healthy.
+- Prometheus: `dittofs_integrity_last_scan_timestamp_seconds`,
+  `dittofs_integrity_last_scan_failed`,
+  `dittofs_integrity_last_scan_duration_seconds`,
+  `dittofs_integrity_files_scanned`, and
+  `dittofs_integrity_findings{kind="..."}` broken out by
+  `payloads_with_findings`, `damaged_payloads`,
+  `claimed_uncovered_ranges`, `unplaceable_rows` and `unknown_hash_rows`.
+
+  The last-scan timestamp is 0 both for a share never scanned and for one
+  whose last scan failed — a failed scan completes nothing, so it has no
+  time to report. `dittofs_integrity_last_scan_failed` is what separates
+  them: `0` with a zero timestamp means the scan has not run yet, `1` means
+  it is running and erroring. Without that second series a scanner failing
+  on every tick would look exactly like one that was never switched on, and
+  stay that way indefinitely.
+- The server log, at `WARN`, for any share with damaged payloads.
+
+Run `dfsctl store check <share>` for the per-file detail behind a finding,
+and `--repair` to act on it.
+
+#### Offline read safety
+
+A remote-backed share's local tier is a cache: once a range is mirrored to the
+remote it becomes evictable, and an evicted range is served by fetching it
+back. Reads of such a range fail while the remote is unreachable. Whether a
+box would keep serving through an outage therefore depends on how much of its
+data is currently remote-only, and that number moves with every eviction and
+every warm.
+
+The server reports it per share:
+
+- `dfsctl share show <name>` prints `Offline Safe: yes`, or
+  `no (12.4 GiB remote-only across 431 ranges)`.
+- Prometheus: `dittofs_offline_safe{share}` (1/0),
+  `dittofs_offline_remote_only_bytes{share}` and
+  `dittofs_offline_remote_only_ranges{share}`.
+
+Zero remote-only bytes is a provably offline-safe share. To get there, warm
+the share and stop it evicting again:
+
+```bash
+dfsctl share warm /archive
+dfsctl share edit /archive --retention pin
+```
+
+The measurement never guesses. Three cases report **unknown** rather than a
+number, because a zero would read as "provably safe" for exactly the shares
+whose data is most likely to be remote-only:
+
+- the share's local tier does not track residency (the in-memory backend),
+- the local tier has not been seeded from the manifest yet — it holds no
+  record of ranges that live only on the remote, so they would count as
+  absent rather than remote-only,
+- the block store is closed,
+- the residency scan did not finish inside the request's deadline.
+
+An unknown share reports `dittofs_offline_safe = 0` but publishes no byte
+counts, so a dashboard cannot mistake it for a clean fully-local share.
+
+A share with **no remote at all** is normally safe by construction — nothing
+evicts it, so everything it holds is local. The exception is a share whose
+remote was unbound after it had already evicted: the evicted ranges stay
+recorded in the local tier and are replayed from its cold log on the next
+open, but there is no longer anything to fetch them from, so they never
+serve. Those shares report a non-zero remote-only figure rather than being
+waved through as local-only.
+
+The figure is **bytes, not blocks**. The local tier tracks byte ranges, which
+split and merge independently of manifest chunk rows; a block count would
+need a metadata walk to produce and would not answer "how much would break
+offline" any more precisely.
+
+Note this is read availability only. Offline **writes** already work — writes
+are stored locally and drain when the remote returns.
+
+
+The schedule restarts from zero on server start, so a box restarted more
+often than `auto_interval` never completes a scan. Lower the interval on a
+host that reboots frequently.
+
+Env-var mapping:
+`DITTOFS_INTEGRITY_AUTO_ENABLED`,
+`DITTOFS_INTEGRITY_AUTO_INTERVAL`.
 
 #### Local cache size limit & write backpressure
 
@@ -693,7 +832,7 @@ Add a `compression` block to the remote store's `config` JSON when
 creating it:
 
 ```bash
-./dfsctl store block add --kind remote --name prod-s3 --type s3 \
+./dfsctl store block remote add --name prod-s3 --type s3 \
   --config '{"region":"us-east-1","bucket":"dfs-production","compression":{"algo":"zstd"}}'
 ```
 
@@ -960,6 +1099,30 @@ These global sizes apply to every BadgerDB metadata store on the node. A single
 store can be overridden via its config-map keys when it is created (see below):
 `--config '{"path":"...","block_cache_mb":2048,"index_cache_mb":1024}'`.
 
+#### `relaxed_durability`
+
+Applies to the `badger` and `postgres` metadata stores. **Defaults to `true`.**
+
+Namespace operations (`create`, `unlink`, `rename`, `mkdir`, `rmdir`,
+attribute-only `setattr`) commit without an inline flush. On `badger` a
+background syncer makes them durable within ~100 ms; on `postgres` the
+transaction runs with `synchronous_commit = off`, so the window is whatever the
+server's `wal_writer_delay` allows (PostgreSQL default 200 ms). Writes paired
+with file data commit synchronously either way, so this is bounded loss, never
+corruption.
+
+```bash
+# Strict: fsync every namespace commit (roughly a third of the create throughput)
+./dfsctl store metadata add --name badger-strict --type badger \
+  --config '{"path":"/var/lib/dittofs/metadata","relaxed_durability":false}'
+```
+
+Only an event that takes the kernel down — power loss, kernel panic, hypervisor
+reset — can lose that window. Killing the `dfs` process (`SIGKILL`, OOM-kill,
+panic) loses nothing at either setting, because an acknowledged write is already
+in the kernel page cache. See
+[Durability → Namespace durability](https://github.com/marmos91/dittofs/blob/develop/docs/guide/durability.md#namespace-durability-relaxed_durability).
+
 #### Metadata Store Instances (CLI)
 
 Metadata stores are managed at runtime via `dfsctl` and persisted in the control plane database:
@@ -982,8 +1145,9 @@ Metadata stores are managed at runtime via `dfsctl` and persisted in the control
   --config '{"path":"/tmp/dittofs-metadata-isolated"}'
 
 # SQLite for a persistent single-binary / edge appliance (pure-Go, no cgo).
-# Reuses the PostgreSQL data model (parent_child_map hard links, nlink,
-# recursive-CTE path reconstruction, object_id dedup index).
+# Same implementation as PostgreSQL over a different dialect: one schema
+# (parent_child_map hard links, nlink, recursive-CTE path reconstruction,
+# object_id dedup index) and one set of operation bodies.
 ./dfsctl store metadata add --name sqlite-edge --type sqlite \
   --config '{"path":"/var/lib/dittofs/metadata.db"}'
 
@@ -1002,6 +1166,7 @@ Metadata stores are managed at runtime via `dfsctl` and persisted in the control
 > **Persistence Options**:
 > - **Memory**: Fast but ephemeral - all data lost on restart. Ideal for caching and temporary workloads.
 > - **BadgerDB**: Persistent embedded database - single-node deployments. File handles and metadata survive restarts.
+> - **SQLite**: Persistent embedded database - single-node deployments, pure-Go with no cgo. Shares its implementation with PostgreSQL, so the two behave alike apart from concurrency.
 > - **PostgreSQL**: Persistent distributed database - multi-node deployments with horizontal scaling. Survives restarts and supports multiple DittoFS instances sharing the same metadata.
 
 ### 8. Shares (Exports)
@@ -1100,7 +1265,7 @@ fresh grace window.
 
 DittoFS supports a unified user management system for both NFS and SMB protocols. Users, groups, and their permissions are stored in the control plane database (see [Database Configuration](#4-database-control-plane)) and can be managed via:
 
-1. **CLI commands** (`dfs user`, `dfs group`) - Recommended for initial setup
+1. **CLI commands** (`dfsctl user`, `dfsctl group`) - Recommended for initial setup
 2. **REST API** - For programmatic management and integrations
 3. **Config file** - For bootstrap configuration (imported on first run)
 
@@ -1260,7 +1425,7 @@ dfsctl user create --username bob --email bob@example.com --groups editors,viewe
 # Inspect and edit
 dfsctl user list
 dfsctl user get alice
-dfsctl user update alice --email alice@example.com
+dfsctl user edit alice --email alice@example.com
 dfsctl user remove alice
 
 # Passwords
@@ -1984,22 +2149,18 @@ stored secret. Equivalent CLI: `dfsctl identity-provider {list,get,set,test}`
 
 ## Migration
 
-### Standalone CAS (v0.16 - v0.21) → packed blocks: automatic
+### Standalone CAS (v0.16 - v0.21) → packed blocks: removed
 
-Current servers store remote data as packed `blocks/<id>` containers. Shares
-that still hold standalone-CAS state (per-chunk `cas/` objects and locators
-from v0.16-v0.21 servers) are converted automatically at startup, per share,
-**before the share serves** — no command, flag, or sentinel involved. The
-conversion is idempotent and resumable; a killed run converges on the next
-start. See [the migration guide](/docs/operations/block-store-migration).
-
-If a share's remote is unreachable while standalone chunks remain, that
-share fails to start (its data would be unreadable anyway); restore
-connectivity and start again.
+Current servers store remote data as packed `blocks/<id>` containers. The
+automatic startup conversion for shares still holding standalone-CAS state
+(per-chunk `cas/` objects and locators from v0.16-v0.21 servers) has been
+removed: such a store cannot be upgraded in place by this build, and a
+locator still pointing at a standalone object fails closed on read. See
+[the migration guide](/docs/operations/block-store-migration).
 
 ### Pre-v0.16 `.blk` layouts: migrate with dittofs ≤ v0.21 first
 
-The offline `dfs migrate-to-cas` tool was removed after v0.21. On startup,
+The offline `migrate-to-cas` command was removed after v0.21. On startup,
 `dfs start` still probes each share for the legacy `.blk` layout (a
 `.cas-migrated-v1` sentinel from an old migration short-circuits the probe)
 and refuses to start un-migrated shares:
@@ -2009,7 +2170,7 @@ and refuses to start un-migrated shares:
   dittofs ≤ v0.21 for the `.blk` migration.
 - Halts on the FIRST share that surfaces the legacy layout.
 
-Run `dfs migrate-to-cas` on v0.21, verify the per-share `.cas-migrated-v1`
+Run `migrate-to-cas` with a v0.21 binary, verify the per-share `.cas-migrated-v1`
 sentinel exists, then upgrade — the automatic conversion above finishes the
 job.
 
@@ -2160,6 +2321,12 @@ spec:
 | ⭐ `dittofs_snapshot_operations_total{op,result}` | Snapshot operations by `op` (create/delete/restore) and `result` (ok/error). |
 | `dittofs_snapshot_duration_seconds{op}` | Snapshot operation latency histogram, by `op` (create/delete/restore). |
 | ⭐ `dittofs_snapshot_last_success_timestamp_seconds{share}` | Unix time of the last successful snapshot create (backup-freshness signal). |
+| ⭐ `dittofs_integrity_findings{share,kind}` | Findings from the last structural manifest scan, by `kind`: `payloads_with_findings`, `damaged_payloads`, `claimed_uncovered_ranges`, `unplaceable_rows`, `unknown_hash_rows`. |
+| ⭐ `dittofs_integrity_last_scan_timestamp_seconds{share}` | Unix time the structural manifest scan last completed. 0 means it has never run since process start **or** its last attempt failed. |
+| ⭐ `dittofs_integrity_last_scan_failed{share}` | `1` when the most recent structural manifest scan failed, `0` when it completed or has never run. Pairs with the timestamp above to tell "never scanned" from "scans are erroring". |
+| `dittofs_integrity_last_scan_duration_seconds{share}` / `dittofs_integrity_files_scanned{share}` | Cost and reach of the last structural manifest scan. |
+| ⭐ `dittofs_offline_safe{share}` | `1` when every byte the share holds can be served with the remote unreachable, else `0`. A share whose residency cannot be determined reports `0` and publishes no byte counts. |
+| `dittofs_offline_remote_only_bytes{share}` / `dittofs_offline_remote_only_ranges{share}` | Data the local tier no longer holds and would have to fetch from the remote to serve, and how many ranges it spans. |
 
 ### Example alert expressions
 
@@ -2179,6 +2346,36 @@ groups:
         labels: { severity: warning }
         annotations:
           summary: "DittoFS has had no successful snapshot create in >24h"
+
+      # A share holding manifest damage. The read path cannot report this
+      # class: an uncovered range a file still claims reads back as a sparse
+      # hole, so reads return zeros and succeed. Only the scan sees it.
+      - alert: DittoFSManifestDamage
+        expr: dittofs_integrity_findings{kind="damaged_payloads"} > 0
+        for: 15m
+        labels: { severity: critical }
+        annotations:
+          summary: "DittoFS share {{ $labels.share }} has damaged payloads; run dfsctl store check"
+
+      # The integrity scan has not completed in 48h. A last-scan value of 0
+      # means never scanned since process start, which this expression catches
+      # because time() - 0 is far past the threshold.
+      - alert: DittoFSIntegrityScanStale
+        expr: (time() - dittofs_integrity_last_scan_timestamp_seconds) > 172800
+        for: 1h
+        labels: { severity: warning }
+        annotations:
+          summary: "DittoFS share {{ $labels.share }} has not been integrity-scanned in >48h"
+
+      # The scan is running but failing. Without this the share looks
+      # identical to one whose scanner was never enabled: both report a
+      # last-scan timestamp of 0, forever.
+      - alert: DittoFSIntegrityScanFailing
+        expr: dittofs_integrity_last_scan_failed == 1
+        for: 1h
+        labels: { severity: warning }
+        annotations:
+          summary: "DittoFS integrity scan for {{ $labels.share }} is failing; the share is not being verified"
 
       # Remote block store unreachable.
       - alert: DittoFSRemoteDown
@@ -2250,7 +2447,7 @@ On the **first** start (when no `admin` user exists yet) the initial admin passw
 
 1. **`DITTOFS_ADMIN_INITIAL_PASSWORD`** (env, plaintext) — sets a known password and also derives the NT hash, so the admin can authenticate over **SMB** as well as the REST/control-plane API.
 2. **`admin.password_hash`** (config, bcrypt `$2a$`/`$2b$`/`$2y$`) — sets a known credential without writing a plaintext secret to disk. No NT hash is derivable from a bcrypt hash, so an admin bootstrapped this way works for the **control-plane/REST API only, not SMB** (use option 1 for SMB). A value that is not a valid bcrypt hash is rejected at startup.
-3. **Auto-generated** — a random password is generated. It is printed once **only when `dfs start` runs with stdout attached to an interactive terminal** (i.e. `dfs start --foreground` in a real TTY). In background/daemon mode, and under Docker/systemd/CI where stdout is a pipe, the password is **not written to the log and cannot be recovered** — the log only records that an admin user was created. Recovery via `dfsctl user password admin` is not possible in this state (it requires an authenticated admin session). Options 1 and 2 are consulted **only while bootstrapping a new admin**, so once this first start has created the admin user, setting them and restarting will **not** change the password — you must remove the admin user (reset the control-plane database) and re-bootstrap with option 1 or 2 set. For any non-interactive deployment, set option 1 or 2 before the very first start.
+3. **Auto-generated** — a random password is generated. It is printed once **only when `dfs start` runs with stdout attached to an interactive terminal** (i.e. `dfs start --foreground` in a real TTY). In background/daemon mode, and under Docker/systemd/CI where stdout is a pipe, the password is **not written to the log and cannot be recovered** — the log only records that an admin user was created. Recovery via `dfsctl user password admin` is not possible in this state (it requires an authenticated admin session). Options 1 and 2 are consulted **only while bootstrapping a new admin**, so once this first start has created the admin user, setting them and restarting will **not** change the password — you must delete the `admin` row from the `users` table of the control-plane database (not the database itself, which also holds your shares, stores, mounts and other users) and re-bootstrap with option 1 or 2 set. For any non-interactive deployment, set option 1 or 2 before the very first start.
 
 Options 1 and 2 also skip the forced first-login password change (the operator already chose the password). All three apply only on first start; later starts never change an existing admin's password.
 
@@ -2362,7 +2559,7 @@ Then create stores, shares, and enable adapters via CLI:
 
 ```bash
 ./dfsctl store metadata add --name default --type memory
-./dfsctl store block add --kind local --name default --type fs \
+./dfsctl store block local add --name default --type fs \
   --config '{"path":"/tmp/dittofs-blocks"}'
 ./dfsctl share create --name /export --metadata default --local default
 ./dfsctl adapter enable nfs
@@ -2380,7 +2577,7 @@ logging:
 
 ```bash
 ./dfsctl store metadata add --name dev-memory --type memory
-./dfsctl store block add --kind local --name dev-local --type memory
+./dfsctl store block local add --name dev-local --type memory
 ./dfsctl share create --name /export --metadata dev-memory --local dev-local
 ./dfsctl adapter enable nfs --port 12049
 ```
@@ -2413,9 +2610,9 @@ Then create stores, shares, and enable adapters via CLI:
 # Create stores
 ./dfsctl store metadata add --name prod-badger --type badger \
   --config '{"path":"/var/lib/dittofs/metadata"}'
-./dfsctl store block add --kind local --name prod-local --type fs \
+./dfsctl store block local add --name prod-local --type fs \
   --config '{"path":"/var/lib/dittofs/blocks"}'
-./dfsctl store block add --kind remote --name prod-s3 --type s3 \
+./dfsctl store block remote add --name prod-s3 --type s3 \
   --config '{"region":"us-east-1","bucket":"dfs-production"}'
 
 # Create share and grant permissions
@@ -2438,9 +2635,9 @@ Different shares using different storage backends:
   --config '{"path":"/var/lib/dittofs/metadata"}'
 
 # Create block stores
-./dfsctl store block add --kind local --name local-cache --type fs \
+./dfsctl store block local add --name local-cache --type fs \
   --config '{"path":"/var/lib/dittofs/blocks"}'
-./dfsctl store block add --kind remote --name cloud-s3 --type s3 \
+./dfsctl store block remote add --name cloud-s3 --type s3 \
   --config '{"region":"us-east-1","bucket":"my-dfs-bucket"}'
 
 # Create shares with different backends
@@ -2467,11 +2664,11 @@ Multiple shares sharing the same metadata database:
   --config '{"path":"/var/lib/dittofs/shared-metadata"}'
 
 # Create block stores
-./dfsctl store block add --kind local --name local-cache --type fs \
+./dfsctl store block local add --name local-cache --type fs \
   --config '{"path":"/var/lib/dittofs/blocks"}'
-./dfsctl store block add --kind remote --name s3-production --type s3 \
+./dfsctl store block remote add --name s3-production --type s3 \
   --config '{"region":"us-east-1","bucket":"prod-bucket"}'
-./dfsctl store block add --kind remote --name s3-archive --type s3 \
+./dfsctl store block remote add --name s3-archive --type s3 \
   --config '{"region":"us-east-1","bucket":"archive-bucket"}'
 
 # Both shares use the same metadata store, different remote stores
