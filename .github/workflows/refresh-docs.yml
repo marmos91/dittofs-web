@@ -31,4 +31,7 @@ jobs:
           title: "docs: sync from dittofs"
           branch: docs/auto-sync
           delete-branch: true
+          # Request a review so the sync PR surfaces as a notification rather than
+          # sitting unnoticed until someone happens to look at the PR list.
+          reviewers: marmos91
           body: Automated documentation sync from the dittofs repository.
