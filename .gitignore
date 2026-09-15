@@ -9,6 +9,9 @@ node_modules/
 .env
 .env.*
 !.env.example
+*.key
+*.pem
+mimir-key
 
 # os / editor
 .DS_Store
@@ -18,3 +21,7 @@ node_modules/
 
 # cloudflare
 .wrangler/
+
+# local tooling
+.playwright-mcp/
+opencode.json
