@@ -1,7 +1,7 @@
 ---
 /*
-  The write path, shown. A file lands in the local block store first, then
-  syncs to the durable remote in the background. Vertical flow with traveling
+  The write path, shown. A file lands in the share's on-disk journal first,
+  then syncs to the durable block store in the background. Vertical flow with traveling
   packets; pure CSS, reduced-motion safe.
 */
 const docIcon = `<path d="M14 3v5h5"/><path d="M7 3h8l5 5v11a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/>`;
@@ -9,7 +9,7 @@ const diskIcon = `<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 
 const cloudIcon = `<path d="M7 18a4 4 0 0 1 0-8 5 5 0 0 1 9.6-1.3A3.5 3.5 0 0 1 18 18H7z"/>`;
 ---
 
-<figure class="wp" aria-label="A write lands in the local block store, then syncs to the remote block store">
+<figure class="wp" aria-label="A write lands in the share journal, then syncs to the block store">
   <!-- file -->
   <div class="wp-node" data-reveal>
     <span class="wp-ic">
@@ -26,14 +26,14 @@ const cloudIcon = `<path d="M7 18a4 4 0 0 1 0-8 5 5 0 0 1 9.6-1.3A3.5 3.5 0 0 1 
     <span class="wp-label">write</span>
   </div>
 
-  <!-- local block store -->
+  <!-- journal -->
   <div class="wp-node wp-node--accent" data-reveal>
     <span class="wp-ic">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" set:html={diskIcon} />
     </span>
     <span class="wp-text">
-      <strong>Local block store</strong>
-      <em>fast cache · returns immediately</em>
+      <strong>Share journal</strong>
+      <em>on disk · returns immediately</em>
     </span>
     <span class="wp-tag">acknowledged</span>
   </div>
@@ -43,14 +43,14 @@ const cloudIcon = `<path d="M7 18a4 4 0 0 1 0-8 5 5 0 0 1 9.6-1.3A3.5 3.5 0 0 1 
     <span class="wp-label">async sync</span>
   </div>
 
-  <!-- remote block store -->
+  <!-- block store -->
   <div class="wp-node" data-reveal>
     <span class="wp-ic">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" set:html={cloudIcon} />
     </span>
     <span class="wp-text">
-      <strong>Remote block store</strong>
-      <em>durable · S3 or filesystem</em>
+      <strong>Block store</strong>
+      <em>durable · S3-compatible</em>
       <em>deduplicated · compressed · encrypted</em>
     </span>
     <span class="wp-tag wp-tag--muted">synced</span>

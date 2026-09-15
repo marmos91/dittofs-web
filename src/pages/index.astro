@@ -54,7 +54,7 @@ const features = [
   {
     tag: "backends",
     title: "Pluggable storage",
-    body: "Mix metadata stores (memory, BadgerDB, PostgreSQL) and block stores (filesystem, S3) per share.",
+    body: "Mix metadata stores (memory, BadgerDB, SQLite, PostgreSQL) with an S3-compatible block store, per share.",
     icon: "plug",
   },
   {
@@ -92,7 +92,7 @@ const featuresMore = [
   },
   {
     title: "Compression",
-    body: "Remote block stores compress with zstd or lz4 before upload.",
+    body: "Blocks compress with zstd or lz4 before upload.",
     icon: "compress",
   },
   {
@@ -177,14 +177,13 @@ const backends = [
   "Wasabi",
   "Backblaze B2",
   "Scaleway",
-  "Filesystem",
   "any S3-compatible",
 ];
 
 const pillars = [
   {
     title: "Multi-cloud and hybrid",
-    body: "Serve the same data from AWS, MinIO, Ceph, Cubbit DS3, or a local disk. Move between clouds and the edge without re-platforming.",
+    body: "Serve the same data from AWS, MinIO, Ceph, Cubbit DS3, or any other S3-compatible store. Move between clouds and the edge without re-platforming.",
     icon: "globe",
   },
   {
@@ -746,8 +745,8 @@ const statusMark = (s: string) =>
             <span>
               <strong class="font-semibold text-fg">Write, acked locally.</strong>
               The client writes to a mounted share. DittoFS appends to a per-file
-              log and acks from the local cache right away, with no network round
-              trip in the hot path.
+              log in the share's journal and acks right away, with no network
+              round trip in the hot path.
             </span>
           </li>
           <li class="flex items-start gap-3">
@@ -763,9 +762,9 @@ const statusMark = (s: string) =>
             <span class="mt-0.5 font-mono text-accent-bright">03</span>
             <span>
               <strong class="font-semibold text-fg">Compress, encrypt, sync.</strong>
-              The syncer uploads new blocks to the durable remote, S3 or
-              filesystem, optionally compressed and encrypted. Reads verify each
-              block by hash.
+              The syncer uploads new blocks to the share's block store,
+              optionally compressed and encrypted. Reads verify each block by
+              hash.
             </span>
           </li>
         </ul>
