@@ -5,7 +5,7 @@
 */
 const lines = [
   { p: "$", t: "dfs start", out: "serving NFS :12049 · SMB :12445 · API :8080" },
-  { p: "$", t: "dfsctl share create /export --metadata default --local cache --remote s3" },
+  { p: "$", t: "dfsctl share create --name /export --metadata default --block-store s3" },
   { p: "$", t: "dfsctl adapter enable nfs", out: "adapter nfs: enabled" },
   { p: "$", t: "sudo mount -t nfs -o port=12049 localhost:/export /mnt/nfs" },
   { p: "$", t: "echo \"hello\" > /mnt/nfs/hello.txt", out: "written · synced to s3" },
