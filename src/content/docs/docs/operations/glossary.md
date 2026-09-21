@@ -57,6 +57,8 @@ also live in [NFS.md](/docs/connect/nfs#glossary) and [SMB.md](/docs/connect/smb
 | Term | Definition |
 |------|------------|
 | **Kerberos** | A ticket-based network authentication protocol. DittoFS supports it for both NFS (via RPCSEC_GSS) and SMB (via SPNEGO). [RFC 4120](https://www.rfc-editor.org/rfc/rfc4120) |
+| **Active Directory (AD)** | Microsoft's directory service. DittoFS authenticates AD domain users directly — Kerberos service tickets from a keytab, or NTLM passed through to a Domain Controller by a machine account. |
+| **idmap** | The mapping from an authenticated principal or SID to a Unix UID/GID. DittoFS supports `idmap_ad` (RFC2307 `uidNumber`/`gidNumber` attributes) and `idmap_rid` (derive from the RID). See [identity.md](/docs/connect/identity). |
 | **GSS-API** | A standard programming interface that lets applications use security mechanisms like Kerberos without hard-coding them. [RFC 2743](https://www.rfc-editor.org/rfc/rfc2743) |
 | **SPNEGO** (Simple and Protected GSS-API Negotiation) | The wrapper that lets an SMB client and server agree on whether to use Kerberos or NTLM. [RFC 4178](https://www.rfc-editor.org/rfc/rfc4178) |
 | **NTLM / NTLMSSP** | Microsoft's challenge/response authentication scheme, used by SMB when Kerberos isn't available. NTLMSSP is the GSS-API wrapping of NTLM. [MS-NLMP](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-nlmp/) |
@@ -72,7 +74,9 @@ also live in [NFS.md](/docs/connect/nfs#glossary) and [SMB.md](/docs/connect/smb
 | **CAS** (Content-Addressed Storage) | Storage that names each block by the hash of its contents rather than by location, so identical data is stored once and deduplicated automatically. |
 | **FastCDC** | A content-defined chunking algorithm that splits file data into variable-size chunks at content-based boundaries, so small edits only re-chunk the affected region. [FastCDC paper (USENIX ATC '16)](https://www.usenix.org/conference/atc16/technical-sessions/presentation/xia) |
 | **BLAKE3** | The fast cryptographic hash DittoFS uses to address CAS blocks and verify them end-to-end. [BLAKE3 specification](https://github.com/BLAKE3-team/BLAKE3-specs) |
-| **Block store** | The per-share content layer: a fast local tier (filesystem or memory) backed by a durable remote tier ([S3](https://docs.aws.amazon.com/AmazonS3/latest/API/Welcome.html) or memory), with an async syncer between them. |
+| **Block store** | The durable home for a share's file content ([S3](https://docs.aws.amazon.com/AmazonS3/latest/API/Welcome.html) or memory). Every share has exactly one; it has no *kind*. |
+| **Journal** | The on-disk, append-only tier in front of a share's block store. It absorbs writes, is provisioned automatically under `blockstore.journal.path`, and is offloaded to the block store by an async syncer. |
+| **Commit acknowledgement** | Per-share setting (`commit_ack`) for what an NFS COMMIT / SMB Flush waits for: `journal` (survives host crash) or `block-store` (survives device loss). |
 | **Metadata store** | The pluggable backend that holds the directory tree, file attributes, and ACLs — memory, [BadgerDB](https://github.com/dgraph-io/badger), or [PostgreSQL](https://www.postgresql.org/docs/), chosen per share. |
 
 ## Implementation and tooling

@@ -301,11 +301,13 @@ adapters:
 
 Per-share encryption:
 
-```yaml
-shares:
-  - name: sensitive
-    encrypt_data: true   # Enforces encryption for this share regardless of server mode
+```bash
+dfsctl share edit sensitive --encrypt-data true
 ```
+
+`encrypt-data` is a share attribute, set through the REST API (`dfsctl`) rather than a config
+file; shares are not configurable from YAML. Enabling it sets `SMB2_SHAREFLAG_ENCRYPT_DATA` in the
+TREE_CONNECT response for that share.
 
 See [./configuration.md](/docs/getting-started/configuration) for complete encryption configuration options.
 See [./security.md](/docs/operations/security) for security implications and recommendations.
@@ -505,28 +507,20 @@ See [./security.md](/docs/operations/security) for detailed Kerberos security co
 
 ## User, Group and Permission Configuration
 
-SMB uses the same user/group store as all other DittoFS protocols. A brief example:
+SMB uses the same user/group store as all other DittoFS protocols. Users, groups and their
+share permissions live in the control-plane database and are managed through `dfsctl` — they are
+not declared in a config file.
 
-```yaml
-users:
-  - username: alice
-    password_hash: "$2a$10$..."  # bcrypt hash
-    uid: 1001
-    gid: 1000
-    share_permissions:
-      /export: read-write
+```bash
+# Create a user and a group
+dfsctl user create --username alice --password secret --uid 1001 --gid 1000
+dfsctl group create --name editors --gid 1000
 
-groups:
-  - name: editors
-    gid: 1000
-    share_permissions:
-      /export: read-write
-
-guest:
-  enabled: false  # Disable guest access
+# Grant a group read-write access to a share
+dfsctl share permission grant /export --group editors --level read-write
 ```
 
-Permission levels: `none`, `read`, `read-write`, `admin` (future).
+Permission levels: `none`, `read`, `read-write`, `admin`.
 
 Resolution order: user explicit permission → group permission → share default.
 
@@ -613,7 +607,7 @@ sudo go test -tags=e2e -v ./test/e2e/ -run TestCrossProtocol
 ### Operations Timeout
 
 1. Increase timeout in SMB config
-2. Check block store connectivity (S3, filesystem)
+2. Check block store connectivity (for an `s3` store, reachability of the endpoint)
 3. Enable debug logging for detailed timing
 
 ### macOS-Specific Issues

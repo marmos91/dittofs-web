@@ -59,9 +59,9 @@ DittoFS uses a **Runtime-centric architecture** where the Runtime is the single 
 │                           └──────────┘  │
 │  ┌────────────┐  ┌───────────────────┐  │
 │  │   Store    │  │   Auth Layer      │  │
-│  │ (Persist)  │  │   pkg/auth/       │  │
-│  │ 9 sub-ifs  │  │ AuthProvider,     │  │
-│  │            │  │ IdentityMapper    │  │
+│  │ (Persist)  │  │  pkg/auth/        │  │
+│  │ 9 sub-ifs  │  │ kerberos,         │  │
+│  │            │  │ sid               │  │
 │  └────────────┘  └───────────────────┘  │
 └───────┬───────────────────┬─────────────┘
         │                   │
@@ -71,8 +71,8 @@ DittoFS uses a **Runtime-centric architecture** where the Runtime is the single 
 │     Stores     │  │  pkg/block/     │
 │                │  │                      │
 │  - Memory      │  │  ┌──────────────┐    │
-│  - BadgerDB    │  │  │ Local Store  │    │
-│  - PostgreSQL  │  │  │ fs / memory  │    │
+│  - BadgerDB    │  │  │   Journal    │    │
+│  - PostgreSQL  │  │  │  (on disk)   │    │
 │                │  │  └──────┬───────┘    │
 │                │  │         │            │
 │                │  │  ┌──────▼───────┐    │
@@ -81,8 +81,8 @@ DittoFS uses a **Runtime-centric architecture** where the Runtime is the single 
 │                │  │  └──────┬───────┘    │
 │                │  │         │            │
 │                │  │  ┌──────▼────────┐   │
-│                │  │  │ Remote Store  │   │
-│                │  │  │ s3 / memory   │   │
+│                │  │  │  Block Store  │   │
+│                │  │  │  s3 / memory  │   │
 │                │  │  │ (ref counted) │   │
 │                │  │  └───────────────┘   │
 └────────────────┘  └──────────────────────┘
@@ -115,22 +115,18 @@ DittoFS uses a **Runtime-centric architecture** where the Runtime is the single 
 - SQLite (single-node) or PostgreSQL (distributed)
 
 **3. Adapter Interface** (`pkg/adapter/adapter.go`)
-- Each protocol implements the `Adapter` interface
-- `IdentityMappingAdapter` extends `Adapter` with `auth.IdentityMapper` for protocol-specific identity mapping
-- Adapters receive a Runtime reference to access services
-- `BaseAdapter` provides shared TCP lifecycle, default `MapError` and `MapIdentity` stubs
+- Each protocol implements the `Adapter` interface (`Serve`, `Stop`, `SetRuntime`, `Protocol`, `Port`, `Healthcheck`)
+- Adapters receive a Runtime reference to access services (`SetRuntime(rt any)`, type-asserted to `*runtime.Runtime` to avoid an import cycle)
+- `BaseAdapter` provides the shared TCP lifecycle: accept loop with backoff, graceful drain, forced close, and listener-readiness signalling
 - Lifecycle: `SetRuntime() -> Serve() -> Stop()`
 - Multiple adapters can share the same runtime
 - Thread-safe, supports graceful shutdown
 
 **4. Auth** (`pkg/auth/`)
-- Centralized authentication abstractions shared across all protocols
-- `AuthProvider` interface: `CanHandle(token)` + `Authenticate(ctx, token)`
-- `Authenticator`: Chains multiple providers, tries each in order
-- `Identity`: Protocol-neutral authenticated identity (Unix creds, Kerberos, NTLM, anonymous)
-- `IdentityMapper` interface: Converts `AuthResult` to protocol-specific identity
+- Shared authentication and identity primitives used across protocols
 - Sub-packages:
-  - `kerberos/`: Kerberos `AuthProvider` with keytab management and hot-reload
+  - `kerberos/`: Kerberos `Provider` — keytab and krb5.conf state with hot-reload
+  - `sid/`: Windows SID types, encoding, and cross-protocol mapping
 
 **5. MetadataService** (`pkg/metadata/`)
 - **Central service for all metadata operations**
@@ -145,14 +141,15 @@ DittoFS uses a **Runtime-centric architecture** where the Runtime is the single 
 **Recycle bin (trash).** The recycle trap lives inside `MetadataService.RemoveFile`, `RemoveDirectory`, and `Move`, gated by a per-share `TrashPolicy` read through a locked accessor. When the policy enables the bin, an unlink (NFS REMOVE/RMDIR, SMB delete-on-close) or a replace-overwrite (a `Move` whose destination clobbers an existing node) moves the victim into a single shared `#recycle` directory at the share root instead of destroying it, preserving the original path subtree and owner. Block deletion is deferred: recycling returns an empty `PayloadID` so protocol adapters skip the block-deletion step, and a recycled node keeps its content blocks until it is reaped or the bin is emptied. The runtime's `trash.Service` (`pkg/controlplane/runtime/trash/`) owns list/restore/empty and runs a background reaper that enforces the per-share retention-days and max-size policy on an hourly interval (oldest-first eviction). Disabling trash auto-empties the bin.
 
 **6. BlockStore** (`pkg/block/`)
-- Per-share block storage orchestrator. Each share gets its own `*engine.BlockStore` instance.
-- `engine.BlockStore` composes `local.LocalStore + remote.RemoteStore + engine.Syncer`
-- Each share gets an isolated local storage directory; remote stores can be shared across shares (ref counted)
+- Per-share block storage orchestrator. Each share gets its own `*engine.Store` instance.
+- `engine.Store` composes the share's journal (`local.LocalStore`, in production always `*journal.Store`) + its one block store (`remote.RemoteStore`) + `engine.RemoteSync`
+- Each share gets an isolated journal directory beneath `blockstore.journal.path`; block stores can be shared across shares (ref counted)
 - `shares.Service` owns the lifecycle (create on AddShare, close on RemoveShare)
 - Sub-packages:
-  - `engine/`: BlockStore orchestrator — composes local + remote stores and owns the unified CAS-keyed `Cache` (read buffering + prefetch), the syncer, and the garbage collector. See `pkg/block/engine/cache.go` for the Cache type.
-  - `local/`: Local store interface and implementations (`fs/` filesystem, `memory/` in-memory)
-  - `remote/`: Remote store interface and implementations (`s3/` production, `memory/` testing)
+  - `engine/`: BlockStore orchestrator — composes the journal and the block store and owns the unified CAS-keyed `Cache` (read buffering + prefetch), the syncer, and the garbage collector. See `pkg/block/engine/cache.go` for the Cache type.
+  - `journal/`: the on-disk journal every share gets — the production `local.LocalStore`
+  - `local/`: the `LocalStore` interface plus `memory/`, an in-memory implementation used by tests
+  - `remote/`: block store interface and implementations (`s3/` production, `memory/` testing)
   - `storetest/`: Conformance test helpers for new backend implementations
 
 **7. Metadata Store** (`pkg/metadata/store.go`)
@@ -176,8 +173,8 @@ Each share in DittoFS gets its own `*engine.BlockStore` instance, providing comp
 ### How It Works
 
 1. **Share Creation**: When a share is added via `dfsctl share create`, the runtime creates a dedicated BlockStore instance with:
-   - An isolated local storage directory (under the configured local store path)
-   - A reference to the configured remote store (shared across shares via ref counting)
+   - An isolated journal directory beneath `blockstore.journal.path` (`<path>/shares/<share-name>/journal/`)
+   - A reference to its one block store (shared across shares via ref counting)
 
 2. **Handle Resolution**: Protocol handlers call `GetBlockStoreForHandle(ctx, handle)` which:
    - Extracts the share name from the file handle
@@ -185,15 +182,15 @@ Each share in DittoFS gets its own `*engine.BlockStore` instance, providing comp
    - There is no global BlockStore
 
 3. **Share Removal**: When a share is removed, its BlockStore is closed:
-   - Local storage directory is cleaned up
-   - Remote store reference count is decremented
-   - If ref count reaches zero, the remote store connection is closed
+   - The journal directory is cleaned up
+   - The block store's reference count is decremented
+   - If ref count reaches zero, the block store connection is closed
 
 ### Isolation Properties
 
-- **Data Isolation**: Each share's local blocks are stored in separate directories
+- **Data Isolation**: Each share's journal lives in its own directory
 - **Cache Independence**: The unified `Cache` is per-share (eviction in one share does not affect others). Inside a share, the cache is keyed by `ContentHash`, so two files referencing the same chunk via dedup share one cache entry.
-- **Remote Sharing**: Multiple shares can reference the same remote store (e.g., same S3 bucket). Chunk bytes are packed into `blocks/<id>` container objects; identical chunks dedup by content hash across every share that targets the same bucket+prefix. For isolation, give shares different buckets or prefixes
+- **Block Store Sharing**: Multiple shares can reference the same block store (e.g., same S3 bucket). Chunk bytes are packed into `blocks/<id>` container objects; identical chunks dedup by content hash across every share that targets the same bucket+prefix. For isolation, give shares different buckets or prefixes
 - **Lifecycle Independence**: Block stores are created/closed with share lifecycle
 
 ## Storage Tiers
@@ -226,7 +223,7 @@ DittoFS uses a three-tier storage model for block data:
                │ cold read (range not cached)
                ▼
 ┌─────────────────────────────────────┐
-│  Remote Store                       │
+│  Block Store                        │
 │  pkg/block/remote/s3/          │
 │  - S3 or compatible object store    │
 │  - Slowest (network I/O)            │
@@ -247,17 +244,20 @@ reads are warm. A per-payload sequential tracker drives remote prefetch.
 and acknowledges immediately (write-back) — there is no synchronous chunking,
 hashing, or upload on the client path. A background carve pass later packs the
 accumulated dirty ranges into remote blocks (see below). How durable the ack is
-depends on the configured durability tier (`writeback` / `local-durable` /
-`remote`; see the [durability guide](https://github.com/marmos91/dittofs/blob/develop/docs/guide/durability.md)).
+depends on the share's commit acknowledgement (`journal` or `block-store`) and on
+whether its metadata commit is relaxed — two independent axes, see the
+[durability guide](https://github.com/marmos91/dittofs/blob/develop/docs/guide/durability.md).
 
 **Eviction**:
 - Cache: LRU eviction when the RAM budget is reached. No data loss (the journal still holds the bytes). The cache is per-share but cross-file inside a share — the same content hash referenced by two files shares one entry.
-- Journal: whole fully-synced segments are evicted approx-LRU under disk pressure. Only ranges already carved to the remote qualify, so eviction never destroys the only copy of dirty bytes. Manual eviction via `dfsctl store block evict`.
+- Journal: whole fully-synced segments are evicted approx-LRU under disk pressure. Only ranges already offloaded to the block store qualify, so eviction never destroys the only copy of dirty bytes — which means a journal that hits its ceiling with nothing offloaded backpressures writes instead of evicting. Manual eviction via `dfsctl store block evict`.
 
 ## Block Store — Local Journal Tier
 
-The per-share local tier is the **journal** (`pkg/block/journal/`): a single
-append-only, log-structured **write-back cache** in front of the remote store.
+Every share's local tier is the **journal** (`pkg/block/journal/`): a single
+append-only, log-structured **write-back cache** in front of the block store. It
+is provisioned automatically under `blockstore.journal.path` and is not a store
+an operator configures.
 It replaces the earlier two-tier design (a per-file append-only log plus a
 separate rolled-up "log-blob" tier) with one substrate. See the journal
 package's own doc comment for the authoritative model; this section covers it
@@ -266,7 +266,7 @@ at architecture altitude.
 A client write (`WriteAt`) appends a dirty record for `(payloadID, offset)` to
 a shared segment file and acknowledges immediately — it never chunks, hashes,
 or uploads on the client path, and it never fsyncs (durability is a separate
-`Commit`, driven by NFS COMMIT / SMB Flush and the configured durability tier).
+`Commit`, driven by NFS COMMIT / SMB Flush and the share's commit acknowledgement).
 Cold-read hydration (`Hydrate`) funnels through the same append primitive, the
 only difference being that a hydrated record is born *clean* (already durable
 in the remote store, so immediately evictable) while a client write is born
@@ -276,10 +276,12 @@ in the remote store, so immediately evictable) while a client write is born
 `*journal.Store` (`pkg/block/journal/`) IS the live per-file byte cache — the
 composition layer holds it directly (no adapter between them). The journal
 owns its own segment layout, carve, eviction, and local garbage collection.
-Only `BackpressureMaxWait` (as `Config.EvictMaxWait`) and `ChunkParams` remain
-load-bearing knobs; the old rollup/append-log options (`max_log_bytes`,
-`rollup_workers`, `stabilization_ms`, `orphan_log_min_age_seconds`) are
-vestigial — the journal carves on its own age/size gate.
+Its load-bearing knobs all live in the server config's `blockstore.journal` block
+(`path`, `chunk_size`, `chunk_max`, `dirty_expire`, `max_log_bytes`,
+`backpressure_max_wait`) plus the per-share `journal_size` ceiling; the old
+rollup/append-log options (`rollup_workers`, `stabilization_ms`,
+`orphan_log_min_age_seconds`) are vestigial — the journal carves on its own
+age/size gate.
 
 ### Carve: local → remote
 
@@ -298,15 +300,16 @@ manifest rows in a single metadata transaction (`metadata.DefaultCommitBlock`).
 object (reclaimed by GC), never an unbacked record; a re-carve targets a fresh
 block ID and never double-commits.
 
-Dedup is answered by a durability oracle: a chunk is treated as already remote
-iff its hash is present in the per-share `SyncedHashStore`. A share with **no**
-remote block store still carves — the local block sink records only the
-FileChunk manifest rows (hash + `DataSize`, no remote block key) so clone,
-snapshot, and restore can resolve the file's chunks, but nothing is uploaded.
+Dedup is answered by a durability oracle: a chunk is treated as already offloaded
+iff its hash is present in the per-share `SyncedHashStore`. A share whose block
+store is not yet resolvable still carves — the local block sink records only the
+FileChunk manifest rows (hash + `DataSize`, no block key) so clone, snapshot, and
+restore can resolve the file's chunks, but nothing is uploaded.
 
 The carve pass fans out across files: a single sequential pass (one file, one
 block, one `PutBlock` at a time) leaves the uplink almost idle. Concurrency is
-bounded by an **adaptive upload window** (`pkg/block/engine/upload_controller.go`):
+bounded by an **adaptive upload window** (`pkg/block/syncer/upload_controller.go`,
+wired from `pkg/block/engine/syncer.go`):
 a pinned `--parallel-uploads` fixes the window, while the default (adaptive)
 mode ramps it between a floor and ceiling to track the goodput knee. Files in
 one shard still serialize on the journal's carve lock, so the window overlaps
@@ -554,8 +557,8 @@ See [SNAPSHOTS.md](/docs/operations/snapshots#10-gc-hold-semantics) for the
 operator-facing description of the hold semantics, including the
 delete-vs-GC race window.
 
-See `docs/CONFIGURATION.md` for every `gc.*` and `syncer.*` knob, and
-`docs/CLI.md` for the `dfsctl store block gc` reference.
+See `docs/guide/configuration.md` for every `gc.*` and `syncer.*` knob, and
+`docs/guide/cli.md` for the `dfsctl store block gc` reference.
 
 ## Share Snapshots
 
@@ -600,10 +603,11 @@ file's existence is the GC hold; there is no separate hold record.
 
 ```
 CreateSnapshot ─→ persist Snapshot row (state=creating)
-              ─→ DrainAllUploads (skipped if NoVerify)
+              ─→ DrainAllUploads (always — the dump must carry every block locator)
               ─→ Dump metadata to metadata.dump
               ─→ Build hash manifest from CAS
-              ─→ VerifyRemoteDurability (skipped if NoVerify, concurrency = 16)
+              ─→ Verify gate: DrainAllUploads + VerifyRemoteDurability
+                 (both skipped if NoVerify, concurrency = 16)
               ─→ Update row state=ready (or failed) + remote_durable flag
 ```
 
@@ -614,8 +618,10 @@ record; callers poll `GET /snapshots/{id}` until `state != "creating"`.
 The CLI's `WaitForSnapshot` does that polling on the operator's
 behalf.
 
-`NoVerify=true` (CLI `--no-verify`) skips both the upload drain and
-the HEAD-probe phase. The snapshot still completes with
+`NoVerify=true` (CLI `--no-verify`) skips the verify gate — its upload
+drain and the HEAD-probe phase. It does not skip the drain that runs
+before the metadata dump, so a block store that cannot be reached fails
+snapshot creation either way. The snapshot still completes with
 `remote_durable=false`. Restore of a non-durable snapshot then
 requires the explicit `AllowNonDurable` flag (CLI `--force`).
 
@@ -733,9 +739,12 @@ type ProtocolAdapter interface {
     Port() int
 }
 
-// RuntimeSetter - adapters that need runtime access implement this
+// RuntimeSetter - adapters that need runtime access implement this.
+// The parameter is `any` on purpose: pkg/adapter cannot import
+// pkg/controlplane/runtime (the runtime imports the adapter contract), so
+// implementations type-assert to *runtime.Runtime and panic on a mismatch.
 type RuntimeSetter interface {
-    SetRuntime(rt *Runtime)
+    SetRuntime(rt any)
 }
 
 // Example: NFS Adapter accesses per-share block stores via runtime
@@ -818,7 +827,7 @@ added later inherits them:
   the guard, a request naming another session's `FileId` would execute as that
   handle's user.
 - **SMB parked requests** — `pendingRegistry.unregisterByAsyncIDOn`
-  (`internal/adapter/smb/handlers/pending_registry.go`) scopes an `AsyncId`
+  (`internal/adapter/smb/pending/pending_registry.go`) scopes an `AsyncId`
   lookup to the connection that parked it, as the `MessageID` lookups already
   did, so a CANCEL cannot retire another connection's request.
 - **NFSv4 stateids** — `ValidateStateid` takes the caller's client ID and
@@ -876,23 +885,22 @@ Stores, shares, and adapters are managed at runtime via `dfsctl` (persisted in t
 ./dfsctl store metadata add --name persistent-meta --type badger \
   --config '{"path":"/data/metadata"}'
 
-# Create block stores (local per-share, remote shared across shares)
-./dfsctl store block local add --name local-cache --type fs \
-  --config '{"path":"/data/cache"}'
-./dfsctl store block remote add --name s3-remote --type s3 \
+# Create block stores (shared across shares)
+./dfsctl store block add --name mem-blocks --type memory
+./dfsctl store block add --name s3-remote --type s3 \
   --config '{"region":"us-east-1","bucket":"my-bucket"}'
 
-# Create shares referencing stores by name (each gets its own BlockStore)
-./dfsctl share create --name /temp --metadata fast-meta --local local-cache
+# Create shares referencing stores by name (each gets its own BlockStore + journal)
+./dfsctl share create --name /temp --metadata fast-meta --block-store mem-blocks
 ./dfsctl share create --name /archive --metadata persistent-meta \
-  --local local-cache --remote s3-remote
+  --block-store s3-remote
 ```
 
 ### Benefits
 
-- **Per-share isolation**: Each share gets its own BlockStore with isolated local storage directory
-- **Resource Efficiency**: Remote stores are shared (ref counted) when multiple shares reference the same config
-- **Flexible Topologies**: Mix local-only and remote-backed storage per-share
+- **Per-share isolation**: Each share gets its own BlockStore and its own journal directory
+- **Resource Efficiency**: Block stores are shared (ref counted) when multiple shares reference the same config
+- **Flexible Topologies**: Different shares can target different block stores
 - **Future Multi-Tenancy**: Foundation for per-tenant store isolation
 
 ## Service Layer
@@ -961,18 +969,16 @@ No custom code required - configure via CLI:
 ```bash
 # Create stores
 ./dfsctl store metadata add --name default-meta --type memory  # or badger, sqlite, postgres
-./dfsctl store block local add --name default-local --type fs \
-  --config '{"path":"/data/blocks"}'
 
-# Create share referencing stores
-./dfsctl share create --name /export --metadata default-meta --local default-local
+# Create share referencing the stores
+./dfsctl store block add --name default-blocks --type memory
+./dfsctl share create --name /export --metadata default-meta --block-store default-blocks
 ```
 
 ### Implementing Custom Store Backends
 
 See [docs/IMPLEMENTING_STORES.md](/docs/contributing/implementing-stores) for detailed implementation guides for:
-- **Local Store**: Implement `pkg/block/local.LocalStore` interface
-- **Remote Store**: Implement `pkg/block/remote.RemoteStore` interface
+- **Block Store**: Implement `pkg/block/remote.RemoteStore` (`pkg/block/remote/remote.go`) interface
 - **Metadata Store**: Implement `pkg/metadata/Store` interface
 
 ## Directory Structure
@@ -990,20 +996,20 @@ dittofs/
 │
 ├── pkg/                          # Public API (stable interfaces)
 │   ├── adapter/                  # Protocol adapter interface
-│   │   ├── adapter.go            # Adapter + IdentityMappingAdapter interfaces
-│   │   ├── auth.go               # Adapter-level Authenticator interface
+│   │   ├── adapter.go            # Adapter, OplockBreaker interfaces
 │   │   ├── base.go               # BaseAdapter shared TCP lifecycle
-│   │   ├── errors.go             # ProtocolError interface
-│   │   ├── nfs/                  # NFS adapter implementation
+│   │   ├── healthcheck.go        # BaseAdapter.Healthcheck
+│   │   ├── identity.go           # BuildIdentityResolver, ExtractRealm
+│   │   ├── sidecar/              # Sidecar-service lifecycle group
+│   │   ├── nfs/                  # NFS adapter: dispatch.go routes RPC procedures
 │   │   └── smb/                  # SMB adapter implementation
 │   │
-│   ├── auth/                     # Centralized authentication abstractions
-│   │   ├── auth.go               # AuthProvider, Authenticator, AuthResult
-│   │   ├── identity.go           # Identity model, IdentityMapper interface
-│   │   └── kerberos/             # Kerberos AuthProvider
-│   │       ├── provider.go       # Provider (implements AuthProvider)
-│   │       ├── keytab.go         # Keytab hot-reload manager
-│   │       └── doc.go            # Package doc
+│   ├── auth/                     # Shared authentication primitives
+│   │   ├── kerberos/             # Kerberos Provider
+│   │   │   ├── provider.go       # Provider (keytab/krb5.conf state)
+│   │   │   ├── keytab.go         # Keytab hot-reload manager
+│   │   │   └── doc.go            # Package doc
+│   │   └── sid/                  # Windows SID types and mapping
 │   │
 │   ├── metadata/                 # Metadata layer
 │   │   ├── service.go            # MetadataService (business logic, routing)
@@ -1018,7 +1024,9 @@ dittofs/
 │   │   ├── cookies.go            # CookieManager (NFS/SMB pagination)
 │   │   ├── types.go              # FileAttr, DirEntry, etc.
 │   │   ├── errors.go             # Metadata-specific errors
-│   │   ├── locking.go            # LockManager for byte-range locks
+│   │   ├── lock_exports.go       # LockManager surface for byte-range locks
+│   │   ├── acl/                  # Windows ACL model and ACE evaluation
+│   │   ├── lock/                 # Lock manager, break/grace machinery
 │   │   ├── storetest/            # Conformance test suite for store implementations
 │   │   └── store/                # Store implementations
 │   │       ├── memory/           # In-memory (ephemeral)
@@ -1029,22 +1037,26 @@ dittofs/
 │   │       ├── basestore/        # Helpers shared by every backend
 │   │       └── internal/         # Row codec, caches, retry
 │   │
-│   ├── blockstore/               # Per-share block storage
-│   │   ├── doc.go                # Package documentation
-│   │   ├── store.go              # FileChunkStore interface
-│   │   ├── types.go              # FileChunk, BlockState types
-│   │   ├── errors.go             # BlockStore error types
+│   ├── block/                    # Per-share block storage
+│   │   ├── blockstore.go         # BlockStore interface
+│   │   ├── types.go              # Block, BlockState types
+│   │   ├── errors.go             # Block store error types
 │   │   ├── chunker/              # FastCDC content-defined chunker
 │   │   │                         # min=1 MiB / avg=4 MiB / max=16 MiB, lvl 2;
 │   │   │                         # BLAKE3 hashing; consumed by the carve pass
+│   │   ├── carver/               # Carve pass: chunk a file into blocks
+│   │   ├── blockcodec/           # On-disk block payload encoding
+│   │   ├── compression/          # Optional per-block compression
+│   │   ├── encryption/           # Optional per-block encryption
 │   │   ├── engine/               # BlockStore orchestrator + read cache + syncer + GC
-│   │   ├── journal/              # Local write-back cache (append-only segments)
-│   │   ├── local/                # Local store interface
-│   │   │   ├── fs/               # Thin adapter over pkg/block/journal
+│   │   ├── journal/              # The per-share journal (append-only segments)
+│   │   ├── syncer/               # Local -> remote sync
+│   │   ├── blockstoretest/       # Conformance suites for block store impls
+│   │   ├── local/                # LocalStore interface (journal.Store implements it)
 │   │   │   └── memory/           # In-memory local store (testing)
-│   │   └── remote/               # Remote store interface
-│   │       ├── s3/               # S3-backed remote store
-│   │       └── memory/           # In-memory remote store (testing)
+│   │   └── remote/               # Block store interface
+│   │       ├── s3/               # S3-backed block store
+│   │       └── memory/           # In-memory block store (testing)
 │   │
 │   ├── controlplane/             # Control plane (config + runtime)
 │   │   ├── store/                # GORM-based persistent store
@@ -1070,10 +1082,20 @@ dittofs/
 │   │   ├── helpers.go            # Generic API client helpers
 │   │   └── ...                   # Resource-specific methods
 │   │
+│   ├── identity/                 # Identity resolution (providers, resolver, cache)
+│   ├── discovery/                # Service discovery (mDNS/DNS-SD)
+│   ├── health/                   # Health/readiness aggregation
+│   ├── metrics/                  # Prometheus metrics
+│   ├── netutil/                  # Network helpers
+│   ├── schedule/                 # Scheduled task runner
+│   ├── snapshot/                 # Snapshot/backup support
+│   │
 │   └── config/                   # Configuration parsing
 │       ├── config.go             # Main config struct
-│       ├── stores.go             # Store creation
-│       └── runtime.go            # Runtime initialization
+│       ├── blockstore.go         # Block store config
+│       ├── metadata.go           # Metadata store config
+│       ├── defaults.go           # Defaults + env binding
+│       └── ...                   # Per-section config (logging, gc, snapshot, ...)
 │
 ├── internal/                     # Private implementation details
 │   ├── adapter/common/           # Shared NFS/SMB adapter helpers: block-store
@@ -1088,33 +1110,43 @@ dittofs/
 │   │   ├── write_payload.go      # WriteToBlockStore + CommitBlockStore seams
 │   │   ├── normalize.go          # Block-store error → *merrs.StoreError normalization
 │   │   └── errclassify.go        # Raw block-store error → metadata code classifier
-│   ├── adapter/nfs/              # NFS protocol implementation
-│   │   ├── dispatch.go           # RPC procedure routing
+│   ├── adapter/nfs/              # NFS protocol internals
 │   │   ├── rpc/                  # RPC layer (call/reply handling)
 │   │   │   └── gss/              # RPCSEC_GSS framework
-│   │   ├── core/                 # Generic XDR codec
+│   │   ├── xdr/core/             # Generic XDR codec
+│   │   ├── auth/                 # Auth context, AUTH_UNIX, share permission
+│   │   ├── middleware/           # Per-request auth extraction
 │   │   ├── types/                # NFS constants and types
 │   │   ├── mount/handlers/       # Mount protocol procedures
+│   │   ├── nlm/, nsm/, portmap/  # Lock/status/portmapper sidecar services
 │   │   ├── v3/handlers/          # NFSv3 procedures (READ, WRITE, etc.)
 │   │   └── v4/handlers/          # NFSv4.0 and v4.1 procedures
-│   ├── adapter/smb/              # SMB protocol implementation
+│   ├── adapter/smb/              # SMB protocol internals
 │   │   ├── auth/                 # NTLM/SPNEGO authentication
+│   │   ├── handlers/             # SMB2 command handlers
+│   │   ├── session/, lease/      # Session + oplock/lease state
+│   │   ├── signing/, encryption/, kdf/   # Crypto primitives
 │   │   ├── framing.go            # NetBIOS framing
-│   │   ├── dispatch.go           # Command dispatch
-│   │   └── v2/handlers/          # SMB2 command handlers
+│   │   └── dispatch.go           # Command dispatch
 │   ├── controlplane/api/         # API implementation
 │   │   ├── handlers/             # HTTP handlers with centralized error mapping
 │   │   └── middleware/           # Auth middleware
-│   └── logger/                   # Logging utilities
+│   ├── auth/                     # Kerberos/Netlogon service internals
+│   ├── cli/                      # CLI output formatting
+│   ├── logger/                   # Logging utilities
+│   └── ...                       # tlsconfig/, pathutil/, bytesize/, sysinfo/
 │
 ├── docs/                         # Documentation
-│   ├── ARCHITECTURE.md           # This file
-│   ├── CONFIGURATION.md          # Configuration guide
+│   ├── internals/                # This file, protocol and store internals
+│   ├── guide/                    # User guides (configuration, NFS, SMB, CLI)
 │   └── ...
 │
 └── test/                         # Test suites
     ├── integration/              # Integration tests (S3, BadgerDB)
-    └── e2e/                      # End-to-end tests (real NFS mounts)
+    ├── e2e/                      # End-to-end tests (real NFS mounts)
+    ├── conformance/              # SMB/NFS conformance harnesses
+    ├── posix/, edge/, crash/     # Behavioural and fault-injection suites
+    └── spec-citations/           # Verifies spec-section citations in code
 ```
 
 ## Horizontal Scaling with PostgreSQL
@@ -1354,7 +1386,7 @@ threading, so changes to the read/write path stay confined to the helpers.
   reconciliation audit (`∑ FileChunk.RefCount == ∑ len(FileAttr.Blocks)`),
   emits aggregate counts as structured slog INFO, and persists the
   last-run summary at `<localStore>/audit-state/last-inv02.json`. See
-  `docs/CLI.md` for the full reference and `docs/FAQ.md` for operator
+  `docs/guide/cli.md` for the full reference and `docs/guide/faq.md` for operator
   guidance.
 - The cache has no operator-facing config knobs: its RAM budget is
   auto-deduced from available system memory at startup (see
@@ -1371,8 +1403,8 @@ Merkle root computed over the file's `BlockRef.Hash` values sorted by
 
     ObjectID = BLAKE3("dittofs:objectid:v1\x00" || h0 || h1 || ... || hN-1)
 
-Implemented in `blockstore.ComputeObjectID`
-(`pkg/block/objectid.go`). Stable across rename and engine restart
+Implemented in `block.ComputeObjectID` (`pkg/block/objectid.go`).
+Stable across rename and engine restart
 by construction (BLAKE3 + FastCDC are both deterministic; the prefix
 protects the output space from per-chunk hash collisions and reserves
 room for future input-shape changes via `v2`/`v3`).
@@ -1511,7 +1543,7 @@ The dedup path emits slog-only signals:
 ### Performance gate
 
 A CI perf lane gates random-write regression against a baseline
-(`pkg/block/engine/perf_bench_test.go`). ObjectID compute is one
+(`pkg/block/engine/write_bench_test.go`). ObjectID compute is one
 BLAKE3 pass over `32×N` bytes per quiesce (sub-millisecond at N=16K
 BlockRefs); the short-circuit lookup is one indexed query per quiesce.
 Both fire off the random-write hot path.
