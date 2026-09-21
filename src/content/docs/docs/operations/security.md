@@ -23,6 +23,7 @@ For the internal mechanism design and threat model, see
   - [NFS: AUTH\_NULL](#nfs-auth_null)
   - [SMB: Kerberos via SPNEGO](#smb-kerberos-via-spnego)
   - [SMB: NTLM and guest fallback](#smb-ntlm-and-guest-fallback)
+  - [Active Directory and LDAP](#active-directory-and-ldap)
 - [Message integrity and encryption](#message-integrity-and-encryption)
   - [SMB signing](#smb-signing)
   - [SMB encryption](#smb-encryption)
@@ -55,6 +56,7 @@ For the internal mechanism design and threat model, see
 
 - Kerberos authentication for NFS via RPCSEC_GSS (RFC 2203)
 - Kerberos authentication for SMB via SPNEGO
+- Active Directory / LDAP idmap (`idmap_ad` RFC2307 attributes or `idmap_rid` RID derivation), with Kerberos keytab and NTLM machine-account pass-through
 - SMB3 encryption with AES-128-GCM, AES-128-CCM, AES-256-GCM, AES-256-CCM
 - SMB3 signing with AES-128-CMAC and AES-128-GMAC; SMB 2.x signing with HMAC-SHA256
 - SMB 3.1.1 preauth integrity (SHA-512 hash chain) for downgrade protection
@@ -155,6 +157,32 @@ NTLM security tradeoffs:
 
 **Recommendation:** configure Kerberos for all production deployments. Use NTLM only as a
 transition mechanism or for clients that cannot use Kerberos.
+
+### Active Directory and LDAP
+
+DittoFS can authenticate Active Directory domain users directly, with no local DittoFS
+account for them. Three pieces are independent and can be enabled in any combination:
+
+| Piece | What it does | Credential at rest |
+|---|---|---|
+| **Kerberos service keytab** | Verifies AD-issued service tickets over SMB (SPNEGO) and NFS (RPCSEC\_GSS) | Keytab file |
+| **Machine account** (`kerberos.machine_account`) | Forwards the NTLM challenge/response to the Domain Controller over a sealed NETLOGON channel, for clients that cannot use Kerberos | Computer account secret |
+| **LDAP idmap** | Maps the authenticated principal or SID to a Unix UID/GID and resolves nested group membership | Read-only bind DN + password |
+
+Security notes:
+
+- With a machine account configured, AD-user NTLM is validated by the Domain Controller —
+  **no local NT hash is stored or used**. Without one, domain-user NTLM fails with
+  `STATUS_LOGON_FAILURE`.
+- The keytab, the LDAP bind password, and the machine account secret are stored at rest in
+  plaintext (write-only, and redacted from API responses). Protect them with filesystem
+  permissions equivalent to a keytab file (`chmod 600`).
+- The LDAP bind account is read-only; reach the directory over LDAPS or a private network.
+- A principal is resolved through the same idmap regardless of the protocol it arrived on,
+  so an AD user gets one Unix identity across SMB and NFS.
+
+See [identity.md](/docs/connect/identity) for the provider reference and
+[windows-ad-setup.md](https://github.com/marmos91/dittofs/blob/develop/docs/guide/windows-ad-setup.md) for the end-to-end operator runbook.
 
 ---
 
@@ -258,79 +286,82 @@ mapped to a UID/GID before the permission check.
 
 ### Export-level access control
 
-```yaml
-shares:
-  - name: /export
-    allowed_clients:
-      - 192.168.1.0/24
-    denied_clients:
-      - 192.168.1.50
-    require_auth: true
-    allowed_auth_methods: [unix, krb5]
+Client access is restricted per share by attaching a **netgroup** — a named list of
+IP addresses, CIDR ranges and hostnames. A share with a netgroup accepts only
+clients whose address matches a member; a share with no netgroup accepts any
+client.
+
+```bash
+dfsctl netgroup create trusted-net
+dfsctl netgroup add-member trusted-net --type cidr --value 192.168.1.0/24
+dfsctl netgroup add-member trusted-net --type ip   --value 192.168.1.50
+dfsctl share nfs-config set /export --netgroup trusted-net
 ```
 
-### IP-based restrictions
+The netgroup is enforced on both NFS versions, on paths that do not share code:
 
-Allow specific networks:
+- **NFSv3** — checked at MOUNT and refused with `MNT3ERR_ACCES`. The check runs
+  **only** at mount time; the per-operation path re-checks the auth-flavor
+  policy but not the client allowlist.
+- **NFSv4** — there is no MOUNT, so the check runs per request instead: when a
+  share handle enters a compound (PUTFH, or a LOOKUP crossing an export
+  junction out of the pseudo-fs) and again whenever an operation builds an auth
+  context. A client outside the allowlist gets `NFS4ERR_ACCESS`.
 
-```yaml
-shares:
-  - name: /export
-    allowed_clients:
-      - 192.168.1.0/24
-      - 10.0.0.0/8
-```
+**Consequence for tightening an export.** Because v4 re-checks per request,
+adding or narrowing a netgroup takes effect on a v4 client's next operation,
+including one already holding a file handle. On v3 it takes effect for new
+mounts only — an already-mounted v3 client keeps working until it remounts.
+Remount is what re-reads the allowlist on v3.
 
-Deny specific hosts:
-
-```yaml
-shares:
-  - name: /export
-    denied_clients:
-      - 192.168.1.100
-```
+Which authentication flavors an export accepts is a separate policy from the
+client allowlist. Unlike the address gate, the flavor gate *is* re-checked per
+operation on both versions: set it with `--allow-auth-sys` /
+`--require-kerberos` on the same `dfsctl share nfs-config set` command, and see
+[configuration](/docs/getting-started/configuration) for the Kerberos floor.
 
 ### Identity mapping
 
-All squash (map all users to anonymous):
+Squash mode is a per-share setting (`squash`). The anonymous UID/GID come from
+the share's anonymous identity.
 
-```yaml
-shares:
-  - name: /export
-    identity_mapping:
-      map_all_to_anonymous: true
-      anonymous_uid: 65534   # nobody
-      anonymous_gid: 65534   # nogroup
+It is applied *after* the share grant is resolved and *before* file-level POSIX
+and ACL checks. That ordering matters under `all_to_guest`: the share-level
+permission is still chosen from the client's original wire identity, and only
+the identity used for per-file checks is squashed. If a share grant depends on
+the caller being a known user, squashing does not turn that grant into a guest
+grant.
+
+All squash — every client's *file-level* identity is anonymous:
+
+```bash
+dfsctl share nfs-config set /export --squash all_to_guest
 ```
 
-Root squash (map root to anonymous):
+Root squash — root (UID 0) is mapped to anonymous for file checks, everyone else passes through:
 
-```yaml
-shares:
-  - name: /export
-    identity_mapping:
-      map_privileged_to_anonymous: true
-      anonymous_uid: 65534
-      anonymous_gid: 65534
+```bash
+dfsctl share nfs-config set /export --squash root_to_guest
 ```
 
-No squashing (trust client UIDs — trusted networks or Kerberos only):
+No squashing — client UIDs pass through unchanged; use only on trusted networks
+or with Kerberos:
 
-```yaml
-shares:
-  - name: /export
-    identity_mapping:
-      map_all_to_anonymous: false
-      map_privileged_to_anonymous: false
+```bash
+dfsctl share nfs-config set /export --squash none
 ```
+
+The full set of modes is `none`, `root_to_admin`, `root_to_guest`,
+`all_to_admin` and `all_to_guest`.
 
 ### Read-only shares
 
-```yaml
-shares:
-  - name: /export
-    read_only: true   # all write operations fail
+```bash
+dfsctl share edit /export --read-only true
 ```
+
+A read-only share fails write and create operations with `EROFS`
+(`ErrReadOnly`), distinct from the `EACCES` a permission denial returns.
 
 ---
 
@@ -543,8 +574,8 @@ smbclient -k //server.example.com/export
 - [ ] Enable SMB3 encryption with `encryption_mode: required` for sensitive data
 - [ ] Enable SMB message signing with `required: true`
 - [ ] Deploy behind VPN or use NFS-over-TLS for NFS data confidentiality
-- [ ] Restrict export access by IP address (`allowed_clients`)
-- [ ] Use root squash on all exports (`map_privileged_to_anonymous: true`)
+- [ ] Restrict export access by IP address (attach a netgroup to each share)
+- [ ] Use root squash on all exports (`squash: root_to_guest`)
 - [ ] Configure NFSv4 ACLs for fine-grained access control
 - [ ] Use read-only exports where writes are not needed
 - [ ] Bind control plane to loopback or behind a reverse proxy with TLS
@@ -568,23 +599,14 @@ kerberos:
   max_clock_skew: 5m
   context_ttl: 8h
 
-metadata:
-  global:
-    dump_restricted: true
-    dump_allowed_clients:
-      - 127.0.0.1
-
-shares:
-  - name: /export
-    allowed_clients:
-      - 10.0.0.0/8
-    require_auth: true
-    allowed_auth_methods: [krb5]
-    identity_mapping:
-      map_privileged_to_anonymous: true
-      anonymous_uid: 65534
-      anonymous_gid: 65534
-    read_only: true
+# Shares, their netgroup allowlist and their squash mode live in the control
+# plane, not this file. Create them once:
+#
+#   dfsctl netgroup create trusted-net
+#   dfsctl netgroup add-member trusted-net --type cidr --value 10.0.0.0/8
+#   dfsctl share create --name /export --metadata default --block-store default \
+    --read-only --squash root_to_guest
+#   dfsctl share nfs-config set /export --netgroup trusted-net
 
 adapters:
   nfs:

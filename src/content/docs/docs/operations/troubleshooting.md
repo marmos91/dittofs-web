@@ -127,21 +127,26 @@ mount.nfs: access denied by server while mounting
    sudo mount -t nfs -o tcp,port=12049,mountport=12049,resvport localhost:/export /mnt/test
    ```
 
-3. **Check export configuration:**
-   ```yaml
-   shares:
-     - name: /export
-       allowed_clients:
-         - 192.168.1.0/24  # Make sure your IP is in this range
-       denied_clients: []
+3. **Check the export's client allowlist.** If the share has a netgroup attached,
+   only matching client addresses may mount it:
+   ```bash
+   dfsctl share nfs-config show /export
+   ```
+   Confirm your IP is in the netgroup, or clear the association to allow all
+   clients:
+   ```bash
+   dfsctl netgroup show <netgroup-name>
+   dfsctl share nfs-config set /export --netgroup ""
    ```
 
-4. **Verify authentication settings:**
-   ```yaml
-   shares:
-     - name: /export
-       require_auth: false  # Set to false for development
-       allowed_auth_methods: [anonymous, unix]
+4. **Verify the export's auth-flavor policy.** A share that requires Kerberos
+   refuses an AUTH_SYS mount:
+   ```bash
+   dfsctl share nfs-config show /export
+   ```
+   For development over AUTH_SYS:
+   ```bash
+   dfsctl share nfs-config set /export --allow-auth-sys true --require-kerberos false
    ```
 
 ### No such file or directory
@@ -153,10 +158,9 @@ mount.nfs: mounting localhost:/export failed, reason given by server: No such fi
 
 **Solutions:**
 
-1. **Verify the export path exists in configuration:**
-   ```yaml
-   shares:
-     - name: /export  # This is the export path
+1. **Verify the share exists:**
+   ```bash
+   dfsctl share list
    ```
 
 2. **Check share names are correct:**
@@ -216,24 +220,20 @@ touch: cannot touch 'file.txt': Permission denied
 
 **Solutions:**
 
-1. **Check identity mapping configuration:**
-   ```yaml
-   shares:
-     - name: /export
-       identity_mapping:
-         map_all_to_anonymous: true  # Try this for development
-         anonymous_uid: 65534
-         anonymous_gid: 65534
+1. **Check the share's squash mode.** If clients are being squashed to guest,
+   every operation runs as the anonymous identity:
+   ```bash
+   dfsctl share nfs-config show /export
+   ```
+   For development, stop squashing root (or all clients):
+   ```bash
+   dfsctl share nfs-config set /export --squash none
    ```
 
-2. **Verify root directory permissions:**
-   ```yaml
-   shares:
-     - name: /export
-       root_attr:
-         mode: 0777  # Wide open for debugging
-         uid: 0
-         gid: 0
+2. **Verify the root directory's permissions on the backing store.** The export
+   root is a real directory; check it directly:
+   ```bash
+   ls -ld /path/to/backing/store/export
    ```
 
 3. **Check your client UID/GID:**
@@ -256,11 +256,13 @@ touch: cannot touch 'file.txt': Read-only file system
 
 **Solutions:**
 
-1. **Check share configuration:**
-   ```yaml
-   shares:
-     - name: /export
-       read_only: false  # Must be false for writes
+1. **Check whether the share is read-only:**
+   ```bash
+   dfsctl share show /export
+   ```
+   Clear it to allow writes:
+   ```bash
+   dfsctl share edit /export --read-only false
    ```
 
 2. **Verify mount options:**
@@ -295,8 +297,9 @@ ls: cannot access 'file.txt': Stale file handle
    ```bash
    ./dfsctl store metadata add --name persistent --type badger \
      --config '{"path":"/var/lib/dittofs/metadata"}'
-   ./dfsctl store block local add --name default --type memory
-   ./dfsctl share create --name /export --metadata persistent --local default
+   ./dfsctl store block add --name persistent-blocks --type memory
+   ./dfsctl share create --name /export --metadata persistent \
+     --block-store persistent-blocks
    ```
 
 3. **Clear client NFS cache (Linux):**
@@ -329,15 +332,14 @@ tail -f ~/.local/state/dittofs/dittofs.log | grep -i "slow\|timeout"
          max_write_size: 1048576  # 1MB
    ```
 
-2. **Use memory stores for development:**
+2. **Use a memory metadata store for development:**
    ```bash
    ./dfsctl store metadata add --name fast --type memory
-   ./dfsctl store block local add --name fast --type memory
    ```
 
 3. **For S3, verify configuration:**
    ```bash
-   ./dfsctl store block remote add --name s3-store --type s3 \
+   ./dfsctl store block add --name s3-store --type s3 \
      --config '{"region":"us-east-1","bucket":"my-bucket"}'
    ```
 
@@ -598,12 +600,10 @@ sudo mount -t nfs -o nfsvers=3,tcp,port=12049,mountport=12049 localhost:/export 
 
 **Cause:** Server requires authentication but client isn't providing it.
 
-**Solution:** Either disable authentication or configure it properly:
-```yaml
-shares:
-  - name: /export
-    require_auth: false
-    allowed_auth_methods: [anonymous, unix]
+**Solution:** Allow the AUTH_SYS flavor on the export, or set the client up for
+Kerberos:
+```bash
+dfsctl share nfs-config set /export --allow-auth-sys true --require-kerberos false
 ```
 
 ### "metadata store not found"
@@ -612,12 +612,12 @@ shares:
 
 **Solution:** Ensure stores exist before creating the share:
 ```bash
-# Create the stores first
+# Create the stores first — a share needs both
 ./dfsctl store metadata add --name my-store --type memory
-./dfsctl store block local add --name my-blocks --type memory
+./dfsctl store block add --name my-blocks --type memory
 
 # Then create the share referencing them
-./dfsctl share create --name /export --metadata my-store --local my-blocks
+./dfsctl share create --name /export --metadata my-store --block-store my-blocks
 ```
 
 ### NFSv4 Session Issues
