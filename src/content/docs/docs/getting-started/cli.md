@@ -5474,6 +5474,10 @@ s3:
   --prefix: Key prefix within the bucket
   --access-key: AWS access key ID
   --secret-key: AWS secret access key
+
+Every s3 option left off the command line is asked for individually when
+stdin is a terminal. An empty endpoint means AWS S3; the resolved target is
+echoed before the store is created.
 ```
 
 ```
@@ -5661,7 +5665,11 @@ Use --local-only to evict only local disk data (preserves read buffer).
 Use --share to evict a specific share only.
 
 Safety: blocks that have not yet reached the share's block store are
-never dropped, since that would cause data loss.
+never dropped, since that would cause data loss. Eviction reclaims whole
+segments, so a segment holding even one un-uploaded record stays resident
+along with every synced block sharing it — run 'dfsctl system drain-uploads'
+until 'dfsctl store block stats' reports 0 pending remote bytes if you need
+everything to go cold.
 
 Uses: reclaim local disk on demand, or force cold (remote-served) reads for
 read-path benchmarking — the local tier is otherwise sticky, so a benchmark
@@ -6491,15 +6499,38 @@ one named here. Nothing runs it automatically; a per-file walk on every server
 start is a cost every share would pay forever to fix a number that is almost
 always already right.
 
+--dry-run answers "are these numbers actually wrong" without repairing
+anything. It derives the same figures from the file rows, writes nothing, and
+names every usage bucket whose counter disagrees with them, with both numbers.
+The repair replaces the counters, so running it to find out destroys the
+evidence of what was wrong.
+
+A dry run against a store that is taking writes reports small transient deltas:
+the file rows and the counters are read at different instants, so a write in
+between shows up as a difference, and a file written during the scan can show up
+under one scope and not the other. A drift bug does not look like that — it
+persists across runs and does not track live traffic.
+
+A "share" row compares the share's own total rather than one owner's bucket.
+That total is what a share quota is checked against and what df reports, and it
+can drift on its own, so it is reported on its own.
+
 ```
-dfsctl store metadata recompute-usage <share>
+dfsctl store metadata recompute-usage <share> [flags]
 ```
 
 **Examples:**
 
 ```bash
+dfsctl store metadata recompute-usage myshare --dry-run
 dfsctl store metadata recompute-usage myshare
 dfsctl store metadata recompute-usage myshare -o json
+```
+
+Flags:
+
+```
+      --dry-run   Report which usage counters disagree with the file rows, and repair nothing
 ```
 
 Global flags:
