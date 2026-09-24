@@ -474,7 +474,7 @@ ever mutated by one run at a time.
 
 Refcount reclamation alone frees a block only when its *last* live chunk dies,
 so a block that keeps a few live chunks but has shed many dead ones pins the
-dead bytes forever. Compaction (`engine.CompactBlocks`, #1487) closes that gap.
+dead bytes forever. Compaction (`gc.CompactBlocks`, #1487) closes that gap.
 It runs as an optional final phase of each per-remote sweep, under the same
 per-remote lock and immediately **after** the sweep — by which point the sweep
 has already cleared the synced marker of every past-grace dead chunk. So a
@@ -1059,8 +1059,9 @@ dittofs/
 │   │   │                         # BLAKE3 hashing; consumed by the carve pass
 │   │   ├── carver/               # Carve pass: chunk a file into blocks
 │   │   ├── blockcodec/           # On-disk block payload encoding
-│   │   ├── compression/          # Optional per-block compression
-│   │   ├── encryption/           # Optional per-block encryption
+│   │   ├── middleware/           # The remote-store decorators
+│   │   │   ├── compression/      # Optional per-chunk compression
+│   │   │   └── encryption/       # Optional per-chunk encryption
 │   │   ├── engine/               # BlockStore orchestrator + read cache + syncer + GC
 │   │   ├── journal/              # The per-share journal (append-only segments)
 │   │   ├── syncer/               # Local -> remote sync
@@ -1311,8 +1312,7 @@ authoritative content list for every file.
 defined in `pkg/block/types.go`. `FileAttr.Blocks []BlockRef` (in
 `pkg/metadata/file_types.go`) is the authoritative, offset-sorted list of
 every chunk that composes a file. It is populated on every sync
-finalization; the engine binary-searches it via `findBlocksForRange`
-(`pkg/block/engine/range.go`).
+finalization; the engine resolves a read range against it.
 
 Storage encodings differ per backend:
 
@@ -1334,9 +1334,8 @@ Delete(ctx, payloadID, blocks []BlockRef) error
 CopyPayload(ctx, srcPayloadID, srcBlocks []BlockRef, dstPayloadID) ([]BlockRef, error)
 ```
 
-Range-coverage semantics: `findBlocksForRange(blocks, offset, size)`
-returns `[start, end)` of the BlockRef slice that overlaps the requested
-range using binary search on the offset-sorted slice; sparse holes
+Range-coverage semantics: the engine resolves the requested range against
+the offset-sorted slice; sparse holes
 inside `FileAttr.Size` are zero-filled — `no BlockRef for this range` is
 documented behavior, not a bug. Past `FileAttr.Size` returns short-read or
 EOF.
@@ -1504,7 +1503,7 @@ then runs the post-Flush hook.
 
 Source-of-truth file:line anchors:
 
-- `pkg/block/engine/syncer.go::Flush` — entry point + branch
+- `pkg/block/engine/sync_drain.go::Flush` — entry point + branch
   selection; `snapshotPendingBlockRefs` (short-circuit input) and
   `snapshotBlockRefs` (post-Flush input) helpers.
 - `pkg/block/engine/dedup.go::TrySpeculativeFileLevelDedup` and
@@ -1595,10 +1594,10 @@ Two consequences worth knowing:
   share resolves to a block locator, and fails toward leaking rather than
   deleting an object it cannot attribute, so leftover `cas/` objects are billed
   until removed by hand.
-- The hash-keyed CAS accessors (`Put`/`Get`/`GetRange`/`Has`/`Head`/`Delete`/
-  `Walk` + `ReadBlockVerified`) survive on the concrete backends and decorators,
-  reachable through `remote.CASInner`. They are not part of the block-keyed
-  production `RemoteStore` surface and have no production caller.
+- The hash-keyed CAS accessors are gone entirely. They were removed along with
+  the `block.Store` interface, on the backends and the decorators alike, so
+  nothing in the tree can read a `cas/` object any more — not even by
+  type-asserting past `remote.RemoteStore`.
 
 ### Pre-v0.16 `.blk` -> CAS: migrate with dittofs <= v0.21
 
