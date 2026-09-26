@@ -273,29 +273,88 @@ const perks = [
         </ul>
       </div>
 
-      <div class="hs-dark rounded-2xl border border-border bg-ink-900 p-8" data-reveal style="transition-delay:90ms">
-        {/* HubSpot form, tracked by the marketing team. Inline embed (not the
-            iframe loader) so the form renders real DOM we can theme for dark mode.
-            Same portal and form id, so tracking is unchanged. */}
+      <div class="hs-dark rounded-2xl border border-border bg-ink-900 p-8">
+        <p id="hubspot-pro-status" role="status" class="text-sm text-fg-muted" hidden>
+          Loading the contact form…
+        </p>
         <div id="hubspot-pro-form"></div>
-        <script src="https://js.hsforms.net/forms/embed/v2.js" is:inline></script>
+        <div id="hubspot-pro-error" role="status" class="text-sm text-fg-muted" hidden>
+          <p>
+            The contact form could not load. Try again, or email
+            <a href="mailto:hello@dittofs.io" class="text-accent-bright underline">hello@dittofs.io</a>.
+          </p>
+          <button id="hubspot-pro-retry" type="button" class="btn btn-secondary mt-4">Try again</button>
+        </div>
+        <noscript>
+          <p class="text-sm text-fg-muted">
+            Enable JavaScript to use the contact form, or email
+            <a href="mailto:hello@dittofs.io" class="text-accent-bright underline">hello@dittofs.io</a>.
+          </p>
+        </noscript>
         <script is:inline>
           (function () {
-            function mount() {
-              if (!window.hbspt) return false;
-              window.hbspt.forms.create({
-                region: "na1",
-                portalId: "7784331",
-                formId: "9f568ad6-dc8b-4063-9c02-6fb5b56332e2",
-                target: "#hubspot-pro-form",
-                redirectUrl: "/thank-you",
-              });
-              return true;
+            var form = document.getElementById("hubspot-pro-form");
+            if (!form || form.dataset.initialized) return;
+            form.dataset.initialized = "true";
+
+            var status = document.getElementById("hubspot-pro-status");
+            var error = document.getElementById("hubspot-pro-error");
+            var formId = "9f568ad6-dc8b-4063-9c02-6fb5b56332e2";
+            var mounted = false;
+            var settled = false;
+            status.hidden = false;
+            document.getElementById("hubspot-pro-retry").addEventListener("click", function () {
+              window.location.reload();
+            });
+
+            function finish(ready) {
+              if (settled) return;
+              settled = true;
+              clearTimeout(timeout);
+              window.removeEventListener("hs-form-event:on-ready", onReady);
+              status.hidden = true;
+              form.hidden = !ready;
+              error.hidden = ready;
             }
-            if (!mount()) {
-              var t = setInterval(function () {
-                if (mount()) clearInterval(t);
-              }, 100);
+            function fail() { finish(false); }
+            function onReady(event) {
+              if (mounted && event.detail?.formId === formId) finish(true);
+            }
+
+            // Updated HubSpot forms report readiness through a global event.
+            // Register before loading so a fast iframe cannot race the listener.
+            window.addEventListener("hs-form-event:on-ready", onReady);
+            // Bound both the script download and HubSpot's form rendering.
+            var timeout = setTimeout(fail, 10000);
+            function mount() {
+              if (mounted || settled) return;
+              if (!window.hbspt || !window.hbspt.forms) return fail();
+              mounted = true;
+              try {
+                window.hbspt.forms.create({
+                  region: "na1",
+                  portalId: "7784331",
+                  formId: formId,
+                  target: "#hubspot-pro-form",
+                  redirectUrl: "/thank-you",
+                  onFormReady: function () {
+                    finish(true);
+                  },
+                });
+              } catch {
+                fail();
+              }
+            }
+
+            if (window.hbspt && window.hbspt.forms) {
+              mount();
+            } else {
+              var script = document.createElement("script");
+              script.src = "https://js.hsforms.net/forms/embed/v2.js";
+              script.async = true;
+              script.addEventListener("load", mount, { once: true });
+              script.addEventListener("error", fail, { once: true });
+              document.head.appendChild(script);
             }
           })();
         </script>
