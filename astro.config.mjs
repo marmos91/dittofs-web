@@ -3,6 +3,7 @@ import { defineConfig } from "astro/config";
 import react from "@astrojs/react";
 import starlight from "@astrojs/starlight";
 import starlightVersions from "starlight-versions";
+import docsImages from "./integrations/docs-images.mjs";
 
 /*
  * Documentation versions. The latest docs are served at /docs/* (no entry
@@ -27,6 +28,7 @@ export default defineConfig({
   site: SITE,
   integrations: [
     react(),
+    docsImages(),
     starlight({
       title: "DittoFS",
       description:
