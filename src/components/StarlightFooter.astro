@@ -1,0 +1,14 @@
+---
+import DefaultFooter from "@astrojs/starlight/components/Footer.astro";
+import Analytics from "./Analytics.astro";
+
+const enableAnalytics = !!(import.meta.env.PUBLIC_GTM_ID ?? "").trim();
+---
+
+<DefaultFooter><slot /></DefaultFooter>
+{enableAnalytics && (
+  <>
+    <p><a href="/cookie-policy/">Cookie preferences</a></p>
+    <Analytics />
+  </>
+)}
