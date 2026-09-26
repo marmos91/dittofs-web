@@ -43,6 +43,7 @@ const outbound = backends.map((b, i) => ({
 <figure class="gateway" aria-label="DittoFS routes NFS and SMB clients to pluggable storage backends">
   <svg
     id="gw"
+    data-diagram
     viewBox="40 26 720 400"
     role="img"
     fill="none"
@@ -177,6 +178,7 @@ const outbound = backends.map((b, i) => ({
     stroke-dasharray: 6 12;
     opacity: 0.9;
     animation: flow 1.1s linear infinite;
+    animation-play-state: var(--diagram-play-state, paused);
   }
   @keyframes flow {
     to {
@@ -234,6 +236,7 @@ const outbound = backends.map((b, i) => ({
     stroke-width: 1.5;
     filter: drop-shadow(0 0 16px rgba(0, 101, 255, 0.35));
     animation: corepulse 2.8s ease-in-out infinite;
+    animation-play-state: var(--diagram-play-state, paused);
   }
   @keyframes corepulse {
     0%,
