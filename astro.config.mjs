@@ -18,8 +18,6 @@ const DOC_VERSIONS = [
 // Canonical site URL. Overridable per-environment (preview deploys, etc.).
 const SITE = process.env.PUBLIC_SITE_URL || "https://dittofs.io";
 
-const GTM_ID = process.env.PUBLIC_GTM_ID ?? "";
-
 const GITHUB_REPO = "https://github.com/marmos91/dittofs";
 
 // https://astro.build/config
@@ -48,14 +46,9 @@ export default defineConfig({
       editLink: {
         baseUrl: `${GITHUB_REPO}/edit/develop/docs/`,
       },
-      head: GTM_ID
-        ? [
-            {
-              tag: "script",
-              content: `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','${GTM_ID}');`,
-            },
-          ]
-        : [],
+      components: {
+        Footer: "./src/components/StarlightFooter.astro",
+      },
       customCss: ["./src/styles/starlight.css"],
       // The versions plugin requires at least one version; until the first
       // release snapshot is cut, DOC_VERSIONS is empty and we omit the plugin

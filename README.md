@@ -48,7 +48,12 @@ secrets for the contact form, set in the Cloudflare Pages dashboard.
 | Variable | Purpose |
 | --- | --- |
 | `PUBLIC_SITE_URL` | Canonical URL (SEO/OG). |
-| `PUBLIC_GTM_ID` / `PUBLIC_FB_PIXEL_ID` | Analytics. Empty = no cookie banner, no tags. |
+| `PUBLIC_GTM_ID` | Analytics. Empty = no cookie banner, no tags. |
+
+Marketing and documentation pages share the same analytics consent. GTM loads
+only after acceptance. Withdrawing analytics consent clears Google Analytics
+cookies and reloads the page to stop tags already running. Keep any other tags
+and cookie cleanup rules in sync with the configured GTM container.
 
 The PRO contact form is a HubSpot embed configured in `src/pages/pro.astro`, so
 it needs no environment variables.
