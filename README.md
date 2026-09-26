@@ -35,6 +35,15 @@ npm run preview
 npm run og            # regenerate the social share image
 ```
 
+Production builds optimize PNG screenshots under `/docs-assets/` in rendered
+documentation, including raw HTML tables and versioned pages. Smaller lossless
+WebP copies are written to content-hashed `/_astro/docs-images/` URLs; the original
+PNGs and vendored Markdown remain unchanged. Missing dimensions are added when
+neither dimension is authored. The first content image stays eager and later
+images load lazily, unless the author already set loading behavior. Existing
+`picture` and `srcset` markup is preserved. Use `npm run preview` to inspect the
+optimized output; the development server serves the original images.
+
 ## Deploy (Cloudflare Pages)
 
 - Build command: `npm run build`

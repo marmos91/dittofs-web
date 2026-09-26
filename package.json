@@ -10,6 +10,7 @@
     "preview": "astro preview",
     "check": "astro check",
     "sync-docs": "node scripts/sync-docs.mjs",
+    "test:docs-images": "node --test integrations/docs-images.test.mjs",
     "og": "node scripts/make-og.mjs",
     "astro": "astro"
   },
@@ -38,5 +39,8 @@
   },
   "overrides": {
     "vite": "^7"
+  },
+  "devDependencies": {
+    "parse5": "^7.3.0"
   }
 }
