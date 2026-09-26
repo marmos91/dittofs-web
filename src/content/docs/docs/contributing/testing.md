@@ -413,8 +413,8 @@ in `test/conformance/suites.json`:
 | `pynfs` | NFS | `memory`, `badger`, `postgres`, `postgres-s3` | `4.0`, `4.1` | `memory`, `postgres-s3` | [`test/nfs-conformance/pynfs/KNOWN_FAILURES_V40.md`](https://github.com/marmos91/dittofs/blob/develop/test/nfs-conformance/pynfs/KNOWN_FAILURES_V40.md), [`test/nfs-conformance/pynfs/KNOWN_FAILURES_V41.md`](https://github.com/marmos91/dittofs/blob/develop/test/nfs-conformance/pynfs/KNOWN_FAILURES_V41.md) |
 
 Tiering, profiles and blacklists come from
-[`test/conformance/suites.json`](../../test/conformance/suites.json); every suite runs through
-[`test/conformance/run.sh`](../../test/conformance/run.sh).
+[`test/conformance/suites.json`](https://github.com/marmos91/dittofs/blob/develop/test/conformance/suites.json); every suite runs through
+[`test/conformance/run.sh`](https://github.com/marmos91/dittofs/blob/develop/test/conformance/run.sh).
 <!-- conformance-suites:end -->
 
 ### WPTS (Windows Protocol Test Suites)

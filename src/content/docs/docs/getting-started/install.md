@@ -348,5 +348,5 @@ default. To build and deploy from source instead, point `IMG` at your own regist
 `make docker-build docker-push IMG=<your-registry>/dittofs-operator:tag` then
 `make deploy IMG=<your-registry>/dittofs-operator:tag`.
 
-See the [`k8s/dittofs-operator/`](../k8s/dittofs-operator/) directory for the CRD reference,
+See the [`k8s/dittofs-operator/`](https://github.com/marmos91/dittofs/tree/develop/k8s/dittofs-operator/) directory for the CRD reference,
 RBAC, and Helm chart configuration.

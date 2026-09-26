@@ -5,6 +5,8 @@
   "type": "module",
   "private": true,
   "scripts": {
+    "test": "node --test scripts/*.test.mjs",
+    "check:doc-links": "node scripts/check-doc-links.mjs",
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
@@ -38,5 +40,10 @@
   },
   "overrides": {
     "vite": "^7"
+  },
+  "devDependencies": {
+    "mdast-util-from-markdown": "^2.0.3",
+    "micromark": "^4.0.2",
+    "parse5": "^7.3.0"
   }
 }

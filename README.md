@@ -32,6 +32,8 @@ docs change.
 ```bash
 npm run build         # -> dist/
 npm run preview
+npm test              # docs sync and link checker regressions
+npm run check:doc-links # validate internal docs links in dist/ after a build
 npm run og            # regenerate the social share image
 ```
 

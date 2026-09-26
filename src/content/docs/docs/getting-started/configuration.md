@@ -815,7 +815,7 @@ file's content is not recycled (only unlink and replace-overwrite are).
   --trash-exclude '*.tmp' --trash-exclude '*.cache'
 ```
 
-See [CLI.md](/docs/getting-started/cli#recycle-bin-trash) for the `dfsctl trash`
+See [CLI.md](/docs/getting-started/cli#dfsctl-trash) for the `dfsctl trash`
 management commands and [ARCHITECTURE.md](/docs/contributing/architecture#metadataservice)
 for the recycle-trap design.
 
@@ -1579,7 +1579,7 @@ dfsctl share create --name /secure --metadata default \
   --block-store s3-remote --encrypt-data
 ```
 
-See the [SMB security model](/docs/operations/security#smb3-security-model) for protocol-level
+See the [SMB security model](/docs/operations/security#smb-encryption) for protocol-level
 enforcement and the distinction between session and per-share encryption.
 
 ### SMB3 Signing Configuration

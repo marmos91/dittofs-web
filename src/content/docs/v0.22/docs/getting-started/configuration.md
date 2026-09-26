@@ -577,7 +577,7 @@ file's content is not recycled (only unlink and replace-overwrite are).
   --trash-exclude '*.tmp' --trash-exclude '*.cache'
 ```
 
-See [CLI.md](/v0.22/docs/getting-started/cli#recycle-bin-trash) for the `dfsctl trash`
+See [CLI.md](/v0.22/docs/getting-started/cli#dfsctl-trash) for the `dfsctl trash`
 management commands and [ARCHITECTURE.md](/v0.22/docs/contributing/architecture#metadataservice)
 for the recycle-trap design.
 
@@ -1353,7 +1353,7 @@ dfsctl share create --name /secure --metadata default --encrypt-data
 > deployments (this rejects SMB 2.x clients, which cannot encrypt). If SMB is bound to
 > a non-loopback address with `encryption_mode: disabled`, `dfs` logs a startup WARN
 > because file data then traverses the network in cleartext. See
-> [docs/SECURITY.md](/v0.22/docs/operations/security#smb3-security-model) for the hardened template.
+> [docs/SECURITY.md](/v0.22/docs/operations/security#smb-encryption) for the hardened template.
 
 **Enforcement Rules:**
 

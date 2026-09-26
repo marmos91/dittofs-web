@@ -486,7 +486,7 @@ Caveats:
 * Exclude globs (`--trash-exclude GLOB`, repeatable) cause matching
   deletions to bypass the bin entirely.
 
-See [CLI.md](/v0.22/docs/getting-started/cli#recycle-bin-trash) for the full command reference,
+See [CLI.md](/v0.22/docs/getting-started/cli#dfsctl-trash) for the full command reference,
 [CONFIGURATION.md](/v0.22/docs/getting-started/configuration#recycle-bin-trash) for the
 per-share settings, and [ARCHITECTURE.md](/v0.22/docs/contributing/architecture#metadataservice)
 for the recycle-trap design.
@@ -624,7 +624,7 @@ to use them via the standard Linux tools (`setfattr` / `getfattr`). Only the `us
 namespace is exposed, and values are stored inline up to 64 KiB (a larger value returns
 `NFS4ERR_XATTR2BIG`). The xattr namespace is shared with SMB extended attributes / named
 streams, so a value set over one protocol is readable over the other. See
-[NFS.md → NFSv4.2 Status](/v0.22/docs/connect/nfs#nfsv42-status) for details.
+[NFS.md → NFSv4.2 Status](/v0.22/docs/connect/nfs#supported-versions) for details.
 
 #### fallocate/posix\_fallocate
 
@@ -727,7 +727,7 @@ See `test/posix/KNOWN_FAILURES.md` for the complete list with detailed explanati
 
 ## Still Have Questions?
 
-* Check the other documentation in [docs/](.)
+* Check the other documentation in [docs/](https://github.com/marmos91/dittofs/tree/v0.22.0/docs/guide)
 * Search [existing GitHub issues](https://github.com/marmos91/dittofs/issues)
 * Open a [new issue](https://github.com/marmos91/dittofs/issues/new) for bugs or feature requests
-* Review [CLAUDE.md](https://github.com/marmos91/dittofs/blob/develop/CLAUDE.md) for detailed development guidance
+* Review [CLAUDE.md](https://github.com/marmos91/dittofs/blob/v0.22.0/CLAUDE.md) for detailed development guidance

@@ -248,7 +248,7 @@ Cipher suites supported:
 | AES-256-GCM | -- | 256-bit |
 
 SMB confidentiality is provided by **SMB3 in-protocol encryption**, not TLS or QUIC. See
-[./security.md](/v0.22/docs/operations/security#smb3-security-model) for details.
+[./security.md](/v0.22/docs/operations/security#smb-encryption) for details.
 
 ### Encryption Modes
 
@@ -509,7 +509,7 @@ Permission levels: `none`, `read`, `read-write`, `admin` (future).
 Resolution order: user explicit permission → group permission → share default.
 
 For the full user management reference (LDAP/AD idmap, password hash format, per-share
-defaults), see [./configuration.md#user-management](/v0.22/docs/getting-started/configuration#user-management).
+defaults), see [./configuration.md#user-management](/v0.22/docs/getting-started/configuration#9-user-management).
 
 ***
 
