@@ -9,7 +9,7 @@ const diskIcon = `<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 
 const cloudIcon = `<path d="M7 18a4 4 0 0 1 0-8 5 5 0 0 1 9.6-1.3A3.5 3.5 0 0 1 18 18H7z"/>`;
 ---
 
-<figure class="wp" aria-label="A write lands in the share journal, then syncs to the block store">
+<figure class="wp" data-diagram aria-label="A write lands in the share journal, then syncs to the block store">
   <!-- file -->
   <div class="wp-node" data-reveal>
     <span class="wp-ic">
@@ -191,6 +191,7 @@ const cloudIcon = `<path d="M7 18a4 4 0 0 1 0-8 5 5 0 0 1 9.6-1.3A3.5 3.5 0 0 1 
     background: var(--color-accent-bright);
     box-shadow: 0 0 8px rgba(61, 139, 255, 0.9);
     animation: drop 1.4s ease-in-out infinite;
+    animation-play-state: var(--diagram-play-state, paused);
   }
   .wp-dot--slow {
     background: #6fa8ff;

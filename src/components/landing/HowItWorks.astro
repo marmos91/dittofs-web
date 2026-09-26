@@ -29,7 +29,7 @@ const layers = [
 ];
 ---
 
-<div class="hiw relative mx-auto max-w-3xl">
+<div class="hiw relative mx-auto max-w-3xl" data-diagram>
   <!-- the data spine -->
   <div class="spine" aria-hidden="true">
     <span class="pulse"></span>
@@ -95,6 +95,7 @@ const layers = [
     );
     filter: drop-shadow(0 0 8px rgba(61, 139, 255, 0.9));
     animation: travel 3.2s linear infinite;
+    animation-play-state: var(--diagram-play-state, paused);
   }
   @keyframes travel {
     0% {
@@ -136,6 +137,7 @@ const layers = [
     border: 1.5px solid var(--color-accent);
     box-shadow: 0 0 0 4px var(--color-ink-950);
     animation: nodeglow 2.8s ease-in-out infinite;
+    animation-play-state: var(--diagram-play-state, paused);
   }
   .node-n {
     font-family: var(--font-mono);
