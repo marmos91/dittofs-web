@@ -488,7 +488,7 @@ Caveats:
 - Exclude globs (`--trash-exclude GLOB`, repeatable) cause matching
   deletions to bypass the bin entirely.
 
-See [CLI.md](/docs/getting-started/cli#recycle-bin-trash) for the full command reference,
+See [CLI.md](/docs/getting-started/cli#dfsctl-trash) for the full command reference,
 [CONFIGURATION.md](/docs/getting-started/configuration#recycle-bin-trash) for the
 per-share settings, and [ARCHITECTURE.md](/docs/contributing/architecture#metadataservice)
 for the recycle-trap design.
@@ -684,7 +684,7 @@ per-value ceiling, or thousands of ordinary ones.
 That is still far more than ext4 (one 4 KiB block for a file's whole set) or NTFS
 (64 KiB - 5) allow. The xattr namespace is shared with SMB extended attributes / named
 streams, so a value set over one protocol is readable over the other. See
-[NFS.md → NFSv4.2 Status](/docs/connect/nfs#nfsv42-status) for details.
+[NFS.md → Supported Versions](/docs/connect/nfs#supported-versions) for details.
 
 #### fallocate/posix_fallocate
 
@@ -833,7 +833,7 @@ See `test/posix/KNOWN_FAILURES.md` for the complete list with detailed explanati
 
 ## Still Have Questions?
 
-- Check the other documentation in [docs/](.)
+- Check the other documentation in [docs/](https://github.com/marmos91/dittofs/tree/develop/docs/guide)
 - Search [existing GitHub issues](https://github.com/marmos91/dittofs/issues)
 - Open a [new issue](https://github.com/marmos91/dittofs/issues/new) for bugs or feature requests
 - Review [CLAUDE.md](https://github.com/marmos91/dittofs/blob/develop/CLAUDE.md) for detailed development guidance

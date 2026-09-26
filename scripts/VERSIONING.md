@@ -24,9 +24,12 @@ snapshot routes itself under `/<version>/docs/*`. It also writes a
 
 Because the plugin **copies the current latest tree verbatim**, the snapshot
 inherits whatever was vendored into `/docs` at archive time — including each
-page's `editUrl`. So to get a snapshot whose "Edit page" links point at the
-release tag, vendor the latest tree from the tag *with editUrls pinned to the
-tag* before archiving, then return latest to develop afterwards.
+page's `editUrl` and GitHub links to files outside the website. Vendor the latest
+tree from the tag before archiving, then return latest to develop afterwards.
+Both kinds of GitHub links use the same ref: `DITTOFS_DOCS_EDITREF` when set,
+otherwise the exported `DITTOFS_DOCS_REF`, the `DITTOFS_DOCS_VERSION` tag, or
+`develop`. When `DITTOFS_DOCS_DIR` supplies a checkout, `DITTOFS_DOCS_REF` is
+ignored for both content and links; use `DITTOFS_DOCS_EDITREF` to pin that checkout.
 
 ## Snapshot a new release (e.g. cutting `v0.22`)
 
@@ -97,7 +100,7 @@ If a future doc adds another MDX-hostile construct in prose, extend
 | `DITTOFS_DOCS_DIR`      | Use an existing `docs/` checkout as the source.                                         |
 | `DITTOFS_DOCS_REF`      | `git archive` this ref's `docs/` from `DITTOFS_REPO_DIR`.                                |
 | `DITTOFS_REPO_DIR`      | Main repo checkout (default `../dittofs`).                                               |
-| `DITTOFS_DOCS_EDITREF`  | Override the git ref used in per-page `editUrl` links (default: the version tag or `develop`). |
+| `DITTOFS_DOCS_EDITREF`  | Override the git ref for `editUrl` and GitHub fallback links (default: exported `DITTOFS_DOCS_REF`, then the version tag, then `develop`). |
 | `DITTOFS_DOCS_VERSION`  | Write into `src/content/docs/<version>/docs/**` directly. Escape hatch only — normal snapshots are created by the plugin (this path does not add the `slug:` frontmatter the plugin needs for routing). |
 
 Default (no env vars): source `../dittofs/docs`, output the latest `/docs` tree

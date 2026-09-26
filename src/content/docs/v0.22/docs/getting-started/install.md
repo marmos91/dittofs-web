@@ -9,7 +9,7 @@ slug: v0.22/docs/getting-started/install
 
 This guide covers running DittoFS beyond a local source build: package managers, Docker,
 and the Kubernetes operator. For the quick local path (Nix / Homebrew / source build), see
-the [README](https://github.com/marmos91/dittofs/blob/develop/README.md). For configuration details, see [CONFIGURATION.md](/v0.22/docs/getting-started/configuration).
+the [README](https://github.com/marmos91/dittofs/blob/v0.22.0/README.md). For configuration details, see [CONFIGURATION.md](/v0.22/docs/getting-started/configuration).
 
 DittoFS ships two binaries — `dfs` (the server daemon) and `dfsctl` (the REST client).
 Most package managers install both.
@@ -63,7 +63,7 @@ scoop install dfsctl    # client CLI
 When installed via the system package managers, the server runs under systemd as the `dfs`
 service. Set the admin password before the first start with the
 `DITTOFS_ADMIN_INITIAL_PASSWORD` environment variable (see the
-[README](https://github.com/marmos91/dittofs/blob/develop/README.md#first-run--admin-password)); otherwise an auto-generated password is
+[README](https://github.com/marmos91/dittofs/blob/v0.22.0/README.md#first-run--admin-password)); otherwise an auto-generated password is
 written to the service log.
 
 ## Docker
@@ -148,5 +148,5 @@ default. To build and deploy from source instead, point `IMG` at your own regist
 `make docker-build docker-push IMG=<your-registry>/dittofs-operator:tag` then
 `make deploy IMG=<your-registry>/dittofs-operator:tag`.
 
-See the [`k8s/dittofs-operator/`](../k8s/dittofs-operator/) directory for the CRD reference,
+See the [`k8s/dittofs-operator/`](https://github.com/marmos91/dittofs/tree/v0.22.0/k8s/dittofs-operator/) directory for the CRD reference,
 RBAC, and Helm chart configuration.
