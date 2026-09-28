@@ -974,7 +974,7 @@ spec:
 For background on these decisions, see
 [ARCHITECTURE.md — Share Snapshots](/docs/contributing/architecture#share-snapshots).
 For the CLI surface, see
-[CLI.md — Share Snapshots](/docs/getting-started/cli#share-snapshots).
+[CLI.md — Share Snapshots](/docs/getting-started/cli#dfsctl-share-snapshot).
 
 ## 14. REST API reference
 
