@@ -501,7 +501,7 @@ file's content is not recycled (only unlink and replace-overwrite are).
   --trash-exclude '*.tmp' --trash-exclude '*.cache'
 ```
 
-See [CLI.md](/v0.19/docs/getting-started/cli#recycle-bin-trash) for the `dfsctl trash`
+See [CLI.md](/v0.19/docs/getting-started/cli#dfsctl-trash) for the `dfsctl trash`
 management commands and [ARCHITECTURE.md](/v0.19/docs/contributing/architecture#metadataservice)
 for the recycle-trap design.
 

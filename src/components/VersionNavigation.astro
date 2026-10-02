@@ -1,0 +1,10 @@
+---
+import { getDocsRoutes } from "../lib/docs-routes";
+import { resolveVersionNavigation } from "../lib/version-navigation.mjs";
+
+// The docs collection contains latest and archived entries, including their
+// explicit snapshot slugs. Retain the plugin's UI, scripts and translations.
+const routes = await getDocsRoutes();
+const html = resolveVersionNavigation(await Astro.slots.render("default"), routes);
+---
+<Fragment set:html={html} />

@@ -130,7 +130,12 @@ export default defineConfig({
         // Compact version selector (Latest + newest versions + "All versions…").
         // Only when the versions plugin is loaded: the override reads its config.
         ...(DOC_VERSIONS.length > 0
-          ? { ThemeSelect: "./src/components/docs/ThemeSelect.astro" }
+          ? {
+              ThemeSelect: "./src/components/StarlightThemeSelect.astro",
+              Search: "./src/components/StarlightSearch.astro",
+              PageTitle: "./src/components/StarlightPageTitle.astro",
+              Banner: "./src/components/StarlightBanner.astro",
+            }
           : {}),
       },
       sidebar: [

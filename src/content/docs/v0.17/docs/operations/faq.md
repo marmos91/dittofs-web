@@ -441,7 +441,7 @@ Caveats:
 * Exclude globs (`--trash-exclude GLOB`, repeatable) cause matching
   deletions to bypass the bin entirely.
 
-See [CLI.md](/v0.17/docs/getting-started/cli#recycle-bin-trash) for the full command reference,
+See [CLI.md](/v0.17/docs/getting-started/cli#dfsctl-trash) for the full command reference,
 [CONFIGURATION.md](/v0.17/docs/getting-started/configuration#recycle-bin-trash) for the
 per-share settings, and [ARCHITECTURE.md](/v0.17/docs/contributing/architecture#metadataservice)
 for the recycle-trap design.
