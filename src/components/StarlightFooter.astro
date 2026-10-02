@@ -1,0 +1,9 @@
+---
+import DefaultFooter from "@astrojs/starlight/components/Footer.astro";
+import Analytics from "./Analytics.astro";
+
+const enableAnalytics = !!(import.meta.env.PUBLIC_GTM_ID ?? "").trim();
+---
+
+<DefaultFooter {...Astro.props} />
+{enableAnalytics && <Analytics />}

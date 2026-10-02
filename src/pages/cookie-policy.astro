@@ -1,5 +1,6 @@
 ---
 import Base from "../layouts/Base.astro";
+const enableAnalytics = !!(import.meta.env.PUBLIC_GTM_ID ?? "").trim();
 ---
 
 <Base
@@ -36,15 +37,19 @@ import Base from "../layouts/Base.astro";
     <p>
       You can change or withdraw your consent at any time.
     </p>
-    <p>
-      <button
-        type="button"
-        class="btn btn-secondary"
-        onclick="window.openCookiePreferences && window.openCookiePreferences()"
-      >
-        Manage cookie preferences
-      </button>
-    </p>
+    {enableAnalytics ? (
+      <p>
+        <button
+          type="button"
+          class="btn btn-secondary"
+          onclick="window.openCookiePreferences && window.openCookiePreferences()"
+        >
+          Manage cookie preferences
+        </button>
+      </p>
+    ) : (
+      <p>Analytics are not enabled on this site.</p>
+    )}
     <p>
       You can also clear cookies in your browser settings, which will prompt the
       consent banner again on your next visit.

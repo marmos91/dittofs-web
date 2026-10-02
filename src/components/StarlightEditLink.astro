@@ -1,0 +1,9 @@
+---
+import DefaultEditLink from "@astrojs/starlight/components/EditLink.astro";
+
+const enableAnalytics = !!(import.meta.env.PUBLIC_GTM_ID ?? "").trim();
+---
+
+<!-- The native Footer renders this override inside its metadata row. -->
+<DefaultEditLink {...Astro.props} />
+{enableAnalytics && <a href="/cookie-policy/">Cookie preferences</a>}
