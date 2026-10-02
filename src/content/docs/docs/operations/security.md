@@ -182,7 +182,7 @@ Security notes:
   so an AD user gets one Unix identity across SMB and NFS.
 
 See [identity.md](/docs/connect/identity) for the provider reference and
-[windows-ad-setup.md](https://github.com/marmos91/dittofs/blob/develop/docs/guide/windows-ad-setup.md) for the end-to-end operator runbook.
+[windows-ad-setup.md](https://github.com/marmos91/dittofs/blob/v0.34.1/docs/guide/windows-ad-setup.md) for the end-to-end operator runbook.
 
 ---
 

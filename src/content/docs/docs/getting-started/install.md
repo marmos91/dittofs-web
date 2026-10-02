@@ -9,7 +9,7 @@ sidebar:
 
 This guide covers running DittoFS beyond a local source build: package managers, Docker,
 and the Kubernetes operator. For the quick local path (Nix / Homebrew / source build), see
-the [README](https://github.com/marmos91/dittofs/blob/develop/README.md). For configuration details, see [CONFIGURATION.md](/docs/getting-started/configuration).
+the [README](https://github.com/marmos91/dittofs/blob/v0.34.1/README.md). For configuration details, see [CONFIGURATION.md](/docs/getting-started/configuration).
 
 DittoFS ships two binaries — `dfs` (the server daemon) and `dfsctl` (the REST client).
 Most package managers install both.
@@ -198,7 +198,7 @@ scoop install dfsctl    # client CLI
 When installed via the system package managers, the server runs under systemd as the `dfs`
 service. Set the admin password before the first start with the
 `DITTOFS_ADMIN_INITIAL_PASSWORD` environment variable (see the
-[README](https://github.com/marmos91/dittofs/blob/develop/README.md#first-run--admin-password)). Under systemd the server's stdout is
+[README](https://github.com/marmos91/dittofs/blob/v0.34.1/README.md#first-run--admin-password)). Under systemd the server's stdout is
 not a terminal, so an auto-generated password would **not** be shown or written to the
 service log — pre-setting it is the only way to know the credential.
 

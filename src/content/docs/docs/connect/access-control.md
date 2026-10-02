@@ -45,7 +45,7 @@ Access to a file is decided by **two independent layers**, both of which must al
    + group SIDs** (SMB) or the Unix id the SID resolves to (NFS); the highest
    matching level wins, alongside any local grant. The share-root ACL projects a
    `sid:<SID>` ACE per grant so the filesystem layer agrees. See
-   [windows-ad-setup.md](https://github.com/marmos91/dittofs/blob/develop/docs/guide/windows-ad-setup.md) for the operator walkthrough.
+   [windows-ad-setup.md](https://github.com/marmos91/dittofs/blob/v0.34.1/docs/guide/windows-ad-setup.md) for the operator walkthrough.
 
 2. **Filesystem permissions (POSIX mode + ACL).** Once past the gate, the file's own POSIX mode bits and ACL decide the actual operation — exactly as described in the rest of this page. A share-level grant never overrides these; a user granted `read-write` on the export still cannot write a file whose mode/ACL denies them.
 

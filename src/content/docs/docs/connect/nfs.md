@@ -358,7 +358,7 @@ What the options mean:
 - **`actimeo=0`** — disables attribute caching for immediate cross-client
   visibility. Raise it (e.g. `actimeo=3`) for better performance once you don't
   need instant consistency.
-- **`resvport`** *(macOS)* — source from a reserved (<1024) port, which some
+- **`resvport`** *(macOS)* — source from a reserved (&lt;1024) port, which some
   NFS setups require.
 
 ### By NFS version (raw `mount`)

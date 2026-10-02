@@ -28,7 +28,7 @@ cross-protocol ACL/SID model).
 
 > **Joining a real Windows Server AD?** For an end-to-end operator runbook
 > (`ktpass` keytab, LDAP, granting AD users/groups directly, and per-user
-> "mount on login"), see [windows-ad-setup.md](https://github.com/marmos91/dittofs/blob/develop/docs/guide/windows-ad-setup.md). This page
+> "mount on login"), see [windows-ad-setup.md](https://github.com/marmos91/dittofs/blob/v0.34.1/docs/guide/windows-ad-setup.md). This page
 > is the reference for every provider field; that page is the step-by-step.
 
 ---
@@ -350,7 +350,7 @@ on PAC SIDs) and NFS (matched on the Unix id the SID resolves to — the RID und
 `idmap: rid`, so grant by name or use `idmap: rid` for an NFS-matchable id). This
 is the Samba `idmap_rid`-style, no-shadow-users model. For the full Windows
 Server walkthrough including per-user "mount on login", see
-[windows-ad-setup.md](https://github.com/marmos91/dittofs/blob/develop/docs/guide/windows-ad-setup.md); for the ACE model, see
+[windows-ad-setup.md](https://github.com/marmos91/dittofs/blob/v0.34.1/docs/guide/windows-ad-setup.md); for the ACE model, see
 [access-control.md](/docs/connect/access-control).
 
 ---
@@ -625,7 +625,7 @@ authenticating to DittoFS over **Kerberos** — the server side is fully proven
 is now supported for AD domain users via **NETLOGON pass-through** — configure a
 machine account (`kerberos.machine_account`, see
 [configuration.md](/docs/getting-started/configuration#12-kerberos-configuration) and
-[windows-ad-setup.md](https://github.com/marmos91/dittofs/blob/develop/docs/guide/windows-ad-setup.md)). For Kerberos acceptance testing,
+[windows-ad-setup.md](https://github.com/marmos91/dittofs/blob/v0.34.1/docs/guide/windows-ad-setup.md)). For Kerberos acceptance testing,
 domain-join is still the path with no extra server dependency.
 
 The in-cluster AD-DC is not publicly reachable by default. To let an external
@@ -705,4 +705,4 @@ icacls \\<dittofs-smb-ip>\<share>\<file>     # CLI equivalent of the Security ta
   `net ads join`** (DittoFS creates the computer object over LDAPS and rotates
   the password) are supported. See
   [configuration.md](/docs/getting-started/configuration#12-kerberos-configuration) and
-  [windows-ad-setup.md](https://github.com/marmos91/dittofs/blob/develop/docs/guide/windows-ad-setup.md).
+  [windows-ad-setup.md](https://github.com/marmos91/dittofs/blob/v0.34.1/docs/guide/windows-ad-setup.md).

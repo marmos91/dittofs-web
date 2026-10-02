@@ -425,7 +425,7 @@ a COMMIT waits for is the per-share **commit acknowledgement**, `commit_ack`
 | `block-store` | Acknowledge only when the data is on a durable store: `committed := localDurable \|\| (Finalized && remoteDurable)`. Every commit waits for an upload. |
 
 `dfsctl share show <name>` prints the setting in force as a **Commit Ack** row.
-See [Durability](https://github.com/marmos91/dittofs/blob/develop/docs/guide/durability.md) for what each one survives and the throughput
+See [Durability](https://github.com/marmos91/dittofs/blob/v0.34.1/docs/guide/durability.md) for what each one survives and the throughput
 cost — and note that the metadata-commit relaxation is a **separate, independent**
 axis, not a third value of this one.
 
@@ -506,7 +506,7 @@ per-share `dirty_expire_seconds` key in the local block store's `config` JSON.
 - Values below 1 s are clamped with a warning.
 - This is a **ceiling on the loss window, not a durability guarantee**: only a
   returned `COMMIT`/`FLUSH` says the bytes are on the device. See
-  [Durability](https://github.com/marmos91/dittofs/blob/develop/docs/guide/durability.md#the-dirty-age-ceiling-dirty_expire).
+  [Durability](https://github.com/marmos91/dittofs/blob/v0.34.1/docs/guide/durability.md#the-dirty-age-ceiling-dirty_expire).
 
 #### GC knobs
 
@@ -1144,7 +1144,7 @@ was matching on the old name.
 - `shares.remote_block_store_id` → `shares.block_store_id`
 - `shares.local_block_store_id` → dropped, after its `durability` / `writeback` /
   `require_durable_commit` settings are carried onto the share as `commit_ack` and
-  `relaxed_metadata_commit` (see [Durability](https://github.com/marmos91/dittofs/blob/develop/docs/guide/durability.md))
+  `relaxed_metadata_commit` (see [Durability](https://github.com/marmos91/dittofs/blob/v0.34.1/docs/guide/durability.md))
 - `block_store_configs.kind` → dropped, after the collision check above
 - `blockstore.journal.default_remote_cache_size` → deleted; per-share
   `--journal-size` is now the whole of the sizing policy
@@ -1241,7 +1241,7 @@ Only an event that takes the kernel down — power loss, kernel panic, hyperviso
 reset — can lose that window. Killing the `dfs` process (`SIGKILL`, OOM-kill,
 panic) loses nothing at either setting, because an acknowledged write is already
 in the kernel page cache. See
-[Durability → Namespace durability](https://github.com/marmos91/dittofs/blob/develop/docs/guide/durability.md#namespace-durability-relaxed_durability).
+[Durability → Namespace durability](https://github.com/marmos91/dittofs/blob/v0.34.1/docs/guide/durability.md#namespace-durability-relaxed_durability).
 
 #### Metadata Store Instances (CLI)
 
@@ -1809,7 +1809,7 @@ kerberos:
 channel and NTLM `TargetInfo` both need them). The `secret` / `bind_password`
 are redacted in `dfs config show`. For a full walkthrough — pre-creating the
 `DITTOFS$` account and testing the Explorer double-click — see
-[docs/guide/windows-ad-setup.md](https://github.com/marmos91/dittofs/blob/develop/docs/guide/windows-ad-setup.md).
+[docs/guide/windows-ad-setup.md](https://github.com/marmos91/dittofs/blob/v0.34.1/docs/guide/windows-ad-setup.md).
 
 ### 13. Identity Mapping Configuration
 

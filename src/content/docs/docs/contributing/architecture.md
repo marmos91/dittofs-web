@@ -246,7 +246,7 @@ hashing, or upload on the client path. A background carve pass later packs the
 accumulated dirty ranges into remote blocks (see below). How durable the ack is
 depends on the share's commit acknowledgement (`journal` or `block-store`) and on
 whether its metadata commit is relaxed — two independent axes, see the
-[durability guide](https://github.com/marmos91/dittofs/blob/develop/docs/guide/durability.md).
+[durability guide](https://github.com/marmos91/dittofs/blob/v0.34.1/docs/guide/durability.md).
 
 **Eviction**:
 - Cache: LRU eviction when the RAM budget is reached. No data loss (the journal still holds the bytes). The cache is per-share but cross-file inside a share — the same content hash referenced by two files shares one entry.
@@ -1249,7 +1249,7 @@ spec:
 
 Connection pool sizing depends on your workload:
 
-- **Light workload** (< 10 concurrent clients): `max_conns: 10`
+- **Light workload** (&lt; 10 concurrent clients): `max_conns: 10`
 - **Medium workload** (10-50 concurrent clients): `max_conns: 15`
 - **Heavy workload** (50+ concurrent clients): `max_conns: 20-25`
 
@@ -1599,7 +1599,7 @@ Two consequences worth knowing:
   nothing in the tree can read a `cas/` object any more — not even by
   type-asserting past `remote.RemoteStore`.
 
-### Pre-v0.16 `.blk` -> CAS: migrate with dittofs <= v0.21
+### Pre-v0.16 `.blk` -> CAS: migrate with dittofs &lt;= v0.21
 
 The offline `.blk`->CAS tool (`migrate-to-cas`) shipped through v0.21 and has
 been removed. The journal format stamp (`cmd/dfs/commands/start.go`'s
