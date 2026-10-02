@@ -1,0 +1,3 @@
+# graphify exclusions — paths not useful to a code graph.
+.wrangler/
+dist/
