@@ -897,7 +897,7 @@ re-attempt against the same row.
 For background on these decisions, see
 [ARCHITECTURE.md — Share Snapshots](/v0.17/docs/contributing/architecture#share-snapshots).
 For the CLI surface, see
-[CLI.md — Share Snapshots](/v0.17/docs/getting-started/cli#share-snapshots).
+[CLI.md — Share Snapshots](/v0.17/docs/getting-started/cli#dfsctl-share-snapshot).
 
 ## 13. REST API reference
 

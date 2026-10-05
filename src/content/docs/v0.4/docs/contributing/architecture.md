@@ -13,8 +13,8 @@ This document provides a deep dive into DittoFS's architecture, design patterns,
 
 * [Core Abstraction Layers](#core-abstraction-layers)
 * [Adapter Pattern](#adapter-pattern)
-* [Store Registry Pattern](#store-registry-pattern)
-* [Repository Interfaces](#repository-interfaces)
+* [Store Registry Pattern](#control-plane-pattern)
+* [Repository Interfaces](#store-interfaces-crud)
 * [Built-In and Custom Backends](#built-in-and-custom-backends)
 * [Directory Structure](#directory-structure)
 

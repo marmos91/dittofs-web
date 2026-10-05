@@ -493,7 +493,7 @@ Caveats:
 * Exclude globs (`--trash-exclude GLOB`, repeatable) cause matching
   deletions to bypass the bin entirely.
 
-See [CLI.md](/v0.33/docs/getting-started/cli#recycle-bin-trash) for the full command reference,
+See [CLI.md](/v0.33/docs/getting-started/cli#dfsctl-trash) for the full command reference,
 [CONFIGURATION.md](/v0.33/docs/getting-started/configuration#recycle-bin-trash) for the
 per-share settings, and [ARCHITECTURE.md](/v0.33/docs/contributing/architecture#metadataservice)
 for the recycle-trap design.
@@ -686,7 +686,7 @@ to use them via the standard Linux tools (`setfattr` / `getfattr`). Only the `us
 namespace is exposed, and values are stored inline up to 64 KiB (a larger value returns
 `NFS4ERR_XATTR2BIG`). The xattr namespace is shared with SMB extended attributes / named
 streams, so a value set over one protocol is readable over the other. See
-[NFS.md → NFSv4.2 Status](/v0.33/docs/connect/nfs#nfsv42-status) for details.
+[NFS.md → Supported Versions](/v0.33/docs/connect/nfs#supported-versions) for details.
 
 #### fallocate/posix\_fallocate
 

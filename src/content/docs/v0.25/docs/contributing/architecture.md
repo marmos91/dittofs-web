@@ -368,7 +368,7 @@ local durable copy of freshly-written chunks. **This substrate is live.**
 Locally-rolled chunks are appended to log-blobs, and the engine carver reads
 them back by position (`LocalChunkLocation{LogBlobID, RawOffset, RawLength}`)
 to pack them into the remote block objects described in
-[Block Store — Local Append-Log Tier](#block-store----local-append-log-tier).
+[Block Store — Local Append-Log Tier](#block-store--local-append-log-tier).
 Reads resolve through the local chunk index first — a positioned `pread(2)`
 against the log-blob — and fall back to the remote block only on a local
 miss (see [Block Reads](#block-reads-verified)).

@@ -31,7 +31,11 @@ Latest label. A sync from a non-release ref (e.g. a local develop checkout)
 labels it plain "Latest".
 
 Links in Latest: "Edit page" links point at `develop` (where PRs land); links
-to other files in the main repo point at the synced tag.
+to other files in the main repo point at the synced tag. Relative links resolve
+from the original source document, including repository files and directories
+that are not published on the website. A checkout supplied through
+`DITTOFS_DOCS_DIR` takes precedence over `DITTOFS_DOCS_REF`; use
+`DITTOFS_DOCS_EDITREF` to identify its ref when pinning a checkout.
 
 ## How snapshotting works
 

@@ -833,7 +833,7 @@ See `test/posix/KNOWN_FAILURES.md` for the complete list with detailed explanati
 
 ## Still Have Questions?
 
-- Check the other documentation in [docs/](.)
+- Check the other documentation in [docs/](https://github.com/marmos91/dittofs/tree/v0.34.1/docs/guide)
 - Search [existing GitHub issues](https://github.com/marmos91/dittofs/issues)
 - Open a [new issue](https://github.com/marmos91/dittofs/issues/new) for bugs or feature requests
 - Review [CLAUDE.md](https://github.com/marmos91/dittofs/blob/v0.34.1/CLAUDE.md) for detailed development guidance

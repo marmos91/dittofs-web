@@ -30,15 +30,15 @@ import { execFileSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { docsGitRef, docsEditRef, GITHUB_REPO, rewriteLinksAndAssets } from "./doc-links.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 
 const DOCS_REF = process.env.DITTOFS_DOCS_REF || "";
-// Ref the docs came from (DITTOFS_DOCS_REF, else develop): used for links to
-// other repo files and, for the latest tree, written to LATEST_META so
-// astro.config.mjs can label Latest.
-const SOURCE_REF = DOCS_REF || "develop";
+// Ref matching the selected source: used for links to other repo files and,
+// for the latest tree, written to LATEST_META so astro.config.mjs can label it.
+const SOURCE_REF = docsGitRef();
 const REPO_DIR =
   process.env.DITTOFS_REPO_DIR || path.resolve(ROOT, "..", "dittofs");
 
@@ -164,13 +164,6 @@ const LEGACY_DOCS = [
     title: "DittoFS Pro", description: "DittoFS Pro." },
 ];
 
-// Pick the layout from the source tree: no guide/ dir means the legacy layout.
-// Only keep entries whose source file exists in this version.
-const IS_LEGACY = !existsSync(path.join(SRC_DIR, "guide"));
-const ACTIVE_DOCS = (IS_LEGACY ? LEGACY_DOCS : DOCS).filter((d) =>
-  existsSync(path.join(SRC_DIR, d.src)),
-);
-
 const DOCS = [
   // ---- Getting Started ----
   { src: "guide/getting-started.md", group: "getting-started", slug: "getting-started", order: 1,
@@ -270,19 +263,20 @@ const DOCS = [
     description: "The DittoFS Pro web dashboard for managing stores, shares, and adapters." },
 ];
 
-// basename (lowercase) -> /docs route, for intra-doc link rewriting. The new
-// docs use RELATIVE links (./configuration.md, ../internals/architecture.md);
-// keying by basename makes them resolve regardless of the relative prefix.
-// Basenames are unique across the curated set.
+// Pick the layout from the source tree: no guide/ dir means the legacy layout.
+// Only keep entries whose source file exists in this version.
+const IS_LEGACY = !existsSync(path.join(SRC_DIR, "guide"));
+const ACTIVE_DOCS = (IS_LEGACY ? LEGACY_DOCS : DOCS).filter((d) =>
+  existsSync(path.join(SRC_DIR, d.src)),
+);
+
+// Resolve links against the source document, not the website's route layout.
 const ROUTE_BY_FILE = new Map(
   ACTIVE_DOCS.map((d) => [
-    path.basename(d.src).toLowerCase(),
+    `docs/${d.src}`.toLowerCase(),
     `${ROUTE_PREFIX}/${d.group}/${d.slug}`,
   ]),
 );
-
-const GITHUB_REPO = "https://github.com/marmos91/dittofs";
-const GITHUB_BLOB = `${GITHUB_REPO}/blob/${SOURCE_REF}`;
 
 function escapeYaml(s) {
   return s.replace(/"/g, '\\"');
@@ -389,69 +383,9 @@ const usedAssets = new Set();
 // assets/x.png) and return the public URL it should be rewritten to. Assets
 // are flattened by their path relative to the docs assets/ dir, so
 // ../assets/pro/x.png -> /docs-assets/pro/x.png.
-function registerAsset(refPath) {
-  const rel = refPath.replace(/^.*?assets\//i, ""); // e.g. "pro/x.png" or "x.png"
+function registerAsset(rel) {
   usedAssets.add(rel);
   return `/docs-assets/${rel}`;
-}
-
-function rewriteHtmlImages(md) {
-  // <img src="../assets/pro/x.png" ...> — rewrite the src to /docs-assets/*.
-  return md.replace(
-    /(<img\b[^>]*\bsrc=")([^"]+)(")/gi,
-    (full, pre, src, post) => {
-      const trimmed = src.trim();
-      if (/^(https?:|data:|\/)/i.test(trimmed)) return full;
-      if (/assets\//i.test(trimmed)) {
-        return `${pre}${registerAsset(trimmed)}${post}`;
-      }
-      return full;
-    },
-  );
-}
-
-// srcDocPath is the doc's path under the repo docs/ dir (e.g. "guide/install.md")
-// so relative links resolve against the file's own location.
-function rewriteLinksAndAssets(md, srcDocPath) {
-  // Dir of the source file under the repo root, e.g. "docs/guide".
-  const srcDir = path.posix.join("docs", path.posix.dirname(srcDocPath));
-
-  md = rewriteHtmlImages(md);
-  // Markdown links/images: [text](target) — target may have an #anchor.
-  return md.replace(
-    /(!?)\[([^\]]*)\]\(([^)]+)\)/g,
-    (full, bang, text, target) => {
-      const trimmed = target.trim();
-
-      // Leave absolute URLs, mailto, and pure anchors untouched.
-      if (/^(https?:|mailto:|#)/i.test(trimmed)) return full;
-
-      const [rawPath, anchor] = trimmed.split("#");
-      const suffix = anchor ? `#${anchor}` : "";
-
-      // Image / asset reference (markdown image, or any assets/ path).
-      if (bang === "!" || /assets\//i.test(rawPath)) {
-        return `${bang}[${text}](${registerAsset(rawPath)})`;
-      }
-
-      // Markdown link to a .md file.
-      if (/\.md$/i.test(rawPath)) {
-        const key = path.basename(rawPath).toLowerCase();
-        const route = ROUTE_BY_FILE.get(key);
-        if (route) return `[${text}](${route}${suffix})`;
-
-        // Not a curated page (e.g. ../../README.md, contributing.md, a
-        // KNOWN_FAILURES.md under test/). Resolve the relative path against the
-        // source file's directory and link to the GitHub blob at that path.
-        const repoRel = path.posix.normalize(
-          path.posix.join(srcDir, rawPath),
-        );
-        return `[${text}](${GITHUB_BLOB}/${repoRel}${suffix})`;
-      }
-
-      return full;
-    },
-  );
 }
 
 async function copyAssets() {
@@ -508,14 +442,13 @@ async function main() {
 
     let body = stripLeadingH1(raw);
     body = normalizeForMdx(body);
-    body = rewriteLinksAndAssets(body, doc.src);
+    body = rewriteLinksAndAssets(body, doc.src, {
+      routes: ROUTE_BY_FILE, ref: SOURCE_REF, registerAsset,
+    });
 
     // Point "Edit page" at the real source in the main repo, not this site's
     // vendored copy. Pin snapshots to their tag; latest edits go to develop.
-    const editRef =
-      process.env.DITTOFS_DOCS_EDITREF ||
-      (DOCS_VERSION ? `${DOCS_VERSION}.0` : "develop");
-    const editUrl = `${GITHUB_REPO}/edit/${editRef}/docs/${doc.src}`;
+    const editUrl = `${GITHUB_REPO}/edit/${docsEditRef()}/docs/${doc.src}`;
 
     const frontmatter =
       `---\n` +

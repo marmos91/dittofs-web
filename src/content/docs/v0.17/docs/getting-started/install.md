@@ -143,5 +143,5 @@ kubectl apply -f config/samples/dittofs_v1alpha1_dittofs.yaml
 kubectl get dittofs
 ```
 
-See the [`operator/`](../operator/) directory for the CRD reference, RBAC, and Helm chart
+See the [`operator/`](https://github.com/marmos91/dittofs/tree/v0.17.0/k8s/dittofs-operator) directory for the CRD reference, RBAC, and Helm chart
 configuration.

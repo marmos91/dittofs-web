@@ -951,7 +951,7 @@ for the design rationale. Key invariants:
 * [ARCHITECTURE.md — Phase 13 File-Level Dedup](/v0.15/docs/contributing/architecture#phase-13-file-level-dedup-objectid--merkle-root-v0150-a4)
 * [ARCHITECTURE.md — Dual-Read Window](/v0.15/docs/contributing/architecture#dual-read-window-phase-11--phase-14)
 * [ARCHITECTURE.md — Migration & Block-Layout Routing](/v0.15/docs/contributing/architecture#migration--block-layout-routing-v015x-a5)
-* [IMPLEMENTING\_STORES.md — FileAttr.Blocks \[\]BlockRef](IMPLEMENTING_STORES.md#fileattrblocks-blockref-v0150-phase-12)
+* [IMPLEMENTING\_STORES.md — FileAttr.Blocks \[\]BlockRef](/v0.15/docs/contributing/implementing-stores#fileattrblocks-blockref-v0150-phase-12)
 * [IMPLEMENTING\_STORES.md — FileAttr.ObjectID + FindByObjectID](/v0.15/docs/contributing/implementing-stores#fileattrobjectid--findbyobjectid-v0150-phase-13)
 * [IMPLEMENTING\_STORES.md — Block layout flag (v0.15+)](/v0.15/docs/contributing/implementing-stores#block-layout-flag-v015)
 * [CLI.md — `dfsctl blockstore migrate`](/v0.15/docs/getting-started/cli#dfsctl-blockstore-migrate)

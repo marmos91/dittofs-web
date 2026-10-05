@@ -19,7 +19,7 @@ This document describes the known limitations of DittoFS due to protocol constra
   * [ACLs](#acls)
   * [fallocate/posix\_fallocate](#fallocateposix_fallocate)
 * [SMB Client Limitations](#smb-client-limitations)
-  * [macOS Mount Ownership (Catalina 10.15+)](#macos-mount-ownership-catalina-1015)
+  * [macOS Mount Ownership (Catalina 10.15+)](#macos-mount-owner-only-access)
 * [Storage Backend Limitations](#storage-backend-limitations)
   * [Hard Links](#hard-links)
   * [Special Files](#special-files)
