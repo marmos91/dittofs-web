@@ -9,7 +9,7 @@ sidebar:
 
 This guide covers running DittoFS beyond a local source build: package managers, Docker,
 and the Kubernetes operator. For the quick local path (Nix / Homebrew / source build), see
-the [README](https://github.com/marmos91/dittofs/blob/v0.34.1/README.md). For configuration details, see [CONFIGURATION.md](/docs/getting-started/configuration).
+the [README](https://github.com/marmos91/dittofs/blob/v0.35.0/README.md). For configuration details, see [CONFIGURATION.md](/docs/getting-started/configuration).
 
 DittoFS ships two binaries — `dfs` (the server daemon) and `dfsctl` (the REST client).
 Most package managers install both.
@@ -198,7 +198,7 @@ scoop install dfsctl    # client CLI
 When installed via the system package managers, the server runs under systemd as the `dfs`
 service. Set the admin password before the first start with the
 `DITTOFS_ADMIN_INITIAL_PASSWORD` environment variable (see the
-[README](https://github.com/marmos91/dittofs/blob/v0.34.1/README.md#first-run--admin-password)). Under systemd the server's stdout is
+[README](https://github.com/marmos91/dittofs/blob/v0.35.0/README.md#first-run--admin-password)). Under systemd the server's stdout is
 not a terminal, so an auto-generated password would **not** be shown or written to the
 service log — pre-setting it is the only way to know the credential.
 
@@ -260,7 +260,6 @@ stack is usable the moment it is healthy. Clone the repository and run it from t
 ```bash
 docker compose up -d                                       # BadgerDB + memory block store
 COMPOSE_PROFILES=s3-backend docker compose up -d           # S3 content via Localstack
-COMPOSE_PROFILES=postgres-backend docker compose up -d     # PostgreSQL metadata
 docker compose logs -f dittofs bootstrap
 ```
 
@@ -272,7 +271,6 @@ the extra container without provisioning against it.
 |---------|----------|-------------|
 | default | BadgerDB | `memory` |
 | `s3-backend` | BadgerDB | `s3` (Localstack) |
-| `postgres-backend` | PostgreSQL | `memory` |
 
 There is no filesystem block store: a share's durable home is `s3` or `memory`, always
 fronted by an on-disk journal. The journal, the metadata store and the control-plane
@@ -292,7 +290,7 @@ Localstack holds its bucket for the life of its container, so `docker compose do
 followed by `up` comes back to an **empty bucket** while the metadata, which is on a volume,
 still names the objects that were in it. That destroys every already-offloaded payload
 outright; the journal is not a fallback for them, it has merely not been asked for the
-space yet. The two `memory` profiles are the same story with the block store in RAM.
+space yet. The default profile is the same story with the block store in RAM.
 Localstack is an S3 stand-in for exercising the S3 path, not a place to keep bytes — point
 the block store at a real bucket (`dfsctl store block add --type s3 …`) for anything you
 care about.
@@ -317,9 +315,8 @@ with root kept as root, so a client claiming root over NFS writes as root withou
 password. Every published port is therefore bound to `127.0.0.1`; reaching the stack from
 another host means removing that prefix in `docker-compose.yml`, and an unattended export
 on a shared network is not what these defaults are for. Override
-`DITTOFS_ADMIN_INITIAL_PASSWORD` and `DITTOFS_CONTROLPLANE_SECRET` first. Localstack and
-PostgreSQL publish no host port at all, so the stack cannot collide with a PostgreSQL you
-already run.
+`DITTOFS_ADMIN_INITIAL_PASSWORD` and `DITTOFS_CONTROLPLANE_SECRET` first. Localstack
+publishes no host port at all.
 
 `docker compose down` stops the stack and keeps the volumes; `docker compose down -v`
 discards them too. Running `up` again re-runs the provisioning, which skips whatever is
@@ -348,5 +345,140 @@ default. To build and deploy from source instead, point `IMG` at your own regist
 `make docker-build docker-push IMG=<your-registry>/dittofs-operator:tag` then
 `make deploy IMG=<your-registry>/dittofs-operator:tag`.
 
-See the [`k8s/dittofs-operator/`](https://github.com/marmos91/dittofs/tree/v0.34.1/k8s/dittofs-operator/) directory for the CRD reference,
+See the [`k8s/dittofs-operator/`](https://github.com/marmos91/dittofs/tree/v0.35.0/k8s/dittofs-operator/) directory for the CRD reference,
 RBAC, and Helm chart configuration.
+
+## Uninstall
+
+Removing DittoFS takes three steps:
+
+1. Stop the server.
+2. Remove the binaries.
+3. Optionally, delete the data.
+
+Removing the binaries never deletes your data.
+
+Before you start, if you plan to delete metadata stores, note their
+configuration while the server is still running:
+
+```bash
+dfsctl store metadata list -o json   # config.path for local stores, connection settings for PostgreSQL
+```
+
+### 1. Stop the server and unmount shares
+
+On every client, unmount NFS and SMB shares first. A mount left behind hangs
+once the server is gone:
+
+```bash
+sudo umount /mnt/nfs /mnt/smb
+```
+
+Then stop the server:
+
+```bash
+# Package install (.deb, .rpm, Arch)
+sudo systemctl disable --now dfs
+
+# Quick install script, Homebrew, or source build
+# (press Ctrl+C instead if the server runs in the foreground)
+dfs stop
+```
+
+### 2. Remove the binaries
+
+| Install method | Command |
+|---|---|
+| Quick install script | `sudo rm /usr/local/bin/dfs /usr/local/bin/dfsctl` |
+| Homebrew | `brew uninstall --cask dfs dfsctl` |
+| Debian / Ubuntu | `sudo apt purge dfs dfsctl` |
+| RHEL / Fedora | `sudo yum remove dfs dfsctl` |
+| Arch Linux | `sudo pacman -R dfs` (add `dfsctl` if you installed it) |
+| Scoop | `scoop uninstall dfs dfsctl` |
+| Docker | `docker rm -f dittofs && docker rmi marmos91c/dittofs:latest` |
+| Docker Compose | `docker compose down && docker rmi dittofs:compose` |
+| Source build | delete the `dfs` and `dfsctl` binaries you built, and the clone |
+| Kubernetes operator | see the [operator uninstall guide](https://github.com/marmos91/dittofs/blob/v0.35.0/k8s/dittofs-operator/docs/INSTALL.md#uninstallation) |
+
+If you installed the Homebrew formula instead of the cask (the README
+command, without `--cask`), use
+`brew uninstall marmos91/tap/dfs marmos91/tap/dfsctl`.
+
+> **Note:** removing the `.deb` also removes `/usr/local/bin` if it is left
+> empty. Recreate it with `sudo mkdir -p /usr/local/bin` if other tools need it.
+
+Optionally remove the package sources:
+
+```bash
+# APT
+sudo rm /etc/apt/sources.list.d/dfs.list /usr/share/keyrings/dittofs.gpg
+sudo apt update
+
+# YUM
+sudo rm /etc/yum.repos.d/dfs.repo
+
+# Scoop
+scoop bucket rm marmos91
+```
+
+### 3. Remove data (optional)
+
+> **Warning:** This cannot be undone. It deletes your configuration, users,
+> shares, file metadata, and any file data that has not reached the block
+> store. Objects already in a remote block store remain, but without their
+> metadata they are unusable.
+
+**Server run by your user** (quick install script, Homebrew, source build):
+
+| Data | Linux / macOS | Windows |
+|---|---|---|
+| Config file and control-plane database | `~/.config/dittofs/` | `%APPDATA%\dittofs\` |
+| Logs, PID file, journal (`blocks/`) | `~/.local/state/dittofs/` | `%LOCALAPPDATA%\dittofs\` |
+
+```bash
+rm -rf ~/.config/dittofs ~/.local/state/dittofs
+```
+
+If you set `XDG_CONFIG_HOME`, `XDG_STATE_HOME`, or `blockstore.journal.path`,
+remove those locations instead.
+
+**Server run by the packaged systemd service:** the service runs as root with
+no home directory, so unless you configured paths explicitly its data is in:
+
+| Data | Path |
+|---|---|
+| Control-plane database | `/.config/dittofs/` |
+| Logs and journal | `/tmp/dittofs/` |
+| systemd overrides you created | `/etc/systemd/system/dfs.service.d/` |
+
+```bash
+sudo rm -rf /.config/dittofs /tmp/dittofs /etc/systemd/system/dfs.service.d
+sudo systemctl daemon-reload
+```
+
+**Everywhere:**
+
+- Local metadata stores: the BadgerDB directory or SQLite database file named
+  by the `config.path` you noted before stopping the server.
+- `dfsctl` credentials: `~/.config/dfsctl/config.json` (Windows:
+  `%APPDATA%\dfsctl\config.json`), for each user who ran `dfsctl login`.
+- Client leftovers: `~/.smbcredentials`, mount point directories, and any
+  DittoFS entries in `/etc/fstab`.
+
+**Docker:**
+
+```bash
+docker volume rm dittofs-metadata dittofs-blocks dittofs-state dittofs-cache
+# or, with Compose
+docker compose down -v
+```
+
+The single-container setup also bind-mounts `~/.config/dittofs/config.yaml`
+from the host; remove it as shown above.
+
+**Remote storage:** data in remote block stores such as S3 buckets, and in
+externally managed PostgreSQL databases used for the control plane or for
+metadata, is not touched by any step above. Delete it on the storage side if
+you no longer need it. The Compose `postgres-backend` database is different:
+it lives in the `dittofs-postgres` volume and is deleted by
+`docker compose down -v`.
