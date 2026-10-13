@@ -12,7 +12,7 @@ covers Windows VM setup, manual SMB and NFS validation checklists, and the WPTS 
 conformance suites.
 
 For Go unit/integration tests and the e2e test runner, see
-[`./contributing.md`](https://github.com/marmos91/dittofs/blob/v0.34.1/docs/internals/contributing.md).
+[`./contributing.md`](https://github.com/marmos91/dittofs/blob/v0.35.0/docs/internals/contributing.md).
 
 For the end-user guide to connecting a Windows client, see
 [`../guide/windows.md`](/docs/connect/windows).
@@ -42,6 +42,7 @@ For the end-user guide to connecting a Windows client, see
   - [smbtorture (Samba Test Suite)](#smbtorture-samba-test-suite)
   - [Running both SMB suites](#running-both-smb-suites)
   - [pynfs (NFSv4 protocol)](#pynfs-nfsv4-protocol)
+  - [cthon04 and nfstest (NFS mount options)](#cthon04-and-nfstest-nfs-mount-options)
 - [Device-loss crash testing (dm-flakey)](#device-loss-crash-testing-dm-flakey)
 
 ---
@@ -141,7 +142,7 @@ go build -o dfsctl cmd/dfsctl/main.go
 ./dfs start
 
 # 4. Create test stores
-./dfsctl store metadata add --name test-meta --type memory
+./dfsctl store metadata add --name test-meta --in-memory
 ./dfsctl store block add --name test-blocks --type memory
 
 # 5. Create a test share
@@ -406,22 +407,23 @@ in `test/conformance/suites.json`:
 
 | Suite | Protocol | Profiles | Variants | Presubmit | Known failures |
 |---|---|---|---|---|---|
-| `wpts` | SMB | `memory`, `badger`, `badger-s3`, `postgres-s3` | — | `memory`, `postgres-s3` | [`test/smb-conformance/KNOWN_FAILURES.md`](https://github.com/marmos91/dittofs/blob/v0.34.1/test/smb-conformance/KNOWN_FAILURES.md) |
-| `smbtorture` | SMB | `memory`, `badger`, `sqlite`, `postgres` | — | `memory`, `badger` | [`test/smb-conformance/smbtorture/KNOWN_FAILURES.md`](https://github.com/marmos91/dittofs/blob/v0.34.1/test/smb-conformance/smbtorture/KNOWN_FAILURES.md) |
-| `pjdfstest` | NFS | `memory`, `badger`, `postgres`, `postgres-s3` | `3`, `4`, `4.1` | `memory`, `postgres-s3` | [`test/posix/KNOWN_FAILURES.md`](https://github.com/marmos91/dittofs/blob/v0.34.1/test/posix/KNOWN_FAILURES.md), [`test/posix/KNOWN_FAILURES_V4.md`](https://github.com/marmos91/dittofs/blob/v0.34.1/test/posix/KNOWN_FAILURES_V4.md) |
-| `nfs-kerberos` | NFS | `memory-kerberos` | — | `memory-kerberos` | — |
-| `pynfs` | NFS | `memory`, `badger`, `postgres`, `postgres-s3` | `4.0`, `4.1` | `memory`, `postgres-s3` | [`test/nfs-conformance/pynfs/KNOWN_FAILURES_V40.md`](https://github.com/marmos91/dittofs/blob/v0.34.1/test/nfs-conformance/pynfs/KNOWN_FAILURES_V40.md), [`test/nfs-conformance/pynfs/KNOWN_FAILURES_V41.md`](https://github.com/marmos91/dittofs/blob/v0.34.1/test/nfs-conformance/pynfs/KNOWN_FAILURES_V41.md) |
+| `wpts` | SMB | `memory`, `badger`, `badger-s3` | — | `memory`, `badger-s3` | [`test/smb-conformance/KNOWN_FAILURES.md`](https://github.com/marmos91/dittofs/blob/v0.35.0/test/smb-conformance/KNOWN_FAILURES.md) |
+| `smbtorture` | SMB | `memory`, `badger` | — | `memory`, `badger` | [`test/smb-conformance/smbtorture/KNOWN_FAILURES.md`](https://github.com/marmos91/dittofs/blob/v0.35.0/test/smb-conformance/smbtorture/KNOWN_FAILURES.md) |
+| `pjdfstest` | NFS | `memory`, `badger`, `badger-s3` | `3`, `4`, `4.1` | `memory`, `badger-s3` | [`test/posix/KNOWN_FAILURES.md`](https://github.com/marmos91/dittofs/blob/v0.35.0/test/posix/KNOWN_FAILURES.md), [`test/posix/KNOWN_FAILURES_V4.md`](https://github.com/marmos91/dittofs/blob/v0.35.0/test/posix/KNOWN_FAILURES_V4.md) |
+| `pynfs` | NFS | `memory`, `badger`, `badger-s3` | `4.0`, `4.1` | `memory`, `badger-s3` | [`test/nfs-conformance/pynfs/KNOWN_FAILURES_V40.md`](https://github.com/marmos91/dittofs/blob/v0.35.0/test/nfs-conformance/pynfs/KNOWN_FAILURES_V40.md), [`test/nfs-conformance/pynfs/KNOWN_FAILURES_V41.md`](https://github.com/marmos91/dittofs/blob/v0.35.0/test/nfs-conformance/pynfs/KNOWN_FAILURES_V41.md) |
+| `cthon04` | NFS | `memory`, `badger`, `badger-s3` | `default`, `v3`, `v4.0`, `v4.1`, `v4.1-noac`, `v4.1-smallio` | `memory` | [`test/nfs-mount/cthon04/KNOWN_FAILURES.md`](https://github.com/marmos91/dittofs/blob/v0.35.0/test/nfs-mount/cthon04/KNOWN_FAILURES.md), [`test/nfs-mount/cthon04/KNOWN_FAILURES_V3.md`](https://github.com/marmos91/dittofs/blob/v0.35.0/test/nfs-mount/cthon04/KNOWN_FAILURES_V3.md) |
+| `nfstest` | NFS | `memory` | `default`, `v3`, `v4.0`, `v4.1`, `v4.1-noac`, `v4.1-smallio` | — | [`test/nfs-mount/nfstest/KNOWN_FAILURES.md`](https://github.com/marmos91/dittofs/blob/v0.35.0/test/nfs-mount/nfstest/KNOWN_FAILURES.md), [`test/nfs-mount/nfstest/KNOWN_FAILURES_V3.md`](https://github.com/marmos91/dittofs/blob/v0.35.0/test/nfs-mount/nfstest/KNOWN_FAILURES_V3.md), [`test/nfs-mount/nfstest/KNOWN_FAILURES_V4.md`](https://github.com/marmos91/dittofs/blob/v0.35.0/test/nfs-mount/nfstest/KNOWN_FAILURES_V4.md), [`test/nfs-mount/nfstest/KNOWN_FAILURES_V40.md`](https://github.com/marmos91/dittofs/blob/v0.35.0/test/nfs-mount/nfstest/KNOWN_FAILURES_V40.md) |
 
 Tiering, profiles and blacklists come from
-[`test/conformance/suites.json`](https://github.com/marmos91/dittofs/blob/v0.34.1/test/conformance/suites.json); every suite runs through
-[`test/conformance/run.sh`](https://github.com/marmos91/dittofs/blob/v0.34.1/test/conformance/run.sh).
+[`test/conformance/suites.json`](https://github.com/marmos91/dittofs/blob/v0.35.0/test/conformance/suites.json); every suite runs through
+[`test/conformance/run.sh`](https://github.com/marmos91/dittofs/blob/v0.35.0/test/conformance/run.sh).
 
 
 ### WPTS (Windows Protocol Test Suites)
 
 - **Suite:** MS-SMB2 BVT (Build Verification Tests)
 - **Known failures:** see
-  [`../../test/smb-conformance/KNOWN_FAILURES.md`](https://github.com/marmos91/dittofs/blob/v0.34.1/test/smb-conformance/KNOWN_FAILURES.md)
+  [`../../test/smb-conformance/KNOWN_FAILURES.md`](https://github.com/marmos91/dittofs/blob/v0.35.0/test/smb-conformance/KNOWN_FAILURES.md)
 - **Run locally:**
   ```bash
   cd test/smb-conformance
@@ -434,7 +436,7 @@ Tiering, profiles and blacklists come from
 - **Suite:** Full SMB2 test suite (`smb2.*`)
 - **Image:** `quay.io/samba.org/samba-toolbox:v0.8`
 - **Known failures:** see
-  [`../../test/smb-conformance/smbtorture/KNOWN_FAILURES.md`](https://github.com/marmos91/dittofs/blob/v0.34.1/test/smb-conformance/smbtorture/KNOWN_FAILURES.md)
+  [`../../test/smb-conformance/smbtorture/KNOWN_FAILURES.md`](https://github.com/marmos91/dittofs/blob/v0.35.0/test/smb-conformance/smbtorture/KNOWN_FAILURES.md)
 - **Run locally:**
   ```bash
   cd test/smb-conformance
@@ -461,9 +463,9 @@ through a kernel client, which only ever sends the subset of the protocol it nee
 
 - **Suite:** pynfs NFSv4.0 (689 tests) and NFSv4.1 (269 tests)
 - **Known failures:** see
-  [`../../test/nfs-conformance/pynfs/KNOWN_FAILURES_V40.md`](https://github.com/marmos91/dittofs/blob/v0.34.1/test/nfs-conformance/pynfs/KNOWN_FAILURES_V40.md)
-  and [`KNOWN_FAILURES_V41.md`](https://github.com/marmos91/dittofs/blob/v0.34.1/test/nfs-conformance/pynfs/KNOWN_FAILURES_V41.md)
-- **Baseline:** [`baseline-knfsd.md`](https://github.com/marmos91/dittofs/blob/v0.34.1/test/nfs-conformance/pynfs/baseline-knfsd.md) —
+  [`../../test/nfs-conformance/pynfs/KNOWN_FAILURES_V40.md`](https://github.com/marmos91/dittofs/blob/v0.35.0/test/nfs-conformance/pynfs/KNOWN_FAILURES_V40.md)
+  and [`KNOWN_FAILURES_V41.md`](https://github.com/marmos91/dittofs/blob/v0.35.0/test/nfs-conformance/pynfs/KNOWN_FAILURES_V41.md)
+- **Baseline:** [`baseline-knfsd.md`](https://github.com/marmos91/dittofs/blob/v0.35.0/test/nfs-conformance/pynfs/baseline-knfsd.md) —
   the same suite against the Linux kernel server, which is what distinguishes an assertion
   no server satisfies from one DittoFS fails alone
 - **Run locally:**
@@ -474,7 +476,29 @@ through a kernel client, which only ever sends the subset of the protocol it nee
   ```
 
 Runs in CI via `.github/workflows/nfs-pynfs.yml` on every non-docs PR. See
-[`test/nfs-conformance/pynfs/README.md`](https://github.com/marmos91/dittofs/blob/v0.34.1/test/nfs-conformance/pynfs/README.md).
+[`test/nfs-conformance/pynfs/README.md`](https://github.com/marmos91/dittofs/blob/v0.35.0/test/nfs-conformance/pynfs/README.md).
+
+### cthon04 and nfstest (NFS mount options)
+
+The other NFS suites mount with client caching and locking off (`noac`, `nolock`,
+`actimeo=0`), or do not mount at all. These two mount the way a user would, through the
+kernel client. They run once per named option set (`default`, which names no options and so
+gets NFSv4.2, then `v3`, `v4.0`, `v4.1`, `v4.1-noac`, `v4.1-smallio`), so a failure points at
+the option that caused it.
+
+- **Suites:** Connectathon (cthon04): basic, general, special, and lock on the v4 sets.
+  NetApp's nfstest: `posix` and `dio`, plus `delegation` on the v4 sets and `lock` on `v4.0` and `v4.1`.
+- **Known failures:** `test/nfs-mount/<suite>/KNOWN_FAILURES.md`, shared by every option set, plus a
+  per-version overlay (`_V3.md`; for nfstest also `_V4.md`, and `_V40.md` for `v4.0` alone). Which
+  tables grade which set is declared in `test/conformance/suites.json`
+- **Run locally:**
+  ```bash
+  sudo test/conformance/run.sh --suite cthon04 --profile memory --variant v4.1   # Linux host
+  test/nfs-mount/dev-docker.sh cthon04 memory v4.1                               # anywhere with Docker
+  ```
+
+Runs in the `nfs-mount` job of `.github/workflows/conformance.yml`. See
+[`test/nfs-mount/README.md`](https://github.com/marmos91/dittofs/blob/v0.35.0/test/nfs-mount/README.md).
 
 > Do not run two instances of the e2e or conformance suites concurrently — they share a Docker
 > container name and will collide. Run them serially and `docker rm -f` between runs if needed.

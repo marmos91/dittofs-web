@@ -28,7 +28,7 @@ nix shell github:marmos91/dittofs
 
 # Homebrew (macOS / Linux)
 brew tap marmos91/tap
-brew install marmos91/tap/dfs marmos91/tap/dfsctl
+brew install --cask marmos91/tap/dfs marmos91/tap/dfsctl
 
 # Quick install script (macOS / Linux)
 curl -fsSL https://github.com/marmos91/dittofs/releases/latest/download/install.sh | sh
@@ -124,8 +124,8 @@ dfsctl store metadata add --name default --type badger
 dfsctl store block add --name s3-remote --type s3
 ```
 
-> **Want zero dependencies for a quick test?** Use `--type memory` for both the metadata
-> store and the block store instead. Everything is then in-RAM and ephemeral — perfect
+> **Want zero dependencies for a quick test?** Create the metadata store with
+> `--in-memory` and the block store with `--type memory`. Everything is then in-RAM and ephemeral — perfect
 > for a smoke test, useless for real data.
 
 ## 6. Create a share and grant access
@@ -137,16 +137,30 @@ dfsctl share permission grant /export --user $(whoami) --level read-write
 
 ## 7. Mount over NFS
 
+<details>
+<summary><strong>Client prerequisites (Linux)</strong></summary>
+
+macOS includes the NFS and SMB clients. On Linux, install them before mounting:
+
+```bash
+sudo apt install -y nfs-common cifs-utils   # Debian / Ubuntu
+sudo dnf install -y nfs-utils cifs-utils    # RHEL / Fedora
+```
+
+</details>
+
 ```bash
 dfsctl adapter enable nfs
 
 # Linux
+sudo mkdir -p /mnt/nfs
 sudo mount -t nfs -o tcp,port=12049,mountport=12049 localhost:/export /mnt/nfs
+echo "Hello DittoFS!" > /mnt/nfs/hello.txt
 
 # macOS
+mkdir -p /tmp/nfs
 sudo mount -t nfs -o tcp,port=12049,mountport=12049,resvport,nolock localhost:/export /tmp/nfs
-
-echo "Hello DittoFS!" > /mnt/nfs/hello.txt
+echo "Hello DittoFS!" > /tmp/nfs/hello.txt
 ```
 
 Writes land in the share's journal first and sync to S3 in the background. More mount
@@ -161,11 +175,17 @@ dfsctl adapter enable smb
 dfsctl user create --username alice          # password prompted
 dfsctl share permission grant /export --user alice --level read-write
 
-# Linux (use a credentials file — never put passwords on the command line)
+# Linux: keep alice's password in a private credentials file, never on the command line
+printf 'username=alice\npassword=ALICE_PASSWORD\n' > ~/.smbcredentials
+chmod 600 ~/.smbcredentials
+sudo mkdir -p /mnt/smb
+
+# uid/gid make the mounted files yours locally, so you can write as a regular user
 sudo mount -t cifs //localhost/export /mnt/smb \
-  -o port=12445,credentials=$HOME/.smbcredentials,vers=3.1.1
+  -o port=12445,credentials=$HOME/.smbcredentials,vers=3.1.1,uid=$(id -u),gid=$(id -g)
 
 # macOS (prompts for the password)
+mkdir -p /tmp/smb
 mount -t smbfs //alice@localhost:12445/export /tmp/smb
 ```
 
@@ -174,9 +194,10 @@ signing are in the [SMB guide](/docs/connect/smb).
 
 ## Next steps
 
-- [Configuration](/docs/getting-started/configuration) — every config key and flag, with defaults.
-- [CLI reference](/docs/getting-started/cli) — every `dfs` and `dfsctl` command.
-- [Choosing stores](/docs/getting-started/choosing-stores) — metadata and block store trade-offs.
-- [Identity: AD / LDAP / Kerberos](/docs/connect/identity) — connect to a directory service.
+- [Configuration](/docs/getting-started/configuration): every config key and flag, with defaults.
+- [CLI reference](/docs/getting-started/cli): every `dfs` and `dfsctl` command.
+- [Choosing stores](/docs/getting-started/choosing-stores): metadata and block store trade-offs.
+- [Identity: AD / LDAP / Kerberos](/docs/connect/identity): connect to a directory service.
 - [Snapshots](/docs/operations/snapshots), [Quotas](/docs/operations/quotas), [Encryption](/docs/operations/encryption).
-- [Troubleshooting](/docs/operations/troubleshooting) — when a mount or permission won't cooperate.
+- [Mount at boot](/docs/connect/persistent-mounts): make NFS and SMB mounts survive a reboot.
+- [Troubleshooting](/docs/operations/troubleshooting): when a mount or permission won't cooperate.
