@@ -30,7 +30,7 @@
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
     "@fontsource-variable/source-sans-3": "^5.2.9",
     "@fontsource/titillium-web": "^5.2.8",
-    "astro": "^7.4.5",
+    "astro": "^7.4.12",
     "motion": "^12.40.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
